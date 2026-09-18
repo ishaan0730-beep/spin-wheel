@@ -23,7 +23,7 @@ if exist "%GIT_PATH%" (
 "%GIT_CMD%" commit -m "Lucky Hourly Spin - 10-Slot Real-Time Multi-Device Wheel" 2>nul
 
 echo Pushing main branch to GitHub...
-"%GIT_CMD%" push -u origin main
+"%GIT_CMD%" push -u --force origin main
 
 echo.
 echo =======================================================
