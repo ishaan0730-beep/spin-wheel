@@ -532,63 +532,7 @@ class SpinWheelApp {
       }
     });
 
-    // 2. MOBILE TRIGGER #1: Single Tap or Hold on Center Gold Star Emblem
-    if (this.centerHub) {
-      const handleCenterTap = (e) => {
-        if (e) e.preventDefault();
-        this.centerHub.classList.add('touched');
-        setTimeout(() => this.centerHub.classList.remove('touched'), 250);
-        this.triggerSecretModal();
-      };
-
-      this.centerHub.addEventListener('click', handleCenterTap);
-      this.centerHub.addEventListener('touchend', handleCenterTap);
-    }
-
-    // 3. MOBILE TRIGGER #2: Discreet Footer Master Button
-    if (this.footerSecretBtn) {
-      this.footerSecretBtn.addEventListener('click', (e) => {
-        if (e) e.preventDefault();
-        this.triggerSecretModal();
-      });
-      this.footerSecretBtn.addEventListener('touchend', (e) => {
-        if (e) e.preventDefault();
-        this.triggerSecretModal();
-      });
-    }
-
-    // 4. MOBILE TRIGGER #3: 3 Quick Taps on Brand Header / Logo
-    if (this.brandHeader) {
-      this.brandHeader.addEventListener('click', () => {
-        this.brandTapCount++;
-        clearTimeout(this.brandTapTimer);
-        this.brandTapTimer = setTimeout(() => {
-          this.brandTapCount = 0;
-        }, 1500);
-
-        if (this.brandTapCount >= 3) {
-          this.brandTapCount = 0;
-          this.triggerSecretModal();
-        }
-      });
-    }
-
-    // 5. MOBILE TRIGGER #4: Double-tap on Countdown Card
-    if (this.countdownEl) {
-      this.countdownEl.addEventListener('dblclick', () => {
-        this.triggerSecretModal();
-      });
-    }
-
-    // 6. DIRECT URL TRIGGER: ?admin, ?master, #admin, or #master in mobile browser address bar
-    const checkUrlParams = () => {
-      const href = window.location.href;
-      if (href.includes('admin') || href.includes('master')) {
-        this.triggerSecretModal();
-      }
-    };
-    checkUrlParams();
-    window.addEventListener('hashchange', checkUrlParams);
+    // Note: Mobile master triggers are disabled. Master Login can exclusively be opened via PC keyboard sequence "00773300".
 
     // Secret Login Modal Submit
     const authenticateMaster = () => {
