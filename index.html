@@ -293,14 +293,67 @@
             </div>
           </div>
 
-          <!-- Manual Round Display Override -->
-          <div class="round-override-box" style="margin-top: 0.85rem;">
-            <label class="login-label">Manual Round Title / Time:</label>
-            <div class="login-row">
-              <input type="text" id="manual-round-title-input" class="admin-input" placeholder="e.g. 03:00 PM or Special Round 1">
-              <button id="save-round-title-btn" class="btn btn-secondary">Set Title</button>
-              <button id="reset-real-clock-btn" class="btn btn-secondary btn-sm" title="Reset to Real Clock">Reset Auto</button>
+          <!-- SPECIFIC ROUND TIMING & WINNING NUMBER SETUP (e.g. 04:00 PM -> 21) -->
+          <div class="round-winner-preset-box" style="margin-top: 0.9rem;">
+            <div class="preset-box-title">
+              <span>🎯 Set Round Timing & Predetermined Winner:</span>
             </div>
+            <p class="card-desc" style="margin-bottom: 0.5rem; font-size: 0.76rem;">Pick a round time (e.g. 04:00 PM) and choose what number will win at that time (e.g. 21):</p>
+            
+            <div class="timing-winner-grid">
+              <div class="grid-field">
+                <label class="field-label">Round Time:</label>
+                <select id="quick-round-hour-select" class="admin-select">
+                  <option value="12:00 AM">12:00 AM</option>
+                  <option value="01:00 AM">01:00 AM</option>
+                  <option value="02:00 AM">02:00 AM</option>
+                  <option value="03:00 AM">03:00 AM</option>
+                  <option value="04:00 AM">04:00 AM</option>
+                  <option value="05:00 AM">05:00 AM</option>
+                  <option value="06:00 AM">06:00 AM</option>
+                  <option value="07:00 AM">07:00 AM</option>
+                  <option value="08:00 AM">08:00 AM</option>
+                  <option value="09:00 AM">09:00 AM</option>
+                  <option value="10:00 AM">10:00 AM</option>
+                  <option value="11:00 AM">11:00 AM</option>
+                  <option value="12:00 PM">12:00 PM</option>
+                  <option value="01:00 PM">01:00 PM</option>
+                  <option value="02:00 PM">02:00 PM</option>
+                  <option value="03:00 PM">03:00 PM</option>
+                  <option value="04:00 PM" selected>04:00 PM</option>
+                  <option value="05:00 PM">05:00 PM</option>
+                  <option value="06:00 PM">06:00 PM</option>
+                  <option value="07:00 PM">07:00 PM</option>
+                  <option value="08:00 PM">08:00 PM</option>
+                  <option value="09:00 PM">09:00 PM</option>
+                  <option value="10:00 PM">10:00 PM</option>
+                  <option value="11:00 PM">11:00 PM</option>
+                  <option value="CUSTOM">Custom Title / Text...</option>
+                </select>
+              </div>
+
+              <div class="grid-field">
+                <label class="field-label">Winning Number (1-100):</label>
+                <input type="number" id="manual-round-winner-input" class="admin-input" min="1" max="100" placeholder="e.g. 21" value="21">
+              </div>
+            </div>
+
+            <!-- Custom Round Title Input (Shown if custom chosen or for manual edits) -->
+            <div id="custom-title-row" class="custom-title-row hidden" style="margin-top: 0.5rem;">
+              <label class="field-label">Custom Round Title / Time:</label>
+              <input type="text" id="manual-round-title-input" class="admin-input" placeholder="e.g. 04:00 PM or Special Live Round 1" value="04:00 PM">
+            </div>
+
+            <div class="timing-actions-row" style="margin-top: 0.65rem;">
+              <button id="apply-time-winner-btn" class="btn btn-gold btn-block">🔒 Set Round Time & Lock Winner (e.g. 04:00 PM ➔ 21)</button>
+              <button id="test-time-winner-btn" class="btn btn-primary btn-block" style="margin-top: 0.4rem;">⚡ Test This Round & Winner Right Now</button>
+            </div>
+
+            <div id="active-timing-badge" class="active-timing-badge hidden">
+              <span>🎯 Active: Round <strong id="badge-timing-text">04:00 PM</strong> &bull; Locked Winner: <strong id="badge-timing-winner" class="highlight-gold">21</strong></span>
+              <button id="clear-timing-btn" class="btn-text">Reset</button>
+            </div>
+
             <span id="timer-status-feedback" class="save-status-msg" style="display:block; margin-top:4px;"></span>
           </div>
         </div>

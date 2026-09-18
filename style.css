@@ -1118,6 +1118,59 @@ body {
   justify-content: space-between;
 }
 
+/* Specific Round Timing & Winner Box */
+.round-winner-preset-box {
+  background: rgba(255, 215, 0, 0.04);
+  border: 1px solid rgba(255, 215, 0, 0.28);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+}
+
+.preset-box-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--primary-gold-bright);
+  margin-bottom: 0.25rem;
+}
+
+.timing-winner-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 0.6rem;
+}
+
+.grid-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.field-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.active-timing-badge {
+  margin-top: 0.65rem;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid var(--primary-gold);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.active-timing-badge strong {
+  font-size: 0.95rem;
+}
+
+.btn-block {
+  width: 100%;
+}
+
 .active-forced-tag strong {
   color: var(--accent-cyan);
   font-size: 1.05rem;

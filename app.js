@@ -323,9 +323,16 @@ class SpinWheelApp {
     this.customTimerMins = document.getElementById('custom-timer-mins');
     this.customTimerSecs = document.getElementById('custom-timer-secs');
     this.setCustomTimerBtn = document.getElementById('set-custom-timer-btn');
+    this.quickRoundHourSelect = document.getElementById('quick-round-hour-select');
+    this.manualRoundWinnerInput = document.getElementById('manual-round-winner-input');
+    this.customTitleRow = document.getElementById('custom-title-row');
     this.manualRoundTitleInput = document.getElementById('manual-round-title-input');
-    this.saveRoundTitleBtn = document.getElementById('save-round-title-btn');
-    this.resetRealClockBtn = document.getElementById('reset-real-clock-btn');
+    this.applyTimeWinnerBtn = document.getElementById('apply-time-winner-btn');
+    this.testTimeWinnerBtn = document.getElementById('test-time-winner-btn');
+    this.activeTimingBadge = document.getElementById('active-timing-badge');
+    this.badgeTimingText = document.getElementById('badge-timing-text');
+    this.badgeTimingWinner = document.getElementById('badge-timing-winner');
+    this.clearTimingBtn = document.getElementById('clear-timing-btn');
     this.timerStatusFeedback = document.getElementById('timer-status-feedback');
 
     // Section 2 Controls
@@ -750,26 +757,87 @@ class SpinWheelApp {
       }
     });
 
-    // Save Manual Round Title
-    this.saveRoundTitleBtn.addEventListener('click', () => {
-      const val = this.manualRoundTitleInput.value.trim();
-      if (val) {
-        this.manualRoundTitle = val;
-        this.currentHourEl.textContent = val;
-        this.pushStateToServer();
-        this.showTimerFeedback(`Round title updated to "${val}" across all devices!`);
+    // Specific Round Timing Dropdown change
+    this.quickRoundHourSelect.addEventListener('change', () => {
+      const val = this.quickRoundHourSelect.value;
+      if (val === 'CUSTOM') {
+        this.customTitleRow.classList.remove('hidden');
+        this.manualRoundTitleInput.focus();
+      } else {
+        this.customTitleRow.classList.add('hidden');
+        this.manualRoundTitleInput.value = val;
       }
     });
 
-    // Reset to Real Clock
-    this.resetRealClockBtn.addEventListener('click', () => {
-      this.manualRoundTitle = null;
-      this.manualRoundTitleInput.value = '';
-      this.timerMode = 'REAL';
-      this.timerModeReal.checked = true;
-      this.customTimerTarget = null;
+    // Helper: Apply Specific Round Time & Predetermined Winner (e.g. 04:00 PM -> 21)
+    const applyRoundAndWinner = (andTestSpin = false) => {
+      let roundTitle = this.quickRoundHourSelect.value;
+      if (roundTitle === 'CUSTOM') {
+        roundTitle = this.manualRoundTitleInput.value.trim() || 'Custom Round';
+      }
+
+      let winnerNum = parseInt(this.manualRoundWinnerInput.value, 10);
+      if (isNaN(winnerNum) || winnerNum < 1) winnerNum = 1;
+      if (winnerNum > 100) winnerNum = 100;
+      this.manualRoundWinnerInput.value = winnerNum;
+
+      // Ensure winner number is included in current 10 wheel slices
+      if (!this.slices.includes(winnerNum)) {
+        this.slices[0] = winnerNum;
+        this.slices.sort((a, b) => a - b);
+        this.renderWheel();
+      }
+
+      // 1. Set Round Title
+      this.manualRoundTitle = roundTitle;
+      this.currentHourEl.textContent = roundTitle;
+
+      // 2. Lock Upcoming Winner
+      this.forcedNext = winnerNum;
+      this.updateForcedWinnerUI();
+
+      // 3. Update 24-hour schedule table if matching hour format (e.g. 04:00 PM)
+      const match = roundTitle.match(/^(\d{1,2}):00\s*(AM|PM)$/i);
+      if (match) {
+        let hr = parseInt(match[1], 10) % 12;
+        if (match[2].toUpperCase() === 'PM') hr += 12;
+        this.hourlySchedule[hr] = winnerNum;
+        this.renderScheduleTable();
+      }
+
+      // 4. Update Active Timing Badge
+      this.activeTimingBadge.classList.remove('hidden');
+      this.badgeTimingText.textContent = roundTitle;
+      this.badgeTimingWinner.textContent = `${winnerNum}`;
+
+      // 5. Broadcast to all devices in real-time
       this.pushStateToServer();
-      this.showTimerFeedback('Reset to Automatic Real Clock on all devices!');
+      this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum} across all devices!`);
+
+      // 6. If testing immediately
+      if (andTestSpin) {
+        this.closeAdminDrawer();
+        setTimeout(() => {
+          this.dispatchSynchronizedSpin(`Round ${roundTitle}`);
+        }, 300);
+      }
+    };
+
+    this.applyTimeWinnerBtn.addEventListener('click', () => applyRoundAndWinner(false));
+    this.testTimeWinnerBtn.addEventListener('click', () => applyRoundAndWinner(true));
+
+    // Clear / Reset Timing & Winner
+    this.clearTimingBtn.addEventListener('click', () => {
+      this.manualRoundTitle = null;
+      this.forcedNext = null;
+      this.manualRoundTitleInput.value = '';
+      this.quickRoundHourSelect.value = '04:00 PM';
+      this.customTitleRow.classList.add('hidden');
+      this.activeTimingBadge.classList.add('hidden');
+      this.updateForcedWinnerUI();
+      this.currentHourEl.textContent = format12Hour(new Date().getHours());
+      this.pushStateToServer();
+      this.showTimerFeedback('Reset round timing & winner to automatic!');
     });
 
     // Section 2: Set Next Winner
@@ -964,8 +1032,29 @@ class SpinWheelApp {
       this.timerModeReal.checked = true;
     }
 
+    // Populate Timing & Winner Setup
+    if (this.manualRoundTitle || this.forcedNext !== null) {
+      this.activeTimingBadge.classList.remove('hidden');
+      this.badgeTimingText.textContent = this.manualRoundTitle || format12Hour(new Date().getHours());
+      this.badgeTimingWinner.textContent = this.forcedNext !== null ? `${this.forcedNext}` : 'Auto';
+    } else {
+      this.activeTimingBadge.classList.add('hidden');
+    }
+
     if (this.manualRoundTitle) {
       this.manualRoundTitleInput.value = this.manualRoundTitle;
+      const opts = Array.from(this.quickRoundHourSelect.options).map(o => o.value);
+      if (opts.includes(this.manualRoundTitle)) {
+        this.quickRoundHourSelect.value = this.manualRoundTitle;
+        this.customTitleRow.classList.add('hidden');
+      } else {
+        this.quickRoundHourSelect.value = 'CUSTOM';
+        this.customTitleRow.classList.remove('hidden');
+      }
+    }
+
+    if (this.forcedNext !== null) {
+      this.manualRoundWinnerInput.value = this.forcedNext;
     }
 
     // 1. Populate Forced Select Dropdown
@@ -1032,8 +1121,10 @@ class SpinWheelApp {
       const currentPreset = this.hourlySchedule[h] || 'AUTO';
 
       let selectOptions = `<option value="AUTO" ${currentPreset === 'AUTO' ? 'selected' : ''}>🎲 Auto</option>`;
-      this.slices.forEach(n => {
-        selectOptions += `<option value="${n}" ${parseInt(currentPreset, 10) === n ? 'selected' : ''}>${n}</option>`;
+      const presetNum = currentPreset !== 'AUTO' ? parseInt(currentPreset, 10) : null;
+      const uniqueNums = Array.from(new Set([...this.slices, ...(presetNum !== null ? [presetNum] : [])])).sort((a, b) => a - b);
+      uniqueNums.forEach(n => {
+        selectOptions += `<option value="${n}" ${presetNum === n ? 'selected' : ''}>Number ${n}</option>`;
       });
 
       tr.innerHTML = `
