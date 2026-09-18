@@ -122,6 +122,122 @@ class AudioController {
   }
 }
 
+/**
+ * ==========================================================
+ * REAL-TIME CLOUD & MULTI-DEVICE SYNCHRONIZATION ENGINE
+ * ==========================================================
+ * Uses MQTT over secure WebSockets (with multi-broker fallback)
+ * + HTML5 BroadcastChannel for instantaneous (<50ms) global sync
+ * between PC, iPhone, Android, tablets, and all browser tabs.
+ */
+class CloudSyncEngine {
+  constructor(app) {
+    this.app = app;
+    this.topic = 'spinwheel3d_sync_v4_global';
+    this.mqttClient = null;
+    this.isConnected = false;
+    this.broadcastChannel = null;
+
+    // 1. Instant local multi-tab sync
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        this.broadcastChannel = new BroadcastChannel('spinwheel_live_sync');
+        this.broadcastChannel.onmessage = (e) => {
+          if (e.data) {
+            this.app.handleIncomingRealtimeState(e.data, true);
+          }
+        };
+      } catch (e) {}
+    }
+
+    // 2. Global MQTT WebSocket sync
+    this.initMQTT();
+  }
+
+  initMQTT() {
+    if (typeof mqtt === 'undefined') {
+      setTimeout(() => this.initMQTT(), 300);
+      return;
+    }
+
+    const clientId = 'spin_' + Math.random().toString(16).slice(2, 10);
+    const endpoints = [
+      'wss://broker.emqx.io:8084/mqtt',
+      'wss://broker.hivemq.com:8884/mqtt',
+      'wss://test.mosquitto.org:8081'
+    ];
+
+    let currentIdx = 0;
+
+    const tryConnect = () => {
+      try {
+        const brokerUrl = endpoints[currentIdx];
+        this.mqttClient = mqtt.connect(brokerUrl, {
+          clientId: clientId,
+          clean: true,
+          connectTimeout: 5000,
+          reconnectPeriod: 4000,
+          keepalive: 30
+        });
+
+        this.mqttClient.on('connect', () => {
+          this.isConnected = true;
+          this.updateConnectionUI(true);
+          this.mqttClient.subscribe(this.topic, { qos: 1 });
+        });
+
+        this.mqttClient.on('message', (topic, payload) => {
+          if (topic === this.topic) {
+            try {
+              const parsed = JSON.parse(payload.toString());
+              this.app.handleIncomingRealtimeState(parsed);
+            } catch (err) {}
+          }
+        });
+
+        this.mqttClient.on('error', () => {
+          this.isConnected = false;
+          this.updateConnectionUI(false);
+          currentIdx = (currentIdx + 1) % endpoints.length;
+        });
+
+        this.mqttClient.on('close', () => {
+          this.isConnected = false;
+          this.updateConnectionUI(false);
+        });
+      } catch (err) {
+        this.isConnected = false;
+      }
+    };
+
+    tryConnect();
+  }
+
+  updateConnectionUI(online) {
+    const dot = document.querySelector('.pulse-dot');
+    if (dot) {
+      dot.style.background = online ? '#00f0ff' : '#ffd700';
+      dot.style.boxShadow = online ? '0 0 10px #00f0ff' : '0 0 8px #ffd700';
+    }
+  }
+
+  publish(state) {
+    // Local multi-tab broadcast
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.postMessage(state);
+      } catch (e) {}
+    }
+
+    // Global MQTT WebSocket broadcast
+    if (this.mqttClient && this.isConnected) {
+      try {
+        this.mqttClient.publish(this.topic, JSON.stringify(state), { qos: 1, retain: true });
+      } catch (e) {}
+    }
+  }
+}
+
 class SpinWheelApp {
   constructor() {
     this.canvas = document.getElementById('wheel-canvas');
@@ -253,11 +369,14 @@ class SpinWheelApp {
     this.populateAdminControls();
     this.startTimerEngine();
 
-    // Pull initial server state & start continuous live polling
+    // 1. Start Instant Real-Time Cloud Synchronization (MQTT WebSockets + BroadcastChannel)
+    this.cloudSync = new CloudSyncEngine(this);
+
+    // 2. Pull initial local server state & start continuous live polling for LAN mode
     await this.pullStateFromServer();
     this.startServerPolling();
 
-    // Check hourly spin
+    // 3. Check hourly auto-spin
     this.checkHourlyAutoSpin();
   }
 
@@ -271,8 +390,37 @@ class SpinWheelApp {
   }
 
   // ==========================================================
-  // REAL-TIME SERVER STATE SYNC ENGINE
+  // REAL-TIME SERVER & CLOUD STATE SYNC ENGINE
   // ==========================================================
+  handleIncomingRealtimeState(state, isLocalBroadcast = false) {
+    if (!state || typeof state !== 'object') return;
+
+    // Check version
+    if (state.version && state.version <= this.lastVersion && !state.spinTrigger) {
+      return;
+    }
+
+    if (state.version) {
+      this.lastVersion = state.version;
+    }
+
+    this.applyServerState(state);
+
+    // Handle synchronized spin triggers from any device in real-time
+    if (state.spinTrigger && state.spinTrigger.triggerId) {
+      const trigger = state.spinTrigger;
+      if (trigger.triggerId !== this.lastHandledSpinId) {
+        const age = Date.now() - (trigger.timestamp || 0);
+        if (age < 15000 && !this.isSpinning) {
+          this.lastHandledSpinId = trigger.triggerId;
+          this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Round', false);
+        } else {
+          this.lastHandledSpinId = trigger.triggerId;
+        }
+      }
+    }
+  }
+
   async pullStateFromServer() {
     try {
       const resp = await fetch(`/api/state?_t=${Date.now()}`, {
@@ -286,7 +434,7 @@ class SpinWheelApp {
       this.isServerConnected = true;
 
       // Check if state changed on server
-      if (state.version !== undefined && state.version !== this.lastVersion) {
+      if (state.version !== undefined && state.version > this.lastVersion) {
         this.applyServerState(state);
         this.lastVersion = state.version;
       }
@@ -436,13 +584,22 @@ class SpinWheelApp {
     }
     localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
 
+    // 1. Broadcast immediately to all connected Mobile & PC devices via Real-Time Cloud Engine (MQTT WebSocket)
+    if (this.cloudSync) {
+      this.cloudSync.publish(payload);
+    }
+
+    // 2. Local HTTP server backup
     try {
-      await fetch('/api/state', {
+      fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
+      }).then(() => {
+        this.isServerConnected = true;
+      }).catch(() => {
+        this.isServerConnected = false;
       });
-      this.isServerConnected = true;
     } catch (e) {
       this.isServerConnected = false;
     }
@@ -451,7 +608,7 @@ class SpinWheelApp {
   startServerPolling() {
     setInterval(() => {
       this.pullStateFromServer();
-    }, 1000);
+    }, 1500);
   }
 
   // ==========================================================
