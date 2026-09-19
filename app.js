@@ -246,7 +246,7 @@ class SpinWheelApp {
     this.audio = new AudioController();
 
     // Default 10 numbers (1-100)
-    this.defaultSlices = [7, 18, 26, 33, 42, 59, 68, 77, 86, 94];
+    this.defaultSlices = [26, 33, 35, 38, 42, 59, 68, 77, 86, 94];
     
     // Internal Core State
     this.slices = this.loadLocalSlices();
@@ -324,6 +324,7 @@ class SpinWheelApp {
     this.customTimerSecs = document.getElementById('custom-timer-secs');
     this.setCustomTimerBtn = document.getElementById('set-custom-timer-btn');
     this.quickRoundHourSelect = document.getElementById('quick-round-hour-select');
+    this.manualRoundWinnerSelect = document.getElementById('manual-round-winner-select');
     this.manualRoundWinnerInput = document.getElementById('manual-round-winner-input');
     this.customTitleRow = document.getElementById('custom-title-row');
     this.manualRoundTitleInput = document.getElementById('manual-round-title-input');
@@ -769,30 +770,40 @@ class SpinWheelApp {
       }
     });
 
-    // Helper: Apply Specific Round Time & Predetermined Winner (e.g. 04:00 PM -> 21)
+    // Winning Number Selector dropdown change
+    this.manualRoundWinnerSelect.addEventListener('change', () => {
+      const val = this.manualRoundWinnerSelect.value;
+      if (val === 'CUSTOM') {
+        this.manualRoundWinnerInput.classList.remove('hidden');
+        this.manualRoundWinnerInput.focus();
+      } else {
+        this.manualRoundWinnerInput.classList.add('hidden');
+        this.manualRoundWinnerInput.value = val;
+      }
+    });
+
+    // Helper: Apply Specific Round Time & Predetermined Winner (Keeps user's 10 manual slices permanent)
     const applyRoundAndWinner = (andTestSpin = false) => {
       let roundTitle = this.quickRoundHourSelect.value;
       if (roundTitle === 'CUSTOM') {
         roundTitle = this.manualRoundTitleInput.value.trim() || 'Custom Round';
       }
 
-      let winnerNum = parseInt(this.manualRoundWinnerInput.value, 10);
-      if (isNaN(winnerNum) || winnerNum < 1) winnerNum = 1;
-      if (winnerNum > 100) winnerNum = 100;
-      this.manualRoundWinnerInput.value = winnerNum;
-
-      // Ensure winner number is included in current 10 wheel slices
-      if (!this.slices.includes(winnerNum)) {
-        this.slices[0] = winnerNum;
-        this.slices.sort((a, b) => a - b);
-        this.renderWheel();
+      let winnerNum;
+      if (this.manualRoundWinnerSelect.value === 'CUSTOM') {
+        winnerNum = parseInt(this.manualRoundWinnerInput.value, 10);
+      } else {
+        winnerNum = parseInt(this.manualRoundWinnerSelect.value, 10);
       }
+
+      if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 1;
+      if (winnerNum > 100) winnerNum = 100;
 
       // 1. Set Round Title
       this.manualRoundTitle = roundTitle;
       this.currentHourEl.textContent = roundTitle;
 
-      // 2. Lock Upcoming Winner
+      // 2. Lock Upcoming Winner (10 wheel slices remain 100% permanent!)
       this.forcedNext = winnerNum;
       this.updateForcedWinnerUI();
 
@@ -812,7 +823,7 @@ class SpinWheelApp {
 
       // 5. Broadcast to all devices in real-time
       this.pushStateToServer();
-      this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum} across all devices!`);
+      this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum} (10 Wheel Numbers Permanent!)`);
 
       // 6. If testing immediately
       if (andTestSpin) {
@@ -1053,8 +1064,33 @@ class SpinWheelApp {
       }
     }
 
+    // Populate Section 1 Winning Number dropdown with the 10 permanent slices
+    this.manualRoundWinnerSelect.innerHTML = '';
+    this.slices.forEach((num, idx) => {
+      const opt = document.createElement('option');
+      opt.value = num;
+      opt.textContent = `Slot #${idx + 1}: ${num}`;
+      if (this.forcedNext !== null && parseInt(this.forcedNext, 10) === num) {
+        opt.selected = true;
+      }
+      this.manualRoundWinnerSelect.appendChild(opt);
+    });
+    const customOpt = document.createElement('option');
+    customOpt.value = 'CUSTOM';
+    customOpt.textContent = 'Custom Number (1-100)...';
+    this.manualRoundWinnerSelect.appendChild(customOpt);
+
     if (this.forcedNext !== null) {
-      this.manualRoundWinnerInput.value = this.forcedNext;
+      if (this.slices.includes(parseInt(this.forcedNext, 10))) {
+        this.manualRoundWinnerSelect.value = this.forcedNext;
+        this.manualRoundWinnerInput.classList.add('hidden');
+      } else {
+        this.manualRoundWinnerSelect.value = 'CUSTOM';
+        this.manualRoundWinnerInput.classList.remove('hidden');
+        this.manualRoundWinnerInput.value = this.forcedNext;
+      }
+    } else {
+      this.manualRoundWinnerInput.classList.add('hidden');
     }
 
     // 1. Populate Forced Select Dropdown

@@ -2,7 +2,7 @@
 // Allows real-time live synchronization between PC and all mobile devices globally!
 
 let globalState = {
-  slices: [7, 18, 26, 33, 42, 59, 68, 77, 86, 94],
+  slices: [26, 33, 35, 38, 42, 59, 68, 77, 86, 94],
   history: [],
   forcedNext: null,
   upcomingQueue: ["AUTO", "AUTO", "AUTO"],
