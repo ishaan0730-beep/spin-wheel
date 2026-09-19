@@ -799,9 +799,12 @@ class SpinWheelApp {
       if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 1;
       if (winnerNum > 100) winnerNum = 100;
 
-      // 1. Set Round Title
+      // 1. Set Round Title & Switch to Scheduled Real Clock Mode (stops repeating 1-min countdown)
       this.manualRoundTitle = roundTitle;
       this.currentHourEl.textContent = roundTitle;
+      this.timerMode = 'REAL';
+      this.customTimerTarget = null;
+      if (this.timerModeReal) this.timerModeReal.checked = true;
 
       // 2. Lock Upcoming Winner (10 wheel slices remain 100% permanent!)
       this.forcedNext = winnerNum;
@@ -822,8 +825,11 @@ class SpinWheelApp {
       this.badgeTimingWinner.textContent = `${winnerNum}`;
 
       // 5. Broadcast to all devices in real-time
-      this.pushStateToServer();
-      this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum} (10 Wheel Numbers Permanent!)`);
+      this.pushStateToServer({
+        timerMode: 'REAL',
+        customTimerTarget: null
+      });
+      this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum} (Counts down to ${roundTitle}!)`);
 
       // 6. If testing immediately
       if (andTestSpin) {
@@ -1329,12 +1335,10 @@ class SpinWheelApp {
     const triggerId = Date.now();
     this.lastHandledSpinId = triggerId;
 
-    let nextCustomTarget = null;
-    if (this.timerMode === 'MANUAL') {
-      // Set next timer target starting after the spin animation (6.5s)
-      nextCustomTarget = Date.now() + 6500 + this.customSecs * 1000;
-      this.customTimerTarget = nextCustomTarget;
-    }
+    // Reset one-time custom countdowns so wheel does NOT spin continuously every minute
+    this.customTimerTarget = null;
+    this.timerMode = 'REAL';
+    if (this.timerModeReal) this.timerModeReal.checked = true;
 
     // Broadcast spin trigger to server so all connected mobile/PC screens spin in unison!
     const spinTrigger = {
@@ -1348,7 +1352,8 @@ class SpinWheelApp {
       spinTrigger: spinTrigger,
       forcedNext: this.forcedNext,
       upcomingQueue: this.upcomingQueue,
-      customTimerTarget: nextCustomTarget
+      timerMode: 'REAL',
+      customTimerTarget: null
     });
 
     // Run animation locally
@@ -1513,12 +1518,8 @@ class SpinWheelApp {
         this.currentHourEl.textContent = format12Hour(currentHour);
       }
 
-      if (this.timerMode === 'MANUAL') {
-        // Custom Manual Countdown Mode
-        if (!this.customTimerTarget) {
-          this.customTimerTarget = Date.now() + this.customSecs * 1000;
-        }
-
+      if (this.timerMode === 'MANUAL' && this.customTimerTarget) {
+        // One-Time Custom Countdown Mode (e.g. 1 min or 30s test)
         const remainingMs = Math.max(0, this.customTimerTarget - Date.now());
         const totalSec = Math.floor(remainingMs / 1000);
         const mins = Math.floor(totalSec / 60);
@@ -1526,21 +1527,54 @@ class SpinWheelApp {
         this.countdownEl.textContent = `00:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
         if (totalSec <= 0 && !this.isSpinning) {
-          this.dispatchSynchronizedSpin('Manual Countdown Round');
+          this.dispatchSynchronizedSpin(this.manualRoundTitle ? `Round ${this.manualRoundTitle}` : 'Manual Countdown Round');
         }
       } else {
-        // Real Clock Mode (counts down to top of current hour)
-        const nextHour = new Date(now);
-        nextHour.setHours(currentHour + 1, 0, 0, 0);
-        const diffMs = nextHour - now;
+        // Scheduled Round Time Mode (accurately counts down to scheduled round time e.g. 08:00 PM or top of hour)
+        let targetDate = null;
+        let roundKey = null;
 
+        if (this.manualRoundTitle) {
+          const match = this.manualRoundTitle.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+          if (match) {
+            let hr = parseInt(match[1], 10) % 12;
+            if (match[3].toUpperCase() === 'PM') hr += 12;
+            const min = parseInt(match[2], 10);
+            targetDate = new Date(now);
+            targetDate.setHours(hr, min, 0, 0);
+
+            if (targetDate.getTime() <= now.getTime()) {
+              // Time has passed for today, count down to next occurrence tomorrow
+              targetDate.setDate(targetDate.getDate() + 1);
+            }
+            roundKey = `sched-${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}-${hr}-${min}`;
+          }
+        }
+
+        if (!targetDate) {
+          // Default: top of next hour (:00)
+          targetDate = new Date(now);
+          targetDate.setHours(currentHour + 1, 0, 0, 0);
+          roundKey = `hourly-${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${currentHour}`;
+        }
+
+        const diffMs = Math.max(0, targetDate.getTime() - now.getTime());
         const totalSec = Math.floor(diffMs / 1000);
-        const mins = Math.floor(totalSec / 60);
+        const hours = Math.floor(totalSec / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
         const secs = totalSec % 60;
-        this.countdownEl.textContent = `00:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
-        if (mins === 0 && secs === 0 && !this.isSpinning) {
-          this.checkHourlyAutoSpin();
+        if (hours > 0) {
+          this.countdownEl.textContent = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+          this.countdownEl.textContent = `00:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Auto-spin ONCE when scheduled time arrives
+        const lastSpunKey = localStorage.getItem(STATE_KEYS.LAST_SPUN_HOUR);
+        if (totalSec === 0 && !this.isSpinning && lastSpunKey !== roundKey) {
+          localStorage.setItem(STATE_KEYS.LAST_SPUN_HOUR, roundKey);
+          this.dispatchSynchronizedSpin(this.manualRoundTitle ? `Round ${this.manualRoundTitle}` : `Hourly Round (${format12Hour(now.getHours())})`);
         }
       }
     };
@@ -1550,14 +1584,7 @@ class SpinWheelApp {
   }
 
   checkHourlyAutoSpin() {
-    if (this.timerMode !== 'REAL') return;
-    const now = new Date();
-    const currentHourKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}`;
-    const lastSpunKey = localStorage.getItem(STATE_KEYS.LAST_SPUN_HOUR);
-
-    if (lastSpunKey !== currentHourKey && now.getMinutes() === 0) {
-      this.dispatchSynchronizedSpin(`Hourly Round (${format12Hour(now.getHours())})`);
-    }
+    // Handled seamlessly in startTimerEngine
   }
 }
 
