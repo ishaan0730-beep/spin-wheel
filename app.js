@@ -1511,11 +1511,11 @@ class SpinWheelApp {
       const now = new Date();
       const currentHour = now.getHours();
       
-      // Update Round Title
+      // Update Next Round Title
       if (this.manualRoundTitle) {
         this.currentHourEl.textContent = this.manualRoundTitle;
       } else {
-        this.currentHourEl.textContent = format12Hour(currentHour);
+        this.currentHourEl.textContent = format12Hour((currentHour + 1) % 24);
       }
 
       if (this.timerMode === 'MANUAL' && this.customTimerTarget) {
