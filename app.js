@@ -5,6 +5,7 @@
  * Strictly 4 Daily Slots: 12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM
  * Automatic Slot Advancement & Immediate Next Countdown
  * Exact 100% Needle-to-History Result Alignment (Zero Discrepancy)
+ * Test Spin Feature with History Protection (Test Spins DO NOT Save to History)
  * Single Spin Rotation Guard (Strict Deduplication - Never Double Spins)
  * Master Control Center via PC Keyboard Code "00773300"
  */
@@ -196,7 +197,7 @@ class CloudSyncEngine {
         this.broadcastChannel = new BroadcastChannel('spinwheel_live_sync_v6');
         this.broadcastChannel.onmessage = (e) => {
           if (e.data) {
-            this.app.handleIncomingRealtimeState(e.data, true);
+            this.app.handleIncomingRealtimeState(e.data);
           }
         };
       } catch (e) {}
@@ -376,6 +377,7 @@ class SpinWheelApp {
     this.customTitleRow = document.getElementById('custom-title-row');
     this.manualRoundTitleInput = document.getElementById('manual-round-title-input');
     this.applyTimeWinnerBtn = document.getElementById('apply-time-winner-btn');
+    this.testTimeWinnerBtn = document.getElementById('test-time-winner-btn');
     this.activeTimingBadge = document.getElementById('active-timing-badge');
     this.badgeTimingText = document.getElementById('badge-timing-text');
     this.badgeTimingWinner = document.getElementById('badge-timing-winner');
@@ -385,6 +387,7 @@ class SpinWheelApp {
     // Section 2 Controls
     this.forcedSelect = document.getElementById('forced-winner-select');
     this.applyForcedBtn = document.getElementById('apply-forced-btn');
+    this.quickTestSpinBtn = document.getElementById('quick-test-spin-btn');
     this.activeForcedIndicator = document.getElementById('active-forced-indicator');
     this.forcedTargetNumberEl = document.getElementById('forced-target-number');
     this.clearForcedBtn = document.getElementById('clear-forced-btn');
@@ -465,7 +468,7 @@ class SpinWheelApp {
         if (age < 8000 && !this.isSpinning) {
           this.lastHandledSpinId = trigger.triggerId;
           localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
-          this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Slot Round', false);
+          this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Slot Round', false, trigger.isTestSpin || false);
         } else {
           this.lastHandledSpinId = trigger.triggerId;
           localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
@@ -501,7 +504,7 @@ class SpinWheelApp {
           if (age < 8000 && !this.isSpinning) {
             this.lastHandledSpinId = trigger.triggerId;
             localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
-            this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Slot Round', false);
+            this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Slot Round', false, trigger.isTestSpin || false);
           } else {
             this.lastHandledSpinId = trigger.triggerId;
             localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
@@ -827,7 +830,7 @@ class SpinWheelApp {
       }
     });
 
-    // Section 1: Set Round Time & Lock Predetermined Winner
+    // Section 1: Set Round Time & Lock Predetermined Winner (Real Round)
     this.applyTimeWinnerBtn.addEventListener('click', () => {
       let roundTitle = this.quickRoundHourSelect.value;
       if (roundTitle === 'CUSTOM') {
@@ -874,6 +877,31 @@ class SpinWheelApp {
       this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum}!`);
     });
 
+    // Section 1: Test Winner Right Now (Test Spin - DOES NOT SAVE TO HISTORY)
+    if (this.testTimeWinnerBtn) {
+      this.testTimeWinnerBtn.addEventListener('click', () => {
+        let winnerNum;
+        if (this.manualRoundWinnerSelect.value === 'CUSTOM') {
+          winnerNum = parseInt(this.manualRoundWinnerInput.value, 10);
+        } else {
+          winnerNum = parseInt(this.manualRoundWinnerSelect.value, 10);
+        }
+
+        if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 26;
+        if (winnerNum > 100) winnerNum = 100;
+
+        let roundTitle = this.quickRoundHourSelect.value;
+        if (roundTitle === 'CUSTOM') {
+          roundTitle = this.manualRoundTitleInput.value.trim() || '12:00 PM';
+        }
+
+        this.closeAdminDrawer();
+        setTimeout(() => {
+          this.dispatchSynchronizedSpin(`Test Spin (${roundTitle})`, true, winnerNum);
+        }, 250);
+      });
+    }
+
     // Clear / Reset Timing & Winner
     this.clearTimingBtn.addEventListener('click', () => {
       this.manualRoundTitle = null;
@@ -901,6 +929,21 @@ class SpinWheelApp {
       this.pushStateToServer();
       this.showTimerFeedback('Upcoming winner setting saved to all devices!');
     });
+
+    // Section 2: Quick Test Spin (Test Spin - DOES NOT SAVE TO HISTORY)
+    if (this.quickTestSpinBtn) {
+      this.quickTestSpinBtn.addEventListener('click', () => {
+        const val = this.forcedSelect.value;
+        let target = null;
+        if (val !== 'AUTO') {
+          target = parseInt(val, 10);
+        }
+        this.closeAdminDrawer();
+        setTimeout(() => {
+          this.dispatchSynchronizedSpin('Quick Test Spin', true, target);
+        }, 250);
+      });
+    }
 
     this.clearForcedBtn.addEventListener('click', () => {
       this.forcedNext = null;
@@ -1356,24 +1399,31 @@ class SpinWheelApp {
     return this.slices[randIdx];
   }
 
-  dispatchSynchronizedSpin(triggerSource = 'Live Slot Round') {
+  dispatchSynchronizedSpin(triggerSource = 'Live Slot Round', isTestSpin = false, overrideTargetNumber = null) {
     if (this.isSpinning) return;
 
-    const targetNumber = this.determineTargetNumber();
+    let targetNumber = overrideTargetNumber;
+    if (targetNumber === null || isNaN(targetNumber) || targetNumber < 1) {
+      targetNumber = this.determineTargetNumber();
+    }
+
     const triggerId = Date.now();
     this.lastHandledSpinId = triggerId;
     localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(triggerId));
 
-    // Reset one-time custom countdowns
-    this.customTimerTarget = null;
-    this.timerMode = 'REAL';
-    if (this.timerModeReal) this.timerModeReal.checked = true;
+    // If official round (not test), reset custom countdowns to return to regular schedule
+    if (!isTestSpin) {
+      this.customTimerTarget = null;
+      this.timerMode = 'REAL';
+      if (this.timerModeReal) this.timerModeReal.checked = true;
+    }
 
     // Broadcast spin trigger to server & all connected mobile/PC screens
     const spinTrigger = {
       triggerId: triggerId,
       targetNumber: targetNumber,
       triggerSource: triggerSource,
+      isTestSpin: isTestSpin,
       timestamp: triggerId
     };
 
@@ -1381,15 +1431,14 @@ class SpinWheelApp {
       spinTrigger: spinTrigger,
       forcedNext: this.forcedNext,
       upcomingQueue: this.upcomingQueue,
-      timerMode: 'REAL',
-      customTimerTarget: null
+      ...(isTestSpin ? {} : { timerMode: 'REAL', customTimerTarget: null })
     });
 
     // Execute spin animation locally (single execution)
-    this.executeSpinAnimation(targetNumber, triggerSource, true);
+    this.executeSpinAnimation(targetNumber, triggerSource, true, isTestSpin);
   }
 
-  executeSpinAnimation(targetNumber, triggerSource, isInitiator) {
+  executeSpinAnimation(targetNumber, triggerSource, isInitiator, isTestSpin = false) {
     if (this.isSpinning) {
       console.warn('Spin already active. Skipping duplicate animation.');
       return;
@@ -1446,7 +1495,7 @@ class SpinWheelApp {
         this.currentAngle = finalAngle;
         this.renderWheel();
         this.spinAnimFrameId = null;
-        this.onSpinComplete(targetNumber, triggerSource, isInitiator);
+        this.onSpinComplete(targetNumber, triggerSource, isInitiator, isTestSpin);
       }
     };
 
@@ -1471,7 +1520,7 @@ class SpinWheelApp {
     }
   }
 
-  onSpinComplete(winningNumber, triggerSource, isInitiator) {
+  onSpinComplete(winningNumber, triggerSource, isInitiator, isTestSpin = false) {
     this.isSpinning = false;
 
     // Confetti and Audio Fanfare
@@ -1484,27 +1533,33 @@ class SpinWheelApp {
     const roundStr12 = this.manualRoundTitle || activeSlot.label;
     const dateStr = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
 
-    // Result card exactly matches the winning number
-    const newResult = {
-      id: Date.now(),
-      number: winningNumber,
-      time: timeStr12,
-      date: dateStr,
-      round: roundStr12,
-      source: triggerSource
-    };
-
-    // Update history (exact match with wheel stop)
-    this.history = [newResult, ...this.history];
-    this.renderLast3Results();
-
     // Show Win Announcement Banner
     this.winBanner.classList.remove('hidden');
     this.winNumberEl.textContent = `${winningNumber}`;
-    this.winTimeEl.textContent = `Won at ${timeStr12} &bull; Round ${roundStr12}`;
+    if (isTestSpin) {
+      this.winTimeEl.textContent = `⚡ Test Spin Completed &bull; Winning Number: ${winningNumber} (History Not Saved)`;
+    } else {
+      this.winTimeEl.textContent = `Won at ${timeStr12} &bull; Round ${roundStr12}`;
+    }
 
-    if (isInitiator) {
-      this.pushStateToServer();
+    // ONLY SAVE TO HISTORY IF THIS IS AN OFFICIAL ROUND (NOT A TEST SPIN)
+    if (!isTestSpin) {
+      const newResult = {
+        id: Date.now(),
+        number: winningNumber,
+        time: timeStr12,
+        date: dateStr,
+        round: roundStr12,
+        source: triggerSource
+      };
+
+      // Update history (exact match with wheel stop)
+      this.history = [newResult, ...this.history];
+      this.renderLast3Results();
+
+      if (isInitiator) {
+        this.pushStateToServer();
+      }
     }
   }
 
@@ -1563,7 +1618,7 @@ class SpinWheelApp {
         this.countdownEl.textContent = `00:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
         if (totalSec <= 0 && !this.isSpinning) {
-          this.dispatchSynchronizedSpin(this.manualRoundTitle ? `Round ${this.manualRoundTitle}` : 'Manual Countdown Round');
+          this.dispatchSynchronizedSpin(this.manualRoundTitle ? `Round ${this.manualRoundTitle}` : 'Manual Countdown Round', false);
         }
       } else {
         // Automatic 4-Slot Schedule Countdown (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM)
@@ -1607,7 +1662,7 @@ class SpinWheelApp {
         const lastSpunSlot = localStorage.getItem(STATE_KEYS.LAST_SPUN_SLOT);
         if (totalSec === 0 && !this.isSpinning && lastSpunSlot !== slotKey) {
           localStorage.setItem(STATE_KEYS.LAST_SPUN_SLOT, slotKey);
-          this.dispatchSynchronizedSpin(`Slot ${nextSlot.label}`);
+          this.dispatchSynchronizedSpin(`Slot ${nextSlot.label}`, false);
         }
       }
     };
