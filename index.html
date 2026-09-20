@@ -35,7 +35,7 @@
         </div>
         <div>
           <h1 class="brand-title">LUCKY HOURLY SPIN</h1>
-          <p class="brand-subtitle">10-Slot Wheel &bull; 24 Hourly Rounds Daily</p>
+          <p class="brand-subtitle">10-Slot Wheel &bull; 4 Daily Rounds (12PM, 4PM, 8PM, 11PM)</p>
         </div>
       </div>
 
@@ -165,7 +165,7 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <span>Auto-spins at the top of every hour (12:00 AM &bull; 01:00 AM &bull; ... &bull; 11:00 PM)</span>
+      <span>Live Daily Rounds at 12:00 PM &bull; 04:00 PM &bull; 08:00 PM &bull; 11:00 PM</span>
     </footer>
   </div>
 
@@ -186,8 +186,8 @@
       </div>
       <div class="modal-body">
         <div class="help-info-block">
-          <h4>🕒 24 Hourly Live Rounds</h4>
-          <p>The wheel automatically spins at the top of every hour (12:00 AM to 11:00 PM). The live countdown indicates time remaining until the next hourly winner is drawn.</p>
+          <h4>🕒 4 Daily Live Rounds</h4>
+          <p>The wheel automatically spins at the 4 fixed scheduled daily times (12:00 PM, 04:00 PM, 08:00 PM, and 11:00 PM). The live countdown automatically advances to the next upcoming round.</p>
         </div>
 
         <div class="help-info-block">
@@ -304,29 +304,9 @@
               <div class="grid-field">
                 <label class="field-label">Round Time:</label>
                 <select id="quick-round-hour-select" class="admin-select">
-                  <option value="12:00 AM">12:00 AM</option>
-                  <option value="01:00 AM">01:00 AM</option>
-                  <option value="02:00 AM">02:00 AM</option>
-                  <option value="03:00 AM">03:00 AM</option>
-                  <option value="04:00 AM">04:00 AM</option>
-                  <option value="05:00 AM">05:00 AM</option>
-                  <option value="06:00 AM">06:00 AM</option>
-                  <option value="07:00 AM">07:00 AM</option>
-                  <option value="08:00 AM">08:00 AM</option>
-                  <option value="09:00 AM">09:00 AM</option>
-                  <option value="10:00 AM">10:00 AM</option>
-                  <option value="11:00 AM">11:00 AM</option>
                   <option value="12:00 PM">12:00 PM</option>
-                  <option value="01:00 PM">01:00 PM</option>
-                  <option value="02:00 PM">02:00 PM</option>
-                  <option value="03:00 PM">03:00 PM</option>
                   <option value="04:00 PM" selected>04:00 PM</option>
-                  <option value="05:00 PM">05:00 PM</option>
-                  <option value="06:00 PM">06:00 PM</option>
-                  <option value="07:00 PM">07:00 PM</option>
                   <option value="08:00 PM">08:00 PM</option>
-                  <option value="09:00 PM">09:00 PM</option>
-                  <option value="10:00 PM">10:00 PM</option>
                   <option value="11:00 PM">11:00 PM</option>
                   <option value="CUSTOM">Custom Title / Text...</option>
                 </select>
@@ -349,7 +329,6 @@
 
             <div class="timing-actions-row" style="margin-top: 0.65rem;">
               <button id="apply-time-winner-btn" class="btn btn-gold btn-block">🔒 Set Round Time & Lock Winner (e.g. 04:00 PM ➔ 21)</button>
-              <button id="test-time-winner-btn" class="btn btn-primary btn-block" style="margin-top: 0.4rem;">⚡ Test This Round & Winner Right Now</button>
             </div>
 
             <div id="active-timing-badge" class="active-timing-badge hidden">
@@ -361,23 +340,19 @@
           </div>
         </div>
 
-        <!-- SECTION 2: DECIDE UPCOMING WINNER & INSTANT TEST -->
+        <!-- SECTION 2: DECIDE UPCOMING WINNER -->
         <div class="admin-card">
           <div class="admin-card-title">
             <span class="step-num">2</span>
-            <h4>Change Upcoming Winner & Instant Test</h4>
+            <h4>Change Upcoming Winner</h4>
           </div>
-          <p class="card-desc">Choose which number will win on the next spin, and test it immediately:</p>
+          <p class="card-desc">Choose which number will win on the next scheduled spin:</p>
           
           <div class="forced-selector-row">
             <select id="forced-winner-select" class="admin-select">
               <option value="AUTO">🎲 Automatic / Random Choice</option>
             </select>
             <button id="apply-forced-btn" class="btn btn-primary">Lock Winner</button>
-          </div>
-
-          <div class="quick-test-row" style="margin-top: 0.6rem;">
-            <button id="quick-test-spin-btn" class="btn btn-gold btn-block">⚡ Test Upcoming Winner Right Now</button>
           </div>
 
           <div id="active-forced-indicator" class="active-forced-tag hidden">
@@ -435,27 +410,27 @@
           </div>
         </div>
 
-        <!-- SECTION 4: 24-HOUR HOURLY WINNER SCHEDULE (12-HOUR FORMAT) -->
+        <!-- SECTION 4: 4-SLOT PREDETERMINED SCHEDULE (12PM, 4PM, 8PM, 11PM) -->
         <div class="admin-card">
           <div class="admin-card-header-flex">
             <div class="admin-card-title">
               <span class="step-num">4</span>
-              <h4>24-Hour Predetermined Schedule</h4>
+              <h4>4-Slot Predetermined Schedule</h4>
             </div>
-            <button id="auto-fill-schedule-btn" class="btn btn-secondary btn-sm">Auto Fill 24 Hours</button>
+            <button id="auto-fill-schedule-btn" class="btn btn-secondary btn-sm">Auto Fill 4 Slots</button>
           </div>
-          <p class="card-desc">Preset winning numbers for all 24 hours of the day (12:00 AM to 11:00 PM):</p>
+          <p class="card-desc">Preset fixed winning numbers for the 4 daily rounds (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM):</p>
           <div class="schedule-table-wrap">
             <table class="schedule-table">
               <thead>
                 <tr>
-                  <th>Round (12-Hr)</th>
+                  <th>Slot Time</th>
                   <th>Preset Winner</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="schedule-table-body">
-                <!-- 24 rows rendered in 12-hour format -->
+                <!-- 4 rows rendered: 12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM -->
               </tbody>
             </table>
           </div>

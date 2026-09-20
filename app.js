@@ -1,24 +1,36 @@
 /**
  * ==========================================================
- * HOURLY SPIN WHEEL APPLICATION - REAL-TIME SYNCED ENGINE
+ * LUCKY HOURLY SPIN WHEEL APPLICATION - 4 DAILY SLOTS ENGINE
  * ==========================================================
- * Fully synchronized across all devices (PC, Mobile, Tablet)
- * via central HTTP server state (/api/state) with localStorage fallback.
+ * Strictly 4 Daily Slots: 12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM
+ * Automatic Slot Advancement & Immediate Next Countdown
+ * Exact 100% Needle-to-History Result Alignment (Zero Discrepancy)
+ * Single Spin Rotation Guard (Strict Deduplication - Never Double Spins)
+ * Master Control Center via PC Keyboard Code "00773300"
  */
 
-// Local Storage Fallback Keys
+// Strict 4 Daily Slots Definition
+const DAILY_SLOTS = [
+  { label: '12:00 PM', hour: 12, min: 0 },
+  { label: '04:00 PM', hour: 16, min: 0 },
+  { label: '08:00 PM', hour: 20, min: 0 },
+  { label: '11:00 PM', hour: 23, min: 0 }
+];
+
+// Local Storage Keys
 const STATE_KEYS = {
-  SLICES: 'lucky_spin_slices_v5',
-  HISTORY: 'lucky_spin_history_v5',
-  FORCED_NEXT: 'lucky_spin_forced_next_v5',
-  UPCOMING_QUEUE: 'lucky_spin_queue_v5',
-  SCHEDULE: 'lucky_spin_schedule_v5',
-  SOUND_MUTED: 'lucky_spin_sound_muted_v5',
-  LAST_SPUN_HOUR: 'lucky_spin_last_spun_hour_v5',
-  MASTER_KEY: 'lucky_spin_master_password_v5',
-  TIMER_MODE: 'lucky_spin_timer_mode_v5',
-  CUSTOM_SECS: 'lucky_spin_custom_secs_v5',
-  MANUAL_ROUND_TITLE: 'lucky_spin_manual_round_title_v5'
+  SLICES: 'lucky_spin_slices_v6',
+  HISTORY: 'lucky_spin_history_v6',
+  FORCED_NEXT: 'lucky_spin_forced_next_v6',
+  UPCOMING_QUEUE: 'lucky_spin_queue_v6',
+  DAILY_SCHEDULE: 'lucky_spin_daily_schedule_v6',
+  SOUND_MUTED: 'lucky_spin_sound_muted_v6',
+  LAST_SPUN_SLOT: 'lucky_spin_last_spun_slot_v6',
+  LAST_HANDLED_SPIN_ID: 'lucky_spin_last_handled_spin_id_v6',
+  MASTER_KEY: 'lucky_spin_master_password_v6',
+  TIMER_MODE: 'lucky_spin_timer_mode_v6',
+  CUSTOM_SECS: 'lucky_spin_custom_secs_v6',
+  MANUAL_ROUND_TITLE: 'lucky_spin_manual_round_title_v6'
 };
 
 // Vibrant Luxury Wheel Slice Color Palettes
@@ -44,6 +56,49 @@ function format12Hour(hour24) {
 
 function formatTime12(date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+}
+
+// Compute the exact next upcoming slot among the 4 daily slots
+function getNextSlotInfo(now = new Date()) {
+  const currentTotalMins = now.getHours() * 60 + now.getMinutes();
+
+  for (let slot of DAILY_SLOTS) {
+    const slotTotalMins = slot.hour * 60 + slot.min;
+    if (slotTotalMins > currentTotalMins) {
+      const targetDate = new Date(now);
+      targetDate.setHours(slot.hour, slot.min, 0, 0);
+      return {
+        slot: slot,
+        label: slot.label,
+        targetDate: targetDate,
+        slotKey: `slot-${targetDate.getFullYear()}-${targetDate.getMonth() + 1}-${targetDate.getDate()}-${slot.label}`
+      };
+    }
+  }
+
+  // If past 11:00 PM today -> next is tomorrow 12:00 PM
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(DAILY_SLOTS[0].hour, DAILY_SLOTS[0].min, 0, 0);
+  return {
+    slot: DAILY_SLOTS[0],
+    label: DAILY_SLOTS[0].label,
+    targetDate: tomorrow,
+    slotKey: `slot-${tomorrow.getFullYear()}-${tomorrow.getMonth() + 1}-${tomorrow.getDate()}-${DAILY_SLOTS[0].label}`
+  };
+}
+
+// Get the latest active slot based on current time
+function getCurrentActiveSlot(now = new Date()) {
+  const currentTotalMins = now.getHours() * 60 + now.getMinutes();
+  let active = DAILY_SLOTS[DAILY_SLOTS.length - 1]; // 11:00 PM fallback
+  for (let slot of DAILY_SLOTS) {
+    const slotTotalMins = slot.hour * 60 + slot.min;
+    if (currentTotalMins >= slotTotalMins) {
+      active = slot;
+    }
+  }
+  return active;
 }
 
 class AudioController {
@@ -124,24 +179,21 @@ class AudioController {
 
 /**
  * ==========================================================
- * REAL-TIME CLOUD & MULTI-DEVICE SYNCHRONIZATION ENGINE
+ * REAL-TIME MULTI-DEVICE CLOUD SYNCHRONIZATION ENGINE
  * ==========================================================
- * Uses MQTT over secure WebSockets (with multi-broker fallback)
- * + HTML5 BroadcastChannel for instantaneous (<50ms) global sync
- * between PC, iPhone, Android, tablets, and all browser tabs.
  */
 class CloudSyncEngine {
   constructor(app) {
     this.app = app;
-    this.topic = 'spinwheel3d_sync_v4_global';
+    this.topic = 'spinwheel3d_sync_v6_global';
     this.mqttClient = null;
     this.isConnected = false;
     this.broadcastChannel = null;
 
-    // 1. Instant local multi-tab sync
+    // Local multi-tab sync
     if (typeof BroadcastChannel !== 'undefined') {
       try {
-        this.broadcastChannel = new BroadcastChannel('spinwheel_live_sync');
+        this.broadcastChannel = new BroadcastChannel('spinwheel_live_sync_v6');
         this.broadcastChannel.onmessage = (e) => {
           if (e.data) {
             this.app.handleIncomingRealtimeState(e.data, true);
@@ -150,7 +202,7 @@ class CloudSyncEngine {
       } catch (e) {}
     }
 
-    // 2. Global MQTT WebSocket sync
+    // Global MQTT WebSocket sync
     this.initMQTT();
   }
 
@@ -222,14 +274,12 @@ class CloudSyncEngine {
   }
 
   publish(state) {
-    // Local multi-tab broadcast
     if (this.broadcastChannel) {
       try {
         this.broadcastChannel.postMessage(state);
       } catch (e) {}
     }
 
-    // Global MQTT WebSocket broadcast
     if (this.mqttClient && this.isConnected) {
       try {
         this.mqttClient.publish(this.topic, JSON.stringify(state), { qos: 1, retain: true });
@@ -245,7 +295,7 @@ class SpinWheelApp {
     this.confetti = new window.Confetti('confetti-canvas');
     this.audio = new AudioController();
 
-    // Default 10 numbers (1-100)
+    // Permanent 10 custom numbers (1-100)
     this.defaultSlices = [26, 33, 35, 38, 42, 59, 68, 77, 86, 94];
     
     // Internal Core State
@@ -253,7 +303,7 @@ class SpinWheelApp {
     this.history = this.loadLocalHistory();
     this.forcedNext = localStorage.getItem(STATE_KEYS.FORCED_NEXT) || null;
     this.upcomingQueue = this.loadLocalQueue();
-    this.hourlySchedule = this.loadLocalSchedule();
+    this.dailySchedule = this.loadLocalDailySchedule();
     this.masterPassword = localStorage.getItem(STATE_KEYS.MASTER_KEY) || '00773300';
 
     // Timer & Round State
@@ -265,20 +315,18 @@ class SpinWheelApp {
     // Server Synchronization State
     this.version = 1;
     this.lastVersion = 0;
-    this.lastHandledSpinId = 0;
+    this.lastHandledSpinId = parseInt(localStorage.getItem(STATE_KEYS.LAST_HANDLED_SPIN_ID), 10) || 0;
     this.isServerConnected = false;
     this.isDrawerOpen = false;
 
-    // Secret Key Sequence Buffer & Mobile Long Press
+    // Secret Key Sequence Buffer
     this.keyBuffer = '';
     this.secretTriggerCode = '00773300';
-    this.brandTapCount = 0;
-    this.brandTapTimer = null;
-    this.centerPressTimer = null;
 
     // Wheel Physics State
     this.currentAngle = 0;
     this.isSpinning = false;
+    this.spinAnimFrameId = null;
     this.lastTickIndex = -1;
     this.pointerEl = document.querySelector('.pointer-arrow');
 
@@ -295,7 +343,6 @@ class SpinWheelApp {
     this.soundIconOff = document.getElementById('sound-icon-off');
     this.brandHeader = document.getElementById('brand-header');
     this.centerHub = document.getElementById('center-hub');
-    this.footerSecretBtn = document.getElementById('footer-secret-btn');
 
     // DOM Elements - Help Modal
     this.helpBtn = document.getElementById('help-btn');
@@ -329,7 +376,6 @@ class SpinWheelApp {
     this.customTitleRow = document.getElementById('custom-title-row');
     this.manualRoundTitleInput = document.getElementById('manual-round-title-input');
     this.applyTimeWinnerBtn = document.getElementById('apply-time-winner-btn');
-    this.testTimeWinnerBtn = document.getElementById('test-time-winner-btn');
     this.activeTimingBadge = document.getElementById('active-timing-badge');
     this.badgeTimingText = document.getElementById('badge-timing-text');
     this.badgeTimingWinner = document.getElementById('badge-timing-winner');
@@ -339,7 +385,6 @@ class SpinWheelApp {
     // Section 2 Controls
     this.forcedSelect = document.getElementById('forced-winner-select');
     this.applyForcedBtn = document.getElementById('apply-forced-btn');
-    this.quickTestSpinBtn = document.getElementById('quick-test-spin-btn');
     this.activeForcedIndicator = document.getElementById('active-forced-indicator');
     this.forcedTargetNumberEl = document.getElementById('forced-target-number');
     this.clearForcedBtn = document.getElementById('clear-forced-btn');
@@ -355,7 +400,7 @@ class SpinWheelApp {
     this.randomizeSlicesBtn = document.getElementById('randomize-slices-btn');
     this.slicesSaveMsg = document.getElementById('slices-save-msg');
 
-    // Section 4 Controls
+    // Section 4 Controls (4-Slot Daily Schedule)
     this.scheduleTableBody = document.getElementById('schedule-table-body');
     this.autoFillScheduleBtn = document.getElementById('auto-fill-schedule-btn');
 
@@ -377,15 +422,12 @@ class SpinWheelApp {
     this.populateAdminControls();
     this.startTimerEngine();
 
-    // 1. Start Instant Real-Time Cloud Synchronization (MQTT WebSockets + BroadcastChannel)
+    // 1. Start Instant Real-Time Cloud Synchronization
     this.cloudSync = new CloudSyncEngine(this);
 
-    // 2. Pull initial local server state & start continuous live polling for LAN mode
+    // 2. Pull initial local server state & continuous live polling
     await this.pullStateFromServer();
     this.startServerPolling();
-
-    // 3. Check hourly auto-spin
-    this.checkHourlyAutoSpin();
   }
 
   setupCanvasDPI() {
@@ -398,12 +440,11 @@ class SpinWheelApp {
   }
 
   // ==========================================================
-  // REAL-TIME SERVER & CLOUD STATE SYNC ENGINE
+  // REAL-TIME STATE SYNC & DEDUPLICATION ENGINE
   // ==========================================================
-  handleIncomingRealtimeState(state, isLocalBroadcast = false) {
+  handleIncomingRealtimeState(state) {
     if (!state || typeof state !== 'object') return;
 
-    // Check version
     if (state.version && state.version <= this.lastVersion && !state.spinTrigger) {
       return;
     }
@@ -414,16 +455,20 @@ class SpinWheelApp {
 
     this.applyServerState(state);
 
-    // Handle synchronized spin triggers from any device in real-time
+    // Synchronized spin trigger check (strictly executed once across all clients)
     if (state.spinTrigger && state.spinTrigger.triggerId) {
       const trigger = state.spinTrigger;
-      if (trigger.triggerId !== this.lastHandledSpinId) {
+      const lastSaved = parseInt(localStorage.getItem(STATE_KEYS.LAST_HANDLED_SPIN_ID), 10) || 0;
+      
+      if (trigger.triggerId && trigger.triggerId !== this.lastHandledSpinId && trigger.triggerId !== lastSaved) {
         const age = Date.now() - (trigger.timestamp || 0);
-        if (age < 15000 && !this.isSpinning) {
+        if (age < 8000 && !this.isSpinning) {
           this.lastHandledSpinId = trigger.triggerId;
-          this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Round', false);
+          localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
+          this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Slot Round', false);
         } else {
           this.lastHandledSpinId = trigger.triggerId;
+          localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
         }
       }
     }
@@ -441,28 +486,29 @@ class SpinWheelApp {
       if (!state || typeof state !== 'object') return;
       this.isServerConnected = true;
 
-      // Check if state changed on server
       if (state.version !== undefined && state.version > this.lastVersion) {
         this.applyServerState(state);
         this.lastVersion = state.version;
       }
 
-      // Check for synchronized spin triggers from any device
+      // Handle spin triggers from server
       if (state.spinTrigger && state.spinTrigger.triggerId) {
         const trigger = state.spinTrigger;
-        if (trigger.triggerId !== this.lastHandledSpinId) {
+        const lastSaved = parseInt(localStorage.getItem(STATE_KEYS.LAST_HANDLED_SPIN_ID), 10) || 0;
+        
+        if (trigger.triggerId && trigger.triggerId !== this.lastHandledSpinId && trigger.triggerId !== lastSaved) {
           const age = Date.now() - (trigger.timestamp || 0);
-          // Only trigger if event occurred recently (within last 12s)
-          if (age < 12000 && !this.isSpinning) {
+          if (age < 8000 && !this.isSpinning) {
             this.lastHandledSpinId = trigger.triggerId;
-            this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Hourly Round', false);
+            localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
+            this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Slot Round', false);
           } else {
             this.lastHandledSpinId = trigger.triggerId;
+            localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
           }
         }
       }
     } catch (err) {
-      // Server offline or standalone file mode
       this.isServerConnected = false;
     }
   }
@@ -471,7 +517,7 @@ class SpinWheelApp {
     let wheelNeedsRedraw = false;
     let historyNeedsRedraw = false;
 
-    // 1. Slices
+    // 1. Slices (Permanent 10 numbers)
     if (Array.isArray(state.slices) && state.slices.length === 10) {
       const currentJson = JSON.stringify(this.slices);
       const newJson = JSON.stringify(state.slices);
@@ -507,10 +553,10 @@ class SpinWheelApp {
       localStorage.setItem(STATE_KEYS.UPCOMING_QUEUE, JSON.stringify(this.upcomingQueue));
     }
 
-    // 5. Hourly Schedule
-    if (state.hourlySchedule && typeof state.hourlySchedule === 'object') {
-      this.hourlySchedule = state.hourlySchedule;
-      localStorage.setItem(STATE_KEYS.SCHEDULE, JSON.stringify(this.hourlySchedule));
+    // 5. 4-Slot Daily Schedule
+    if (state.dailySchedule && typeof state.dailySchedule === 'object') {
+      this.dailySchedule = { ...this.dailySchedule, ...state.dailySchedule };
+      localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
     }
 
     // 6. Timer Mode & Countdown Target
@@ -563,7 +609,7 @@ class SpinWheelApp {
       history: this.history,
       forcedNext: this.forcedNext,
       upcomingQueue: this.upcomingQueue,
-      hourlySchedule: this.hourlySchedule,
+      dailySchedule: this.dailySchedule,
       timerMode: this.timerMode,
       customSecs: this.customSecs,
       customTimerTarget: this.customTimerTarget,
@@ -582,7 +628,7 @@ class SpinWheelApp {
       localStorage.removeItem(STATE_KEYS.FORCED_NEXT);
     }
     localStorage.setItem(STATE_KEYS.UPCOMING_QUEUE, JSON.stringify(this.upcomingQueue));
-    localStorage.setItem(STATE_KEYS.SCHEDULE, JSON.stringify(this.hourlySchedule));
+    localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
     localStorage.setItem(STATE_KEYS.TIMER_MODE, this.timerMode);
     localStorage.setItem(STATE_KEYS.CUSTOM_SECS, this.customSecs);
     if (this.manualRoundTitle) {
@@ -592,7 +638,7 @@ class SpinWheelApp {
     }
     localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
 
-    // 1. Broadcast immediately to all connected Mobile & PC devices via Real-Time Cloud Engine (MQTT WebSocket)
+    // 1. Broadcast immediately to all connected Mobile & PC devices via MQTT WebSocket & BroadcastChannel
     if (this.cloudSync) {
       this.cloudSync.publish(payload);
     }
@@ -620,7 +666,7 @@ class SpinWheelApp {
   }
 
   // ==========================================================
-  // LOCAL STORAGE LOADERS (OFFLINE & DEFAULT CACHE)
+  // LOCAL STORAGE LOADERS
   // ==========================================================
   loadLocalSlices() {
     try {
@@ -651,16 +697,17 @@ class SpinWheelApp {
     return ['AUTO', 'AUTO', 'AUTO'];
   }
 
-  loadLocalSchedule() {
+  loadLocalDailySchedule() {
     try {
-      const saved = localStorage.getItem(STATE_KEYS.SCHEDULE);
+      const saved = localStorage.getItem(STATE_KEYS.DAILY_SCHEDULE);
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    const sched = {};
-    for (let h = 0; h < 24; h++) {
-      sched[h] = 'AUTO';
-    }
-    return sched;
+    return {
+      '12:00 PM': 'AUTO',
+      '04:00 PM': 'AUTO',
+      '08:00 PM': 'AUTO',
+      '11:00 PM': 'AUTO'
+    };
   }
 
   // ==========================================================
@@ -684,7 +731,7 @@ class SpinWheelApp {
       this.helpModal.classList.add('hidden');
     });
 
-    // 1. SECRET KEYBOARD SEQUENCE: "00773300" (PC)
+    // SECRET KEYBOARD SEQUENCE: "00773300" (PC only)
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
         return;
@@ -696,8 +743,6 @@ class SpinWheelApp {
         this.keyBuffer = '';
       }
     });
-
-    // Note: Mobile master triggers are disabled. Master Login can exclusively be opened via PC keyboard sequence "00773300".
 
     // Secret Login Modal Submit
     const authenticateMaster = () => {
@@ -733,7 +778,7 @@ class SpinWheelApp {
       this.timerMode = 'REAL';
       this.customTimerTarget = null;
       this.pushStateToServer();
-      this.showTimerFeedback('Switched to Real Clock Mode (Top of Hour :00)');
+      this.showTimerFeedback('Switched to 4-Slot Real Clock Schedule');
     });
 
     this.timerModeManual.addEventListener('change', () => {
@@ -754,11 +799,11 @@ class SpinWheelApp {
         this.timerModeManual.checked = true;
         this.customTimerTarget = Date.now() + totalSecs * 1000;
         this.pushStateToServer();
-        this.showTimerFeedback(`Custom timer synchronized: ${mins}m ${secs}s!`);
+        this.showTimerFeedback(`Custom countdown started: ${mins}m ${secs}s!`);
       }
     });
 
-    // Specific Round Timing Dropdown change
+    // Specific Round Timing Dropdown change (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM)
     this.quickRoundHourSelect.addEventListener('change', () => {
       const val = this.quickRoundHourSelect.value;
       if (val === 'CUSTOM') {
@@ -782,11 +827,11 @@ class SpinWheelApp {
       }
     });
 
-    // Helper: Apply Specific Round Time & Predetermined Winner (Keeps user's 10 manual slices permanent)
-    const applyRoundAndWinner = (andTestSpin = false) => {
+    // Section 1: Set Round Time & Lock Predetermined Winner
+    this.applyTimeWinnerBtn.addEventListener('click', () => {
       let roundTitle = this.quickRoundHourSelect.value;
       if (roundTitle === 'CUSTOM') {
-        roundTitle = this.manualRoundTitleInput.value.trim() || 'Custom Round';
+        roundTitle = this.manualRoundTitleInput.value.trim() || '12:00 PM';
       }
 
       let winnerNum;
@@ -796,27 +841,24 @@ class SpinWheelApp {
         winnerNum = parseInt(this.manualRoundWinnerSelect.value, 10);
       }
 
-      if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 1;
+      if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 26;
       if (winnerNum > 100) winnerNum = 100;
 
-      // 1. Set Round Title & Switch to Scheduled Real Clock Mode (stops repeating 1-min countdown)
+      // 1. Set Round Title & Switch to Scheduled Mode
       this.manualRoundTitle = roundTitle;
       this.currentHourEl.textContent = roundTitle;
       this.timerMode = 'REAL';
       this.customTimerTarget = null;
       if (this.timerModeReal) this.timerModeReal.checked = true;
 
-      // 2. Lock Upcoming Winner (10 wheel slices remain 100% permanent!)
+      // 2. Lock Upcoming Winner
       this.forcedNext = winnerNum;
       this.updateForcedWinnerUI();
 
-      // 3. Update 24-hour schedule table if matching hour format (e.g. 04:00 PM)
-      const match = roundTitle.match(/^(\d{1,2}):00\s*(AM|PM)$/i);
-      if (match) {
-        let hr = parseInt(match[1], 10) % 12;
-        if (match[2].toUpperCase() === 'PM') hr += 12;
-        this.hourlySchedule[hr] = winnerNum;
-        this.renderScheduleTable();
+      // 3. Update 4-slot daily schedule table if matching slot
+      if (this.dailySchedule[roundTitle] !== undefined) {
+        this.dailySchedule[roundTitle] = winnerNum;
+        this.renderDailyScheduleTable();
       }
 
       // 4. Update Active Timing Badge
@@ -829,19 +871,8 @@ class SpinWheelApp {
         timerMode: 'REAL',
         customTimerTarget: null
       });
-      this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum} (Counts down to ${roundTitle}!)`);
-
-      // 6. If testing immediately
-      if (andTestSpin) {
-        this.closeAdminDrawer();
-        setTimeout(() => {
-          this.dispatchSynchronizedSpin(`Round ${roundTitle}`);
-        }, 300);
-      }
-    };
-
-    this.applyTimeWinnerBtn.addEventListener('click', () => applyRoundAndWinner(false));
-    this.testTimeWinnerBtn.addEventListener('click', () => applyRoundAndWinner(true));
+      this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum}!`);
+    });
 
     // Clear / Reset Timing & Winner
     this.clearTimingBtn.addEventListener('click', () => {
@@ -852,9 +883,10 @@ class SpinWheelApp {
       this.customTitleRow.classList.add('hidden');
       this.activeTimingBadge.classList.add('hidden');
       this.updateForcedWinnerUI();
-      this.currentHourEl.textContent = format12Hour(new Date().getHours());
+      const nextSlot = getNextSlotInfo(new Date());
+      this.currentHourEl.textContent = nextSlot.label;
       this.pushStateToServer();
-      this.showTimerFeedback('Reset round timing & winner to automatic!');
+      this.showTimerFeedback('Reset round timing & winner to automatic slot rotation!');
     });
 
     // Section 2: Set Next Winner
@@ -874,16 +906,6 @@ class SpinWheelApp {
       this.forcedNext = null;
       this.updateForcedWinnerUI();
       this.pushStateToServer();
-    });
-
-    // Section 2: Quick Test Spin Button
-    this.quickTestSpinBtn.addEventListener('click', () => {
-      const val = this.forcedSelect.value;
-      if (val !== 'AUTO') {
-        this.forcedNext = parseInt(val, 10);
-      }
-      this.closeAdminDrawer();
-      this.dispatchSynchronizedSpin('Manual Test Spin');
     });
 
     // Section 2: Save Upcoming Queue
@@ -931,16 +953,17 @@ class SpinWheelApp {
       }
     });
 
-    // Section 4: Auto fill schedule
+    // Section 4: Auto Fill 4 Slots
     this.autoFillScheduleBtn.addEventListener('click', () => {
       const sched = {};
-      for (let h = 0; h < 24; h++) {
+      DAILY_SLOTS.forEach(slot => {
         const randIdx = Math.floor(Math.random() * this.slices.length);
-        sched[h] = this.slices[randIdx];
-      }
-      this.hourlySchedule = sched;
-      this.renderScheduleTable();
+        sched[slot.label] = this.slices[randIdx];
+      });
+      this.dailySchedule = sched;
+      this.renderDailyScheduleTable();
       this.pushStateToServer();
+      this.showTimerFeedback('Auto-filled 4 daily slots!');
     });
 
     // Section 5: Change Master Password
@@ -1050,9 +1073,10 @@ class SpinWheelApp {
     }
 
     // Populate Timing & Winner Setup
+    const nextSlot = getNextSlotInfo(new Date());
     if (this.manualRoundTitle || this.forcedNext !== null) {
       this.activeTimingBadge.classList.remove('hidden');
-      this.badgeTimingText.textContent = this.manualRoundTitle || format12Hour(new Date().getHours());
+      this.badgeTimingText.textContent = this.manualRoundTitle || nextSlot.label;
       this.badgeTimingWinner.textContent = this.forcedNext !== null ? `${this.forcedNext}` : 'Auto';
     } else {
       this.activeTimingBadge.classList.add('hidden');
@@ -1070,7 +1094,7 @@ class SpinWheelApp {
       }
     }
 
-    // Populate Section 1 Winning Number dropdown with the 10 permanent slices
+    // Populate Winning Number dropdown with the 10 permanent slices
     this.manualRoundWinnerSelect.innerHTML = '';
     this.slices.forEach((num, idx) => {
       const opt = document.createElement('option');
@@ -1147,20 +1171,20 @@ class SpinWheelApp {
       });
     });
 
-    // 3. Render 24-hour Schedule Table
-    this.renderScheduleTable();
+    // 3. Render 4-Slot Daily Schedule Table
+    this.renderDailyScheduleTable();
   }
 
-  renderScheduleTable() {
-    const currentHour = new Date().getHours();
+  renderDailyScheduleTable() {
+    const nextSlot = getNextSlotInfo(new Date());
     this.scheduleTableBody.innerHTML = '';
 
-    for (let h = 0; h < 24; h++) {
+    DAILY_SLOTS.forEach(slot => {
       const tr = document.createElement('tr');
-      if (h === currentHour) tr.className = 'current-hour-row';
+      const isNext = slot.label === nextSlot.label;
+      if (isNext) tr.className = 'current-hour-row';
 
-      const hourLabel12 = format12Hour(h);
-      const currentPreset = this.hourlySchedule[h] || 'AUTO';
+      const currentPreset = this.dailySchedule[slot.label] || 'AUTO';
 
       let selectOptions = `<option value="AUTO" ${currentPreset === 'AUTO' ? 'selected' : ''}>🎲 Auto</option>`;
       const presetNum = currentPreset !== 'AUTO' ? parseInt(currentPreset, 10) : null;
@@ -1170,38 +1194,42 @@ class SpinWheelApp {
       });
 
       tr.innerHTML = `
-        <td><span class="schedule-hour-badge">${hourLabel12}</span> ${h === currentHour ? '<small style="color:#f5b041;">(Now)</small>' : ''}</td>
         <td>
-          <select class="schedule-select" data-hour="${h}">
+          <span class="schedule-hour-badge">${slot.label}</span>
+          ${isNext ? '<small style="color:#f5b041; margin-left:6px; font-weight:700;">(Next Round)</small>' : ''}
+        </td>
+        <td>
+          <select class="schedule-select" data-slot="${slot.label}">
             ${selectOptions}
           </select>
         </td>
         <td>
-          <button class="btn btn-secondary btn-sm" onclick="app.setScheduleHour(${h})">Set</button>
+          <button class="btn btn-secondary btn-sm" onclick="app.setDailySlotWinner('${slot.label}')">Set</button>
         </td>
       `;
 
       this.scheduleTableBody.appendChild(tr);
-    }
+    });
 
     const selects = this.scheduleTableBody.querySelectorAll('.schedule-select');
     selects.forEach(sel => {
       sel.addEventListener('change', (e) => {
-        const hr = e.target.getAttribute('data-hour');
+        const slotLabel = e.target.getAttribute('data-slot');
         const val = e.target.value === 'AUTO' ? 'AUTO' : parseInt(e.target.value, 10);
-        this.hourlySchedule[hr] = val;
+        this.dailySchedule[slotLabel] = val;
         this.pushStateToServer();
       });
     });
   }
 
-  setScheduleHour(h) {
-    const select = this.scheduleTableBody.querySelector(`select[data-hour="${h}"]`);
+  setDailySlotWinner(slotLabel) {
+    const select = this.scheduleTableBody.querySelector(`select[data-slot="${slotLabel}"]`);
     if (select) {
       const val = select.value === 'AUTO' ? 'AUTO' : parseInt(select.value, 10);
-      this.hourlySchedule[h] = val;
+      this.dailySchedule[slotLabel] = val;
       this.pushStateToServer();
-      this.renderScheduleTable();
+      this.renderDailyScheduleTable();
+      this.showTimerFeedback(`Slot ${slotLabel} winner set to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
     }
   }
 
@@ -1262,7 +1290,6 @@ class SpinWheelApp {
       ctx.rotate(midAngle);
       ctx.translate(radius - 38, 0);
 
-      // Rotate 180 degrees if on left half so text is upright
       if (midAngle > Math.PI / 2 && midAngle < (3 * Math.PI) / 2) {
         ctx.rotate(Math.PI);
       }
@@ -1292,10 +1319,10 @@ class SpinWheelApp {
   }
 
   // ==========================================================
-  // SYNCHRONIZED SPIN DISPATCHER & PHYSICS ANIMATION
+  // TARGET NUMBER DETERMINATION & SINGLE ROTATION PHYSICS
   // ==========================================================
   determineTargetNumber() {
-    const currentHour = new Date().getHours();
+    const nextSlot = getNextSlotInfo(new Date());
 
     // 1. Highest Priority: Forced Next Winner
     if (this.forcedNext !== null && this.forcedNext !== undefined) {
@@ -1305,7 +1332,7 @@ class SpinWheelApp {
       return forced;
     }
 
-    // 2. Second Priority: First item in Upcoming Queue
+    // 2. Second Priority: Upcoming Queue (1st slot)
     if (this.upcomingQueue && this.upcomingQueue.length > 0 && this.upcomingQueue[0] !== 'AUTO') {
       const queueVal = parseInt(this.upcomingQueue[0], 10);
       this.upcomingQueue = [this.upcomingQueue[1] || 'AUTO', this.upcomingQueue[2] || 'AUTO', 'AUTO'];
@@ -1314,38 +1341,40 @@ class SpinWheelApp {
       }
     }
 
-    // 3. Third Priority: 24-Hour Schedule for this hour
-    const scheduled = this.hourlySchedule[currentHour];
-    if (scheduled && scheduled !== 'AUTO') {
-      const schedNum = parseInt(scheduled, 10);
+    // 3. Third Priority: 4-Slot Predetermined Schedule for this active/upcoming slot
+    const currentSlot = getCurrentActiveSlot(new Date());
+    const scheduledVal = this.dailySchedule[currentSlot.label] || this.dailySchedule[nextSlot.label];
+    if (scheduledVal && scheduledVal !== 'AUTO') {
+      const schedNum = parseInt(scheduledVal, 10);
       if (this.slices.includes(schedNum)) {
         return schedNum;
       }
     }
 
-    // 4. Fallback: Pick random number from current 10 slices
+    // 4. Fallback: Pick random number from permanent 10 slices
     const randIdx = Math.floor(Math.random() * this.slices.length);
     return this.slices[randIdx];
   }
 
-  dispatchSynchronizedSpin(triggerSource = 'Hourly Round') {
+  dispatchSynchronizedSpin(triggerSource = 'Live Slot Round') {
     if (this.isSpinning) return;
 
     const targetNumber = this.determineTargetNumber();
     const triggerId = Date.now();
     this.lastHandledSpinId = triggerId;
+    localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(triggerId));
 
-    // Reset one-time custom countdowns so wheel does NOT spin continuously every minute
+    // Reset one-time custom countdowns
     this.customTimerTarget = null;
     this.timerMode = 'REAL';
     if (this.timerModeReal) this.timerModeReal.checked = true;
 
-    // Broadcast spin trigger to server so all connected mobile/PC screens spin in unison!
+    // Broadcast spin trigger to server & all connected mobile/PC screens
     const spinTrigger = {
       triggerId: triggerId,
       targetNumber: targetNumber,
       triggerSource: triggerSource,
-      timestamp: Date.now()
+      timestamp: triggerId
     };
 
     this.pushStateToServer({
@@ -1356,31 +1385,40 @@ class SpinWheelApp {
       customTimerTarget: null
     });
 
-    // Run animation locally
+    // Execute spin animation locally (single execution)
     this.executeSpinAnimation(targetNumber, triggerSource, true);
   }
 
   executeSpinAnimation(targetNumber, triggerSource, isInitiator) {
-    if (this.isSpinning) return;
+    if (this.isSpinning) {
+      console.warn('Spin already active. Skipping duplicate animation.');
+      return;
+    }
     this.isSpinning = true;
+
+    // Cancel any prior animation loop to guarantee a single clean spin
+    if (this.spinAnimFrameId) {
+      cancelAnimationFrame(this.spinAnimFrameId);
+      this.spinAnimFrameId = null;
+    }
 
     let targetIndex = this.slices.indexOf(targetNumber);
     if (targetIndex === -1) {
       targetIndex = 0;
+      targetNumber = this.slices[0];
     }
 
     const numSlices = this.slices.length;
     const sliceAngle = (2 * Math.PI) / numSlices;
 
+    // Exact needle target calculation: Pointer needle is at top (-Math.PI / 2).
+    // Zero random jitter guarantees the needle lands with 100% precision dead center on the slice!
     const targetCenterAngle = (targetIndex + 0.5) * sliceAngle;
-    const randomJitter = (Math.random() - 0.5) * (sliceAngle * 0.45);
-    const finalTargetSliceAngle = targetCenterAngle + randomJitter;
-
-    let desiredNormalizedAngle = (-Math.PI / 2 - finalTargetSliceAngle) % (2 * Math.PI);
+    let desiredNormalizedAngle = (-Math.PI / 2 - targetCenterAngle) % (2 * Math.PI);
     if (desiredNormalizedAngle < 0) desiredNormalizedAngle += 2 * Math.PI;
 
-    const minSpins = 7;
-    const currentNormalized = this.currentAngle % (2 * Math.PI);
+    const minSpins = 6;
+    const currentNormalized = ((this.currentAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
     let deltaAngle = desiredNormalizedAngle - currentNormalized;
     while (deltaAngle < minSpins * 2 * Math.PI) {
       deltaAngle += 2 * Math.PI;
@@ -1388,7 +1426,7 @@ class SpinWheelApp {
 
     const startAngle = this.currentAngle;
     const finalAngle = startAngle + deltaAngle;
-    const duration = 6500;
+    const duration = 6000;
     const startTime = performance.now();
 
     const easeOut = (t) => 1 - Math.pow(1 - t, 4);
@@ -1400,19 +1438,19 @@ class SpinWheelApp {
 
       this.currentAngle = startAngle + deltaAngle * easeVal;
       this.renderWheel();
-
       this.checkPointerTick();
 
       if (progress < 1) {
-        requestAnimationFrame(animateSpin);
+        this.spinAnimFrameId = requestAnimationFrame(animateSpin);
       } else {
         this.currentAngle = finalAngle;
         this.renderWheel();
+        this.spinAnimFrameId = null;
         this.onSpinComplete(targetNumber, triggerSource, isInitiator);
       }
     };
 
-    requestAnimationFrame(animateSpin);
+    this.spinAnimFrameId = requestAnimationFrame(animateSpin);
   }
 
   checkPointerTick() {
@@ -1421,7 +1459,7 @@ class SpinWheelApp {
     let norm = (-Math.PI / 2 - this.currentAngle) % (2 * Math.PI);
     if (norm < 0) norm += 2 * Math.PI;
 
-    const currentSliceIdx = Math.floor(norm / sliceAngle);
+    const currentSliceIdx = Math.floor(norm / sliceAngle) % numSlices;
     if (currentSliceIdx !== this.lastTickIndex) {
       this.lastTickIndex = currentSliceIdx;
       this.audio.playTick();
@@ -1442,9 +1480,11 @@ class SpinWheelApp {
 
     const now = new Date();
     const timeStr12 = formatTime12(now);
-    const roundStr12 = this.manualRoundTitle || format12Hour(now.getHours());
+    const activeSlot = getCurrentActiveSlot(now);
+    const roundStr12 = this.manualRoundTitle || activeSlot.label;
     const dateStr = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
 
+    // Result card exactly matches the winning number
     const newResult = {
       id: Date.now(),
       number: winningNumber,
@@ -1454,7 +1494,7 @@ class SpinWheelApp {
       source: triggerSource
     };
 
-    // Update history
+    // Update history (exact match with wheel stop)
     this.history = [newResult, ...this.history];
     this.renderLast3Results();
 
@@ -1463,17 +1503,13 @@ class SpinWheelApp {
     this.winNumberEl.textContent = `${winningNumber}`;
     this.winTimeEl.textContent = `Won at ${timeStr12} &bull; Round ${roundStr12}`;
 
-    if (this.timerMode === 'REAL') {
-      localStorage.setItem(STATE_KEYS.LAST_SPUN_HOUR, `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}`);
-    }
-
     if (isInitiator) {
       this.pushStateToServer();
     }
   }
 
   // ==========================================
-  // LAST 3 RESULTS RENDERER
+  // LAST 3 RESULTS RENDERER (100% MATCH)
   // ==========================================
   renderLast3Results() {
     this.resultsGrid.innerHTML = '';
@@ -1503,23 +1539,23 @@ class SpinWheelApp {
     }
   }
 
-  // ==========================================
-  // DUAL TIMER ENGINE (SYNCHRONIZED TIMING)
-  // ==========================================
+  // ==========================================================
+  // AUTOMATIC 4-SLOT ADVANCEMENT & COUNTDOWN TIMER ENGINE
+  // ==========================================================
   startTimerEngine() {
     const tick = () => {
       const now = new Date();
-      const currentHour = now.getHours();
-      
-      // Update Next Round Title
+      const nextSlot = getNextSlotInfo(now);
+
+      // Update Next Round Display Header
       if (this.manualRoundTitle) {
         this.currentHourEl.textContent = this.manualRoundTitle;
       } else {
-        this.currentHourEl.textContent = format12Hour((currentHour + 1) % 24);
+        this.currentHourEl.textContent = nextSlot.label;
       }
 
       if (this.timerMode === 'MANUAL' && this.customTimerTarget) {
-        // One-Time Custom Countdown Mode (e.g. 1 min or 30s test)
+        // One-time custom countdown mode
         const remainingMs = Math.max(0, this.customTimerTarget - Date.now());
         const totalSec = Math.floor(remainingMs / 1000);
         const mins = Math.floor(totalSec / 60);
@@ -1530,9 +1566,9 @@ class SpinWheelApp {
           this.dispatchSynchronizedSpin(this.manualRoundTitle ? `Round ${this.manualRoundTitle}` : 'Manual Countdown Round');
         }
       } else {
-        // Scheduled Round Time Mode (accurately counts down to scheduled round time e.g. 08:00 PM or top of hour)
+        // Automatic 4-Slot Schedule Countdown (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM)
         let targetDate = null;
-        let roundKey = null;
+        let slotKey = null;
 
         if (this.manualRoundTitle) {
           const match = this.manualRoundTitle.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
@@ -1544,18 +1580,15 @@ class SpinWheelApp {
             targetDate.setHours(hr, min, 0, 0);
 
             if (targetDate.getTime() <= now.getTime()) {
-              // Time has passed for today, count down to next occurrence tomorrow
               targetDate.setDate(targetDate.getDate() + 1);
             }
-            roundKey = `sched-${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}-${hr}-${min}`;
+            slotKey = `manual-${targetDate.getFullYear()}-${targetDate.getMonth() + 1}-${targetDate.getDate()}-${hr}-${min}`;
           }
         }
 
         if (!targetDate) {
-          // Default: top of next hour (:00)
-          targetDate = new Date(now);
-          targetDate.setHours(currentHour + 1, 0, 0, 0);
-          roundKey = `hourly-${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${currentHour}`;
+          targetDate = nextSlot.targetDate;
+          slotKey = nextSlot.slotKey;
         }
 
         const diffMs = Math.max(0, targetDate.getTime() - now.getTime());
@@ -1570,21 +1603,17 @@ class SpinWheelApp {
           this.countdownEl.textContent = `00:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Auto-spin ONCE when scheduled time arrives
-        const lastSpunKey = localStorage.getItem(STATE_KEYS.LAST_SPUN_HOUR);
-        if (totalSec === 0 && !this.isSpinning && lastSpunKey !== roundKey) {
-          localStorage.setItem(STATE_KEYS.LAST_SPUN_HOUR, roundKey);
-          this.dispatchSynchronizedSpin(this.manualRoundTitle ? `Round ${this.manualRoundTitle}` : `Hourly Round (${format12Hour(now.getHours())})`);
+        // Auto-spin ONCE when scheduled slot arrives
+        const lastSpunSlot = localStorage.getItem(STATE_KEYS.LAST_SPUN_SLOT);
+        if (totalSec === 0 && !this.isSpinning && lastSpunSlot !== slotKey) {
+          localStorage.setItem(STATE_KEYS.LAST_SPUN_SLOT, slotKey);
+          this.dispatchSynchronizedSpin(`Slot ${nextSlot.label}`);
         }
       }
     };
 
     tick();
     setInterval(tick, 1000);
-  }
-
-  checkHourlyAutoSpin() {
-    // Handled seamlessly in startTimerEngine
   }
 }
 
