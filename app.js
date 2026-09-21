@@ -7,6 +7,7 @@
  * Single Smooth Spin Rotation Guard (Strict Zero-Double-Spin Lock)
  * Exact 100% Needle-to-History Result Alignment (Zero Discrepancy)
  * Test Spin Feature with History Protection (Test Spins DO NOT Save to History)
+ * Reset Button Resets Winner Only (Time Slot Remains 100% Same)
  * Master Control Center via PC Keyboard Code "00773300"
  */
 
@@ -312,7 +313,6 @@ class SpinWheelApp {
     // Timer & Round State
     this.timerMode = localStorage.getItem(STATE_KEYS.TIMER_MODE) || 'REAL';
     this.customSecs = parseInt(localStorage.getItem(STATE_KEYS.CUSTOM_SECS), 10) || 60;
-    this.manualRoundTitle = localStorage.getItem(STATE_KEYS.MANUAL_ROUND_TITLE) || null;
     this.customTimerTarget = null;
     
     // Server Synchronization State
@@ -818,6 +818,7 @@ class SpinWheelApp {
         this.customTitleRow.classList.add('hidden');
         this.manualRoundTitleInput.value = val;
       }
+      this.updateSection1BadgeForSelectedSlot();
     });
 
     // Winning Number Selector dropdown change
@@ -859,9 +860,7 @@ class SpinWheelApp {
       }
 
       // 2. Update Active Timing Badge
-      this.activeTimingBadge.classList.remove('hidden');
-      this.badgeTimingText.textContent = roundTitle;
-      this.badgeTimingWinner.textContent = `${winnerNum}`;
+      this.updateSection1BadgeForSelectedSlot();
 
       // 3. Switch to REAL schedule mode
       this.timerMode = 'REAL';
@@ -901,18 +900,42 @@ class SpinWheelApp {
       });
     }
 
-    // Clear / Reset Timing & Winner
+    // Section 1: Clear / Reset Winner Only (Time slot remains the EXACT same!)
     this.clearTimingBtn.addEventListener('click', () => {
+      // Keep the active time slot exactly as selected or currently active
+      const selectedSlot = (this.quickRoundHourSelect && this.quickRoundHourSelect.value) 
+        || (this.badgeTimingText && this.badgeTimingText.textContent.trim()) 
+        || '12:00 PM';
+
       this.forcedNext = null;
-      this.manualRoundTitleInput.value = '';
-      this.quickRoundHourSelect.value = '04:00 PM';
-      this.customTitleRow.classList.add('hidden');
-      this.activeTimingBadge.classList.add('hidden');
+
+      // Reset the predetermined winner for this slot back to AUTO in schedule
+      if (this.dailySchedule[selectedSlot] !== undefined) {
+        this.dailySchedule[selectedSlot] = 'AUTO';
+      }
+
       this.updateForcedWinnerUI();
-      const nextSlot = getNextSlotInfo(new Date());
-      this.currentHourEl.textContent = nextSlot.label;
+      this.renderDailyScheduleTable();
+
+      // Reset the selector UI back to default
+      if (this.slices && this.slices.length > 0) {
+        this.manualRoundWinnerSelect.value = this.slices[0];
+      }
+      this.manualRoundWinnerInput.value = '';
+      this.manualRoundWinnerInput.classList.add('hidden');
+
+      // Update badge display - Time slot remains strictly unchanged!
+      this.activeTimingBadge.classList.remove('hidden');
+      this.badgeTimingText.textContent = selectedSlot;
+      this.badgeTimingWinner.textContent = 'Auto (Random)';
+
+      // Keep round time select locked on the exact same time slot
+      if (this.quickRoundHourSelect) {
+        this.quickRoundHourSelect.value = selectedSlot;
+      }
+
       this.pushStateToServer();
-      this.showTimerFeedback('Reset round timing & winner to automatic slot rotation!');
+      this.showTimerFeedback(`✅ Winner for Slot "${selectedSlot}" reset to Auto (Time slot remains active)!`);
     });
 
     // Section 2: Set Next Winner
@@ -1003,6 +1026,7 @@ class SpinWheelApp {
       });
       this.dailySchedule = sched;
       this.renderDailyScheduleTable();
+      this.updateSection1BadgeForSelectedSlot();
       this.pushStateToServer();
       this.showTimerFeedback('Auto-filled 4 daily slots!');
     });
@@ -1101,6 +1125,50 @@ class SpinWheelApp {
     }
   }
 
+  updateSection1BadgeForSelectedSlot() {
+    const selectedSlot = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : '12:00 PM';
+    const preset = this.dailySchedule[selectedSlot];
+
+    this.activeTimingBadge.classList.remove('hidden');
+    this.badgeTimingText.textContent = selectedSlot;
+
+    if (preset && preset !== 'AUTO') {
+      this.badgeTimingWinner.textContent = `${preset}`;
+    } else if (this.forcedNext !== null) {
+      this.badgeTimingWinner.textContent = `${this.forcedNext}`;
+    } else {
+      this.badgeTimingWinner.textContent = 'Auto (Random)';
+    }
+
+    // Also synchronize the winning number selector for this slot
+    if (preset && preset !== 'AUTO') {
+      const numVal = parseInt(preset, 10);
+      if (this.slices.includes(numVal)) {
+        this.manualRoundWinnerSelect.value = numVal;
+        this.manualRoundWinnerInput.classList.add('hidden');
+      } else {
+        this.manualRoundWinnerSelect.value = 'CUSTOM';
+        this.manualRoundWinnerInput.classList.remove('hidden');
+        this.manualRoundWinnerInput.value = numVal;
+      }
+    } else if (this.forcedNext !== null) {
+      const forcedNum = parseInt(this.forcedNext, 10);
+      if (this.slices.includes(forcedNum)) {
+        this.manualRoundWinnerSelect.value = forcedNum;
+        this.manualRoundWinnerInput.classList.add('hidden');
+      } else {
+        this.manualRoundWinnerSelect.value = 'CUSTOM';
+        this.manualRoundWinnerInput.classList.remove('hidden');
+        this.manualRoundWinnerInput.value = forcedNum;
+      }
+    } else {
+      if (this.slices && this.slices.length > 0) {
+        this.manualRoundWinnerSelect.value = this.slices[0];
+      }
+      this.manualRoundWinnerInput.classList.add('hidden');
+    }
+  }
+
   populateAdminControls() {
     // Populate Timer Mode Radios & Inputs
     if (this.timerMode === 'MANUAL') {
@@ -1113,28 +1181,19 @@ class SpinWheelApp {
       this.timerModeReal.checked = true;
     }
 
-    // Populate Timing & Winner Setup
+    // Set default selected slot in Section 1 to upcoming slot if not set
     const nextSlot = getNextSlotInfo(new Date());
-    const currentActive = getCurrentActiveSlot(new Date());
-    const presetForNext = this.dailySchedule[nextSlot.label];
-    
-    if (this.forcedNext !== null || (presetForNext && presetForNext !== 'AUTO')) {
-      this.activeTimingBadge.classList.remove('hidden');
-      this.badgeTimingText.textContent = nextSlot.label;
-      this.badgeTimingWinner.textContent = this.forcedNext !== null ? `${this.forcedNext}` : `${presetForNext}`;
-    } else {
-      this.activeTimingBadge.classList.add('hidden');
+    const currentSelected = this.quickRoundHourSelect.value;
+    if (!currentSelected || currentSelected === 'CUSTOM') {
+      this.quickRoundHourSelect.value = nextSlot.label;
     }
 
-    // Populate Winning Number dropdown with the 10 permanent slices
+    // Populate Section 1 Winning Number dropdown with the 10 permanent slices
     this.manualRoundWinnerSelect.innerHTML = '';
     this.slices.forEach((num, idx) => {
       const opt = document.createElement('option');
       opt.value = num;
       opt.textContent = `Slot #${idx + 1}: ${num}`;
-      if (this.forcedNext !== null && parseInt(this.forcedNext, 10) === num) {
-        opt.selected = true;
-      }
       this.manualRoundWinnerSelect.appendChild(opt);
     });
     const customOpt = document.createElement('option');
@@ -1142,20 +1201,10 @@ class SpinWheelApp {
     customOpt.textContent = 'Custom Number (1-100)...';
     this.manualRoundWinnerSelect.appendChild(customOpt);
 
-    if (this.forcedNext !== null) {
-      if (this.slices.includes(parseInt(this.forcedNext, 10))) {
-        this.manualRoundWinnerSelect.value = this.forcedNext;
-        this.manualRoundWinnerInput.classList.add('hidden');
-      } else {
-        this.manualRoundWinnerSelect.value = 'CUSTOM';
-        this.manualRoundWinnerInput.classList.remove('hidden');
-        this.manualRoundWinnerInput.value = this.forcedNext;
-      }
-    } else {
-      this.manualRoundWinnerInput.classList.add('hidden');
-    }
+    // Update Section 1 Badge and selector for currently selected slot
+    this.updateSection1BadgeForSelectedSlot();
 
-    // 1. Populate Forced Select Dropdown
+    // 1. Populate Forced Select Dropdown in Section 2
     this.forcedSelect.innerHTML = '<option value="AUTO">🎲 Automatic / Random Choice</option>';
     this.slices.forEach((num, idx) => {
       const opt = document.createElement('option');
@@ -1250,6 +1299,7 @@ class SpinWheelApp {
         const val = e.target.value === 'AUTO' ? 'AUTO' : parseInt(e.target.value, 10);
         this.dailySchedule[slotLabel] = val;
         this.pushStateToServer();
+        this.updateSection1BadgeForSelectedSlot();
       });
     });
   }
@@ -1261,6 +1311,7 @@ class SpinWheelApp {
       this.dailySchedule[slotLabel] = val;
       this.pushStateToServer();
       this.renderDailyScheduleTable();
+      this.updateSection1BadgeForSelectedSlot();
       this.showTimerFeedback(`Slot ${slotLabel} winner set to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
     }
   }
