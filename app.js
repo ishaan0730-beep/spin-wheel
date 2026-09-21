@@ -3,10 +3,10 @@
  * LUCKY HOURLY SPIN WHEEL APPLICATION - 4 DAILY SLOTS ENGINE
  * ==========================================================
  * Strictly 4 Daily Slots: 12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM
- * Automatic Slot Advancement & Immediate Next Countdown
+ * Automatic 24/7 Slot Advancement (4PM -> 8PM -> 11PM -> 12PM -> 4PM)
+ * Single Smooth Spin Rotation Guard (Strict Zero-Double-Spin Lock)
  * Exact 100% Needle-to-History Result Alignment (Zero Discrepancy)
  * Test Spin Feature with History Protection (Test Spins DO NOT Save to History)
- * Single Spin Rotation Guard (Strict Deduplication - Never Double Spins)
  * Master Control Center via PC Keyboard Code "00773300"
  */
 
@@ -27,7 +27,7 @@ const STATE_KEYS = {
   DAILY_SCHEDULE: 'lucky_spin_daily_schedule_v6',
   SOUND_MUTED: 'lucky_spin_sound_muted_v6',
   LAST_SPUN_SLOT: 'lucky_spin_last_spun_slot_v6',
-  LAST_HANDLED_SPIN_ID: 'lucky_spin_last_handled_spin_id_v6',
+  HANDLED_SPIN_IDS: 'lucky_spin_handled_ids_v6',
   MASTER_KEY: 'lucky_spin_master_password_v6',
   TIMER_MODE: 'lucky_spin_timer_mode_v6',
   CUSTOM_SECS: 'lucky_spin_custom_secs_v6',
@@ -59,13 +59,14 @@ function formatTime12(date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
 }
 
-// Compute the exact next upcoming slot among the 4 daily slots
+// Compute the exact next upcoming slot among the 4 daily slots (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM)
 function getNextSlotInfo(now = new Date()) {
-  const currentTotalMins = now.getHours() * 60 + now.getMinutes();
+  const currentTotalSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
   for (let slot of DAILY_SLOTS) {
-    const slotTotalMins = slot.hour * 60 + slot.min;
-    if (slotTotalMins > currentTotalMins) {
+    const slotTotalSecs = slot.hour * 3600 + slot.min * 60;
+    // Slot is in the future today if slotTotalSecs > currentTotalSecs
+    if (slotTotalSecs > currentTotalSecs) {
       const targetDate = new Date(now);
       targetDate.setHours(slot.hour, slot.min, 0, 0);
       return {
@@ -77,7 +78,7 @@ function getNextSlotInfo(now = new Date()) {
     }
   }
 
-  // If past 11:00 PM today -> next is tomorrow 12:00 PM
+  // If past 11:00 PM (23:00) today -> next is tomorrow 12:00 PM
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(DAILY_SLOTS[0].hour, DAILY_SLOTS[0].min, 0, 0);
@@ -91,11 +92,11 @@ function getNextSlotInfo(now = new Date()) {
 
 // Get the latest active slot based on current time
 function getCurrentActiveSlot(now = new Date()) {
-  const currentTotalMins = now.getHours() * 60 + now.getMinutes();
+  const currentTotalSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
   let active = DAILY_SLOTS[DAILY_SLOTS.length - 1]; // 11:00 PM fallback
   for (let slot of DAILY_SLOTS) {
-    const slotTotalMins = slot.hour * 60 + slot.min;
-    if (currentTotalMins >= slotTotalMins) {
+    const slotTotalSecs = slot.hour * 3600 + slot.min * 60;
+    if (currentTotalSecs >= slotTotalSecs) {
       active = slot;
     }
   }
@@ -281,9 +282,10 @@ class CloudSyncEngine {
       } catch (e) {}
     }
 
+    // Do NOT retain spin triggers so old triggers never re-fire upon reconnection
     if (this.mqttClient && this.isConnected) {
       try {
-        this.mqttClient.publish(this.topic, JSON.stringify(state), { qos: 1, retain: true });
+        this.mqttClient.publish(this.topic, JSON.stringify(state), { qos: 1, retain: false });
       } catch (e) {}
     }
   }
@@ -316,7 +318,8 @@ class SpinWheelApp {
     // Server Synchronization State
     this.version = 1;
     this.lastVersion = 0;
-    this.lastHandledSpinId = parseInt(localStorage.getItem(STATE_KEYS.LAST_HANDLED_SPIN_ID), 10) || 0;
+    this.handledSpinIds = this.loadHandledSpinIds();
+    this.spinLockoutUntil = 0;
     this.isServerConnected = false;
     this.isDrawerOpen = false;
 
@@ -442,6 +445,23 @@ class SpinWheelApp {
     this.wheelRadius = size / 2;
   }
 
+  loadHandledSpinIds() {
+    try {
+      const saved = localStorage.getItem(STATE_KEYS.HANDLED_SPIN_IDS);
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    } catch (e) {}
+    return new Set();
+  }
+
+  saveHandledSpinId(id) {
+    if (!id) return;
+    this.handledSpinIds.add(id);
+    const arr = Array.from(this.handledSpinIds).slice(-30);
+    localStorage.setItem(STATE_KEYS.HANDLED_SPIN_IDS, JSON.stringify(arr));
+  }
+
   // ==========================================================
   // REAL-TIME STATE SYNC & DEDUPLICATION ENGINE
   // ==========================================================
@@ -458,20 +478,18 @@ class SpinWheelApp {
 
     this.applyServerState(state);
 
-    // Synchronized spin trigger check (strictly executed once across all clients)
+    // Synchronized spin trigger check (strictly executed ONCE per unique triggerId)
     if (state.spinTrigger && state.spinTrigger.triggerId) {
       const trigger = state.spinTrigger;
-      const lastSaved = parseInt(localStorage.getItem(STATE_KEYS.LAST_HANDLED_SPIN_ID), 10) || 0;
-      
-      if (trigger.triggerId && trigger.triggerId !== this.lastHandledSpinId && trigger.triggerId !== lastSaved) {
+      const triggerId = trigger.triggerId;
+
+      if (!this.handledSpinIds.has(triggerId)) {
         const age = Date.now() - (trigger.timestamp || 0);
-        if (age < 8000 && !this.isSpinning) {
-          this.lastHandledSpinId = trigger.triggerId;
-          localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
+        if (age < 5500 && !this.isSpinning && Date.now() >= this.spinLockoutUntil) {
+          this.saveHandledSpinId(triggerId);
           this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Slot Round', false, trigger.isTestSpin || false);
         } else {
-          this.lastHandledSpinId = trigger.triggerId;
-          localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
+          this.saveHandledSpinId(triggerId);
         }
       }
     }
@@ -494,20 +512,18 @@ class SpinWheelApp {
         this.lastVersion = state.version;
       }
 
-      // Handle spin triggers from server
+      // Handle spin triggers from server polling
       if (state.spinTrigger && state.spinTrigger.triggerId) {
         const trigger = state.spinTrigger;
-        const lastSaved = parseInt(localStorage.getItem(STATE_KEYS.LAST_HANDLED_SPIN_ID), 10) || 0;
-        
-        if (trigger.triggerId && trigger.triggerId !== this.lastHandledSpinId && trigger.triggerId !== lastSaved) {
+        const triggerId = trigger.triggerId;
+
+        if (!this.handledSpinIds.has(triggerId)) {
           const age = Date.now() - (trigger.timestamp || 0);
-          if (age < 8000 && !this.isSpinning) {
-            this.lastHandledSpinId = trigger.triggerId;
-            localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
+          if (age < 5500 && !this.isSpinning && Date.now() >= this.spinLockoutUntil) {
+            this.saveHandledSpinId(triggerId);
             this.executeSpinAnimation(trigger.targetNumber, trigger.triggerSource || 'Live Slot Round', false, trigger.isTestSpin || false);
           } else {
-            this.lastHandledSpinId = trigger.triggerId;
-            localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(trigger.triggerId));
+            this.saveHandledSpinId(triggerId);
           }
         }
       }
@@ -574,14 +590,6 @@ class SpinWheelApp {
     if (state.customTimerTarget !== undefined) {
       this.customTimerTarget = state.customTimerTarget;
     }
-    if (state.manualRoundTitle !== undefined) {
-      this.manualRoundTitle = state.manualRoundTitle;
-      if (this.manualRoundTitle) {
-        localStorage.setItem(STATE_KEYS.MANUAL_ROUND_TITLE, this.manualRoundTitle);
-      } else {
-        localStorage.removeItem(STATE_KEYS.MANUAL_ROUND_TITLE);
-      }
-    }
 
     // 7. Master Password
     if (state.masterPassword) {
@@ -616,7 +624,6 @@ class SpinWheelApp {
       timerMode: this.timerMode,
       customSecs: this.customSecs,
       customTimerTarget: this.customTimerTarget,
-      manualRoundTitle: this.manualRoundTitle,
       masterPassword: this.masterPassword,
       version: this.version,
       ...additionalFields
@@ -634,11 +641,6 @@ class SpinWheelApp {
     localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
     localStorage.setItem(STATE_KEYS.TIMER_MODE, this.timerMode);
     localStorage.setItem(STATE_KEYS.CUSTOM_SECS, this.customSecs);
-    if (this.manualRoundTitle) {
-      localStorage.setItem(STATE_KEYS.MANUAL_ROUND_TITLE, this.manualRoundTitle);
-    } else {
-      localStorage.removeItem(STATE_KEYS.MANUAL_ROUND_TITLE);
-    }
     localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
 
     // 1. Broadcast immediately to all connected Mobile & PC devices via MQTT WebSocket & BroadcastChannel
@@ -781,7 +783,7 @@ class SpinWheelApp {
       this.timerMode = 'REAL';
       this.customTimerTarget = null;
       this.pushStateToServer();
-      this.showTimerFeedback('Switched to 4-Slot Real Clock Schedule');
+      this.showTimerFeedback('Switched to Automatic 4-Slot Real Schedule');
     });
 
     this.timerModeManual.addEventListener('change', () => {
@@ -847,34 +849,31 @@ class SpinWheelApp {
       if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 26;
       if (winnerNum > 100) winnerNum = 100;
 
-      // 1. Set Round Title & Switch to Scheduled Mode
-      this.manualRoundTitle = roundTitle;
-      this.currentHourEl.textContent = roundTitle;
-      this.timerMode = 'REAL';
-      this.customTimerTarget = null;
-      if (this.timerModeReal) this.timerModeReal.checked = true;
-
-      // 2. Lock Upcoming Winner
-      this.forcedNext = winnerNum;
-      this.updateForcedWinnerUI();
-
-      // 3. Update 4-slot daily schedule table if matching slot
+      // 1. Lock predetermined winner for this specific slot in daily schedule
       if (this.dailySchedule[roundTitle] !== undefined) {
         this.dailySchedule[roundTitle] = winnerNum;
         this.renderDailyScheduleTable();
+      } else {
+        this.forcedNext = winnerNum;
+        this.updateForcedWinnerUI();
       }
 
-      // 4. Update Active Timing Badge
+      // 2. Update Active Timing Badge
       this.activeTimingBadge.classList.remove('hidden');
       this.badgeTimingText.textContent = roundTitle;
       this.badgeTimingWinner.textContent = `${winnerNum}`;
 
-      // 5. Broadcast to all devices in real-time
+      // 3. Switch to REAL schedule mode
+      this.timerMode = 'REAL';
+      this.customTimerTarget = null;
+      if (this.timerModeReal) this.timerModeReal.checked = true;
+
+      // 4. Broadcast to all devices in real-time
       this.pushStateToServer({
         timerMode: 'REAL',
         customTimerTarget: null
       });
-      this.showTimerFeedback(`✅ Set Round "${roundTitle}" with Winner #${winnerNum}!`);
+      this.showTimerFeedback(`✅ Locked Winner #${winnerNum} for Slot "${roundTitle}"!`);
     });
 
     // Section 1: Test Winner Right Now (Test Spin - DOES NOT SAVE TO HISTORY)
@@ -898,13 +897,12 @@ class SpinWheelApp {
         this.closeAdminDrawer();
         setTimeout(() => {
           this.dispatchSynchronizedSpin(`Test Spin (${roundTitle})`, true, winnerNum);
-        }, 250);
+        }, 200);
       });
     }
 
     // Clear / Reset Timing & Winner
     this.clearTimingBtn.addEventListener('click', () => {
-      this.manualRoundTitle = null;
       this.forcedNext = null;
       this.manualRoundTitleInput.value = '';
       this.quickRoundHourSelect.value = '04:00 PM';
@@ -941,7 +939,7 @@ class SpinWheelApp {
         this.closeAdminDrawer();
         setTimeout(() => {
           this.dispatchSynchronizedSpin('Quick Test Spin', true, target);
-        }, 250);
+        }, 200);
       });
     }
 
@@ -1117,24 +1115,15 @@ class SpinWheelApp {
 
     // Populate Timing & Winner Setup
     const nextSlot = getNextSlotInfo(new Date());
-    if (this.manualRoundTitle || this.forcedNext !== null) {
+    const currentActive = getCurrentActiveSlot(new Date());
+    const presetForNext = this.dailySchedule[nextSlot.label];
+    
+    if (this.forcedNext !== null || (presetForNext && presetForNext !== 'AUTO')) {
       this.activeTimingBadge.classList.remove('hidden');
-      this.badgeTimingText.textContent = this.manualRoundTitle || nextSlot.label;
-      this.badgeTimingWinner.textContent = this.forcedNext !== null ? `${this.forcedNext}` : 'Auto';
+      this.badgeTimingText.textContent = nextSlot.label;
+      this.badgeTimingWinner.textContent = this.forcedNext !== null ? `${this.forcedNext}` : `${presetForNext}`;
     } else {
       this.activeTimingBadge.classList.add('hidden');
-    }
-
-    if (this.manualRoundTitle) {
-      this.manualRoundTitleInput.value = this.manualRoundTitle;
-      const opts = Array.from(this.quickRoundHourSelect.options).map(o => o.value);
-      if (opts.includes(this.manualRoundTitle)) {
-        this.quickRoundHourSelect.value = this.manualRoundTitle;
-        this.customTitleRow.classList.add('hidden');
-      } else {
-        this.quickRoundHourSelect.value = 'CUSTOM';
-        this.customTitleRow.classList.remove('hidden');
-      }
     }
 
     // Populate Winning Number dropdown with the 10 permanent slices
@@ -1365,6 +1354,7 @@ class SpinWheelApp {
   // TARGET NUMBER DETERMINATION & SINGLE ROTATION PHYSICS
   // ==========================================================
   determineTargetNumber() {
+    const currentSlot = getCurrentActiveSlot(new Date());
     const nextSlot = getNextSlotInfo(new Date());
 
     // 1. Highest Priority: Forced Next Winner
@@ -1384,8 +1374,7 @@ class SpinWheelApp {
       }
     }
 
-    // 3. Third Priority: 4-Slot Predetermined Schedule for this active/upcoming slot
-    const currentSlot = getCurrentActiveSlot(new Date());
+    // 3. Third Priority: 4-Slot Predetermined Schedule for this slot
     const scheduledVal = this.dailySchedule[currentSlot.label] || this.dailySchedule[nextSlot.label];
     if (scheduledVal && scheduledVal !== 'AUTO') {
       const schedNum = parseInt(scheduledVal, 10);
@@ -1400,7 +1389,7 @@ class SpinWheelApp {
   }
 
   dispatchSynchronizedSpin(triggerSource = 'Live Slot Round', isTestSpin = false, overrideTargetNumber = null) {
-    if (this.isSpinning) return;
+    if (this.isSpinning || Date.now() < this.spinLockoutUntil) return;
 
     let targetNumber = overrideTargetNumber;
     if (targetNumber === null || isNaN(targetNumber) || targetNumber < 1) {
@@ -1408,8 +1397,8 @@ class SpinWheelApp {
     }
 
     const triggerId = Date.now();
-    this.lastHandledSpinId = triggerId;
-    localStorage.setItem(STATE_KEYS.LAST_HANDLED_SPIN_ID, String(triggerId));
+    this.saveHandledSpinId(triggerId);
+    this.spinLockoutUntil = triggerId + 10000; // 10s lockout guard
 
     // If official round (not test), reset custom countdowns to return to regular schedule
     if (!isTestSpin) {
@@ -1444,6 +1433,7 @@ class SpinWheelApp {
       return;
     }
     this.isSpinning = true;
+    this.spinLockoutUntil = Date.now() + 10000;
 
     // Cancel any prior animation loop to guarantee a single clean spin
     if (this.spinAnimFrameId) {
@@ -1466,7 +1456,8 @@ class SpinWheelApp {
     let desiredNormalizedAngle = (-Math.PI / 2 - targetCenterAngle) % (2 * Math.PI);
     if (desiredNormalizedAngle < 0) desiredNormalizedAngle += 2 * Math.PI;
 
-    const minSpins = 6;
+    // 5 complete smooth rotations
+    const minSpins = 5;
     const currentNormalized = ((this.currentAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
     let deltaAngle = desiredNormalizedAngle - currentNormalized;
     while (deltaAngle < minSpins * 2 * Math.PI) {
@@ -1475,7 +1466,7 @@ class SpinWheelApp {
 
     const startAngle = this.currentAngle;
     const finalAngle = startAngle + deltaAngle;
-    const duration = 6000;
+    const duration = 5500;
     const startTime = performance.now();
 
     const easeOut = (t) => 1 - Math.pow(1 - t, 4);
@@ -1522,6 +1513,7 @@ class SpinWheelApp {
 
   onSpinComplete(winningNumber, triggerSource, isInitiator, isTestSpin = false) {
     this.isSpinning = false;
+    this.spinLockoutUntil = Date.now() + 5000; // 5s extra cooldown
 
     // Confetti and Audio Fanfare
     this.confetti.fire(4000);
@@ -1530,7 +1522,7 @@ class SpinWheelApp {
     const now = new Date();
     const timeStr12 = formatTime12(now);
     const activeSlot = getCurrentActiveSlot(now);
-    const roundStr12 = this.manualRoundTitle || activeSlot.label;
+    const roundStr12 = activeSlot.label;
     const dateStr = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
 
     // Show Win Announcement Banner
@@ -1556,10 +1548,11 @@ class SpinWheelApp {
       // Update history (exact match with wheel stop)
       this.history = [newResult, ...this.history];
       this.renderLast3Results();
+    }
 
-      if (isInitiator) {
-        this.pushStateToServer();
-      }
+    // Always clear spinTrigger on complete so it never fires again
+    if (isInitiator) {
+      this.pushStateToServer({ spinTrigger: null });
     }
   }
 
@@ -1602,12 +1595,8 @@ class SpinWheelApp {
       const now = new Date();
       const nextSlot = getNextSlotInfo(now);
 
-      // Update Next Round Display Header
-      if (this.manualRoundTitle) {
-        this.currentHourEl.textContent = this.manualRoundTitle;
-      } else {
-        this.currentHourEl.textContent = nextSlot.label;
-      }
+      // Automatic slot display header (always shows next upcoming slot: 12PM, 4PM, 8PM, 11PM)
+      this.currentHourEl.textContent = nextSlot.label;
 
       if (this.timerMode === 'MANUAL' && this.customTimerTarget) {
         // One-time custom countdown mode
@@ -1617,34 +1606,13 @@ class SpinWheelApp {
         const secs = totalSec % 60;
         this.countdownEl.textContent = `00:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
-        if (totalSec <= 0 && !this.isSpinning) {
-          this.dispatchSynchronizedSpin(this.manualRoundTitle ? `Round ${this.manualRoundTitle}` : 'Manual Countdown Round', false);
+        if (totalSec <= 0 && !this.isSpinning && Date.now() >= this.spinLockoutUntil) {
+          this.dispatchSynchronizedSpin('Manual Countdown Round', false);
         }
       } else {
         // Automatic 4-Slot Schedule Countdown (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM)
-        let targetDate = null;
-        let slotKey = null;
-
-        if (this.manualRoundTitle) {
-          const match = this.manualRoundTitle.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-          if (match) {
-            let hr = parseInt(match[1], 10) % 12;
-            if (match[3].toUpperCase() === 'PM') hr += 12;
-            const min = parseInt(match[2], 10);
-            targetDate = new Date(now);
-            targetDate.setHours(hr, min, 0, 0);
-
-            if (targetDate.getTime() <= now.getTime()) {
-              targetDate.setDate(targetDate.getDate() + 1);
-            }
-            slotKey = `manual-${targetDate.getFullYear()}-${targetDate.getMonth() + 1}-${targetDate.getDate()}-${hr}-${min}`;
-          }
-        }
-
-        if (!targetDate) {
-          targetDate = nextSlot.targetDate;
-          slotKey = nextSlot.slotKey;
-        }
+        const targetDate = nextSlot.targetDate;
+        const slotKey = nextSlot.slotKey;
 
         const diffMs = Math.max(0, targetDate.getTime() - now.getTime());
         const totalSec = Math.floor(diffMs / 1000);
@@ -1658,9 +1626,9 @@ class SpinWheelApp {
           this.countdownEl.textContent = `00:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Auto-spin ONCE when scheduled slot arrives
+        // Auto-spin ONCE at the exact scheduled second
         const lastSpunSlot = localStorage.getItem(STATE_KEYS.LAST_SPUN_SLOT);
-        if (totalSec === 0 && !this.isSpinning && lastSpunSlot !== slotKey) {
+        if (totalSec === 0 && !this.isSpinning && lastSpunSlot !== slotKey && Date.now() >= this.spinLockoutUntil) {
           localStorage.setItem(STATE_KEYS.LAST_SPUN_SLOT, slotKey);
           this.dispatchSynchronizedSpin(`Slot ${nextSlot.label}`, false);
         }

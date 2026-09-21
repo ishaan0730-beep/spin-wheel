@@ -35,6 +35,12 @@ export default function handler(req, res) {
   }
 
   if (req.method === 'GET') {
+    // If spinTrigger is older than 6 seconds, clear it so it can never trigger a second spin
+    if (globalState.spinTrigger && globalState.spinTrigger.timestamp) {
+      if (Date.now() - globalState.spinTrigger.timestamp > 6000) {
+        globalState.spinTrigger = null;
+      }
+    }
     return res.status(200).json(globalState);
   }
 
