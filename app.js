@@ -300,7 +300,7 @@ class SpinWheelApp {
     this.audio = new AudioController();
 
     // Permanent 10 custom numbers (1-100)
-    this.defaultSlices = [26, 33, 35, 38, 42, 59, 68, 77, 86, 94];
+    this.defaultSlices = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     
     // Internal Core State
     this.slices = this.loadLocalSlices();
@@ -679,7 +679,11 @@ class SpinWheelApp {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length === 10) {
-          return parsed.map(n => Math.min(100, Math.max(1, parseInt(n, 10) || 1)));
+          const oldList = [26, 33, 35, 38, 42, 59, 68, 77, 86, 94];
+          const isOld = parsed.every((v, i) => v === oldList[i]);
+          if (!isOld) {
+            return parsed.map(n => Math.min(100, Math.max(1, parseInt(n, 10) || 1)));
+          }
         }
       }
     } catch (e) {}
@@ -847,7 +851,7 @@ class SpinWheelApp {
         winnerNum = parseInt(this.manualRoundWinnerSelect.value, 10);
       }
 
-      if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 26;
+      if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 10;
       if (winnerNum > 100) winnerNum = 100;
 
       // 1. Lock predetermined winner for this specific slot in daily schedule
@@ -885,7 +889,7 @@ class SpinWheelApp {
           winnerNum = parseInt(this.manualRoundWinnerSelect.value, 10);
         }
 
-        if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 26;
+        if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 10;
         if (winnerNum > 100) winnerNum = 100;
 
         let roundTitle = this.quickRoundHourSelect.value;

@@ -58,7 +58,7 @@ public class NativeHttpServer {
         lock (stateLock) {
             if (!File.Exists(stateFile)) {
                 string defaultJson = @"{
-                    ""slices"": [26, 33, 35, 38, 42, 59, 68, 77, 86, 94],
+                    ""slices"": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
                     ""history"": [],
                     ""forcedNext"": null,
                     ""upcomingQueue"": [""AUTO"", ""AUTO"", ""AUTO""],
