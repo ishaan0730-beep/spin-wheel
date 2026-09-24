@@ -3,7 +3,11 @@
 
 let globalState = {
   slices: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
-  history: [],
+  history: [
+    { id: 1789769291721, number: 80, time: "11:00 PM", date: "Sep 24", round: "11:00 PM", source: "Live Slot Round" },
+    { id: 1789768890761, number: 70, time: "08:00 PM", date: "Sep 24", round: "08:00 PM", source: "Live Slot Round" },
+    { id: 1789768058759, number: 40, time: "04:00 PM", date: "Sep 24", round: "04:00 PM", source: "Live Slot Round" }
+  ],
   forcedNext: null,
   upcomingQueue: ["AUTO", "AUTO", "AUTO"],
   dailySchedule: {
