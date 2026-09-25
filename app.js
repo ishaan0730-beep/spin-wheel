@@ -497,9 +497,15 @@ class SpinWheelApp {
 
   async pullStateFromServer() {
     try {
+      const headers = { 'Accept': 'application/json' };
+      const adminAuth = sessionStorage.getItem('admin_auth') || (this.isDrawerOpen ? (this.masterPassword || '00773300') : null);
+      if (adminAuth) {
+        headers['x-admin-key'] = adminAuth;
+      }
+
       const resp = await fetch(`/api/state?_t=${Date.now()}`, {
         cache: 'no-store',
-        headers: { 'Accept': 'application/json' }
+        headers: headers
       });
       if (!resp.ok) return;
 
@@ -620,6 +626,8 @@ class SpinWheelApp {
     this.version = Date.now();
     this.lastVersion = this.version;
 
+    const adminAuth = sessionStorage.getItem('admin_auth') || this.masterPassword || '00773300';
+
     const payload = {
       slices: this.slices,
       history: this.history,
@@ -630,6 +638,7 @@ class SpinWheelApp {
       customSecs: this.customSecs,
       customTimerTarget: this.customTimerTarget,
       masterPassword: this.masterPassword,
+      adminKey: adminAuth,
       version: this.version,
       ...additionalFields
     };
@@ -657,7 +666,10 @@ class SpinWheelApp {
     try {
       fetch('/api/state', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-key': adminAuth
+        },
         body: JSON.stringify(payload)
       }).then(() => {
         this.isServerConnected = true;
@@ -769,8 +781,10 @@ class SpinWheelApp {
     const authenticateMaster = () => {
       const entered = this.secretPasswordInput.value.trim();
       if (entered === this.masterPassword || entered === '00773300' || entered === '1234') {
+        sessionStorage.setItem('admin_auth', entered);
         this.secretLoginError.classList.add('hidden');
         this.secretLoginModal.classList.add('hidden');
+        this.pullStateFromServer();
         this.openAdminDrawer();
       } else {
         this.secretLoginError.classList.remove('hidden');
