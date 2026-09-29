@@ -875,32 +875,66 @@
 
               <!-- Live Player Active Bets & Time/Date Slot Tracker -->
               <div class="admin-live-bets-box" style="margin-top:1.25rem; border-top:1px solid rgba(245,176,65,0.25); padding-top:1rem;">
-                <div class="admin-card-header-flex" style="margin-bottom:0.5rem;">
+                <div class="admin-card-header-flex" style="margin-bottom:0.5rem; flex-wrap:wrap; gap:0.5rem;">
                   <div style="display:flex; align-items:center; gap:0.4rem;">
                     <span style="font-size:1.1rem;">🎯</span>
                     <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">Live Player Predictions & Active Bets</strong>
                   </div>
-                  <span id="admin-active-bets-summary" style="font-size:0.74rem; color:#00f0ff; font-weight:700;">0 Active Bets (0 IHD Coins Pool)</span>
+                  <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                    <span id="admin-active-bets-summary" style="font-size:0.74rem; color:#00f0ff; font-weight:700; margin-right:4px;">0 Active Bets (0 IHD Coins Pool)</span>
+                    <button type="button" id="admin-refresh-bets-btn" class="btn btn-secondary btn-xs">🔄 Refresh</button>
+                    <button type="button" id="admin-export-bets-json-btn" class="btn btn-gold btn-xs" style="color:#000; font-weight:800;" title="Save and Export all entries for Num Ledger Pro App">📥 Export Num Ledger Pro JSON</button>
+                  </div>
                 </div>
 
                 <div class="schedule-table-wrap" style="max-height: 280px; overflow-y:auto;">
                   <table class="schedule-table" style="font-size:0.74rem;">
                     <thead>
                       <tr>
-                        <th>Player</th>
+                        <th>Player (User ID)</th>
                         <th>Prediction</th>
                         <th>Bet Amount</th>
+                        <th>Potential Win (9x)</th>
                         <th>Target Slot & Date</th>
                         <th>Placed Time</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody id="admin-active-bets-table-body">
                       <tr>
-                        <td colspan="5" style="text-align:center; color:var(--text-muted); padding:0.8rem;">No active player predictions right now.</td>
+                        <td colspan="7" style="text-align:center; color:var(--text-muted); padding:0.8rem;">No active player predictions right now.</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              <!-- Num Ledger Pro JSON Export & Backup System -->
+              <div class="admin-card" style="margin-top:1.25rem; background:rgba(0,0,0,0.35); border:1px solid rgba(0,240,255,0.3); border-radius:var(--radius-sm); padding:1rem;">
+                <div class="admin-card-header-flex" style="margin-bottom:0.4rem;">
+                  <div style="display:flex; align-items:center; gap:0.4rem;">
+                    <span style="font-size:1.1rem;">📒</span>
+                    <strong style="color:#00f0ff; font-size:0.92rem;">Num Ledger Pro JSON Backup & Data Manager</strong>
+                  </div>
+                  <span class="live-dot-tag" style="font-size:0.7rem; padding:2px 8px;">Num Ledger Pro Compatible</span>
+                </div>
+                <p class="card-desc" style="font-size:0.74rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+                  All live customer entries, bets, player accounts, transactions, and withdrawal records can be saved as a JSON file and opened in your <strong>Num Ledger Pro</strong> app:
+                </p>
+
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                  <button type="button" id="admin-export-full-ledger-btn" class="btn btn-gold btn-sm" style="color:#000; font-weight:800;">
+                    📥 Export Full Ledger JSON (.json)
+                  </button>
+                  <button type="button" id="admin-export-active-entries-btn" class="btn btn-secondary btn-sm" style="border-color:#00f0ff; color:#00f0ff;">
+                    📥 Export Live Round Entries (.json)
+                  </button>
+                  <button type="button" id="admin-import-ledger-trigger-btn" class="btn btn-secondary btn-sm">
+                    📤 Import & Restore Backup JSON
+                  </button>
+                  <input type="file" id="admin-import-ledger-file" accept=".json,application/json" style="display:none;">
+                </div>
+                <p id="admin-ledger-feedback" class="save-status-msg hidden" style="margin-top:0.5rem;"></p>
               </div>
 
             </div>

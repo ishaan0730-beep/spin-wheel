@@ -534,6 +534,13 @@ class SpinWheelApp {
 
     this.adminActiveBetsSummary = document.getElementById('admin-active-bets-summary');
     this.adminActiveBetsTableBody = document.getElementById('admin-active-bets-table-body');
+    this.adminRefreshBetsBtn = document.getElementById('admin-refresh-bets-btn');
+    this.adminExportBetsJsonBtn = document.getElementById('admin-export-bets-json-btn');
+    this.adminExportFullLedgerBtn = document.getElementById('admin-export-full-ledger-btn');
+    this.adminExportActiveEntriesBtn = document.getElementById('admin-export-active-entries-btn');
+    this.adminImportLedgerTriggerBtn = document.getElementById('admin-import-ledger-trigger-btn');
+    this.adminImportLedgerFile = document.getElementById('admin-import-ledger-file');
+    this.adminLedgerFeedback = document.getElementById('admin-ledger-feedback');
 
     // Master Full-Page Nav Tabs & Side Live Monitor Elements
     this.adminNavSpinBtn = document.getElementById('admin-nav-spin-btn');
@@ -649,15 +656,10 @@ class SpinWheelApp {
   handleIncomingRealtimeState(state) {
     if (!state || typeof state !== 'object') return;
 
-    if (state.version && state.version <= this.lastVersion && !state.spinTrigger) {
-      return;
-    }
-
-    if (state.version) {
+    this.applyServerState(state);
+    if (state.version && state.version > this.lastVersion) {
       this.lastVersion = state.version;
     }
-
-    this.applyServerState(state);
 
     // Synchronized spin trigger check (strictly executed ONCE per unique triggerId)
     if (state.spinTrigger && state.spinTrigger.triggerId) {
@@ -694,8 +696,8 @@ class SpinWheelApp {
       if (!state || typeof state !== 'object') return;
       this.isServerConnected = true;
 
+      this.applyServerState(state);
       if (state.version !== undefined && state.version > this.lastVersion) {
-        this.applyServerState(state);
         this.lastVersion = state.version;
       }
 
@@ -2470,6 +2472,35 @@ class SpinWheelApp {
       this.showAdminCreditFeedback('🔄 Player list refreshed!', true);
     });
 
+    this.adminRefreshBetsBtn?.addEventListener('click', () => {
+      this.pullStateFromServer().then(() => this.renderAdminActiveBetsTable());
+      this.showAdminCreditFeedback('🔄 Live bets refreshed!', true);
+    });
+
+    // Num Ledger Pro JSON Export / Backup Buttons
+    this.adminExportBetsJsonBtn?.addEventListener('click', () => {
+      this.exportNumLedgerProJSON('ACTIVE_ONLY');
+    });
+
+    this.adminExportFullLedgerBtn?.addEventListener('click', () => {
+      this.exportNumLedgerProJSON('FULL');
+    });
+
+    this.adminExportActiveEntriesBtn?.addEventListener('click', () => {
+      this.exportNumLedgerProJSON('ACTIVE_ONLY');
+    });
+
+    this.adminImportLedgerTriggerBtn?.addEventListener('click', () => {
+      this.adminImportLedgerFile?.click();
+    });
+
+    this.adminImportLedgerFile?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        this.importLedgerJSON(e.target.files[0]);
+        this.adminImportLedgerFile.value = '';
+      }
+    });
+
     this.adminRefreshWithdrawalsBtn?.addEventListener('click', () => {
       this.pullStateFromServer().then(() => this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : ''));
       this.showAdminCreditFeedback('🔄 Withdrawal requests refreshed!', true);
@@ -2900,7 +2931,7 @@ class SpinWheelApp {
     if (bets.length === 0) {
       this.adminActiveBetsTableBody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align:center; color:var(--text-muted); padding:1rem;">
+          <td colspan="7" style="text-align:center; color:var(--text-muted); padding:1rem;">
             No active player predictions right now.
           </td>
         </tr>
@@ -2914,17 +2945,20 @@ class SpinWheelApp {
       tr.innerHTML = `
         <td>
           <strong style="color:#fff;">${b.playerName || 'Player'}</strong><br>
-          <span style="font-family:monospace; color:#00f0ff; font-size:0.7rem;">ID: ${b.playerId || '--'}</span>
+          <span style="font-family:monospace; color:#00f0ff; font-size:0.75rem; font-weight:700;">ID: ${b.playerId || '--'}</span>
           ${b.playerMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${b.playerMobile}</span>` : ''}
         </td>
         <td>
-          <span style="display:inline-block; background:#ffd700; color:#000; font-weight:800; font-size:0.88rem; padding:3px 9px; border-radius:12px; box-shadow:0 0 8px rgba(255,215,0,0.5);">
+          <span style="display:inline-block; background:#ffd700; color:#000; font-weight:800; font-size:0.92rem; padding:3px 10px; border-radius:12px; box-shadow:0 0 8px rgba(255,215,0,0.5);">
             #${b.number}
           </span>
         </td>
         <td>
-          <strong style="color:var(--primary-gold-bright); font-size:0.84rem;">💰 ${b.amount} IHD</strong><br>
-          <span style="font-size:0.7rem; color:#2ecc71; font-weight:600;">Win (9x): 💰 ${b.potentialWin || b.amount * 9}</span>
+          <strong style="color:var(--primary-gold-bright); font-size:0.88rem;">💰 ${b.amount} IHD</strong>
+        </td>
+        <td>
+          <strong style="color:#2ecc71; font-size:0.84rem;">💰 ${b.potentialWin || b.amount * 9} IHD</strong><br>
+          <span style="font-size:0.68rem; color:var(--text-muted);">9x Multiplier</span>
         </td>
         <td>
           <span style="color:#00f0ff; font-weight:700; font-size:0.8rem;">🕒 ${b.targetSlot || 'Next Round'}</span><br>
@@ -2933,9 +2967,242 @@ class SpinWheelApp {
         <td>
           <span style="font-size:0.72rem; color:var(--text-secondary);">${b.placedTime || 'Just now'}</span>
         </td>
+        <td>
+          <button class="btn btn-danger btn-xs" style="padding:3px 7px; font-weight:700; font-size:0.7rem;" title="Cancel Entry & Refund Coins to Party" onclick="app.adminDeleteActiveBet('${b.id}')">
+            🗑️ Refund & Del
+          </button>
+        </td>
       `;
       this.adminActiveBetsTableBody.appendChild(tr);
     });
+  }
+
+  adminDeleteActiveBet(betId) {
+    const bet = (this.activeBets || []).find(b => b.id === betId);
+    if (!bet) return;
+
+    if (!confirm(`Are you sure you want to CANCEL and REFUND 💰${bet.amount} IHD Coins to ${bet.playerName} (${bet.playerId}) for Prediction #${bet.number} (${bet.targetSlot})?`)) {
+      return;
+    }
+
+    // 1. Refund coins to customer in customersDb
+    if (this.customersDb && this.customersDb[bet.playerId]) {
+      this.customersDb[bet.playerId].coins = (this.customersDb[bet.playerId].coins || 0) + bet.amount;
+      this.customersDb[bet.playerId].totalBets = Math.max(0, (this.customersDb[bet.playerId].totalBets || 1) - 1);
+      this.saveCustomersDB(this.customersDb);
+    }
+
+    // 2. If logged in player is this player, update session and clear active bet
+    if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
+      this.currentCustomer.coins = (this.currentCustomer.coins || 0) + bet.amount;
+      this.currentCustomer.totalBets = Math.max(0, (this.currentCustomer.totalBets || 1) - 1);
+      this.saveCustomerSession(this.currentCustomer);
+      if (this.currentBet && this.currentBet.id === bet.id) {
+        this.currentBet = null;
+        this.saveCurrentBet(null);
+      }
+      this.updateCustomerUI();
+    }
+
+    // 3. Remove bet from activeBets
+    this.activeBets = (this.activeBets || []).filter(b => b.id !== betId);
+    this.saveActiveBets(this.activeBets);
+
+    // 4. Broadcast and push to server
+    this.pushStateToServer({ customersDb: this.customersDb, activeBets: this.activeBets, deletedBetId: betId });
+
+    // 5. Update admin tables
+    this.renderAdminActiveBetsTable();
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.showAdminCreditFeedback(`✅ Prediction entry cancelled! 💰${bet.amount} IHD Coins refunded to ${bet.playerName} (${bet.playerId}).`, true);
+  }
+
+  exportNumLedgerProJSON(type = 'FULL') {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+
+    const playersList = Object.values(this.customersDb || {});
+    const totalCoinsCirculation = playersList.reduce((sum, p) => sum + (p.coins || 0), 0);
+    const activeBetsList = Array.isArray(this.activeBets) ? this.activeBets : [];
+    const totalBetPool = activeBetsList.reduce((sum, b) => sum + (b.amount || 0), 0);
+    const withdrawalsList = Array.isArray(this.withdrawals) ? this.withdrawals : [];
+
+    // Format entries compatible with Num Ledger Pro / NumPredict Pro
+    const ledgerEntries = activeBetsList.map((b, idx) => ({
+      entryNo: idx + 1,
+      id: b.id,
+      partyId: b.playerId,
+      partyName: b.playerName,
+      partyMobile: b.playerMobile || '',
+      number: b.number,
+      amount: b.amount,
+      multiplier: 9,
+      potentialWin: b.potentialWin || b.amount * 9,
+      targetSlot: b.targetSlot,
+      targetDate: b.targetDate,
+      targetDateFull: b.targetDateFull,
+      displaySlot: b.displaySlot || `${b.targetDate} • ${b.targetSlot}`,
+      placedTime: b.placedTime,
+      timestamp: b.timestamp || Date.now(),
+      status: 'ACTIVE'
+    }));
+
+    let exportData = {};
+    let filename = '';
+
+    if (type === 'ACTIVE_ONLY') {
+      exportData = {
+        appName: 'Num Ledger Pro',
+        fileType: 'NUM_LEDGER_PRO_ACTIVE_ENTRIES',
+        exportDate: now.toISOString(),
+        formattedDate: now.toLocaleString(),
+        totalEntries: ledgerEntries.length,
+        totalBetPool: totalBetPool,
+        entries: ledgerEntries,
+        activeBets: activeBetsList
+      };
+      filename = `num_ledger_pro_active_entries_${dateStr}_${timeStr}.json`;
+    } else {
+      // Full Backup JSON
+      exportData = {
+        appName: 'Num Ledger Pro',
+        fileType: 'NUM_LEDGER_PRO_FULL_BACKUP',
+        version: '6.0',
+        exportDate: now.toISOString(),
+        timestamp: Date.now(),
+        formattedDate: now.toLocaleString(),
+        summary: {
+          totalPlayers: playersList.length,
+          totalCoinsCirculation: totalCoinsCirculation,
+          totalActiveBets: activeBetsList.length,
+          totalActiveBetPool: totalBetPool,
+          totalWithdrawals: withdrawalsList.length,
+          pendingWithdrawals: withdrawalsList.filter(w => w.status === 'PENDING').length,
+          totalRoundsInHistory: (this.history || []).length
+        },
+        entries: ledgerEntries,
+        activeBets: activeBetsList,
+        players: playersList,
+        customersDb: this.customersDb || {},
+        withdrawals: withdrawalsList,
+        history: this.history || [],
+        dailySchedule: this.dailySchedule || {},
+        slices: this.slices || [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      };
+      filename = `numpredict_pro_full_backup_${dateStr}_${timeStr}.json`;
+    }
+
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    this.showLedgerFeedback(`✅ Exported ${ledgerEntries.length} entries to ${filename} (Num Ledger Pro ready)!`, true);
+  }
+
+  importLedgerJSON(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data || typeof data !== 'object') {
+          this.showLedgerFeedback('❌ Invalid JSON file format.', false);
+          return;
+        }
+
+        let importedCount = 0;
+
+        // Import customersDb / players
+        if (data.customersDb && typeof data.customersDb === 'object') {
+          this.customersDb = { ...this.customersDb, ...data.customersDb };
+          importedCount += Object.keys(data.customersDb).length;
+        } else if (Array.isArray(data.players)) {
+          data.players.forEach(p => {
+            if (p && p.id) {
+              this.customersDb[p.id] = { ...(this.customersDb[p.id] || {}), ...p };
+              importedCount++;
+            }
+          });
+        }
+
+        // Import activeBets / entries
+        if (Array.isArray(data.activeBets)) {
+          const existingMap = new Map((this.activeBets || []).map(b => [b.id, b]));
+          data.activeBets.forEach(b => { if (b && b.id) existingMap.set(b.id, b); });
+          this.activeBets = Array.from(existingMap.values());
+        } else if (Array.isArray(data.entries)) {
+          const existingMap = new Map((this.activeBets || []).map(b => [b.id, b]));
+          data.entries.forEach(entry => {
+            if (entry && entry.id) {
+              existingMap.set(entry.id, {
+                id: entry.id,
+                playerId: entry.partyId || entry.playerId,
+                playerName: entry.partyName || entry.playerName,
+                playerMobile: entry.partyMobile || entry.playerMobile || '',
+                number: entry.number,
+                amount: entry.amount,
+                potentialWin: entry.potentialWin || entry.amount * 9,
+                targetSlot: entry.targetSlot,
+                targetDate: entry.targetDate,
+                targetDateFull: entry.targetDateFull,
+                placedTime: entry.placedTime,
+                timestamp: entry.timestamp || Date.now()
+              });
+            }
+          });
+          this.activeBets = Array.from(existingMap.values());
+        }
+
+        // Import withdrawals
+        if (Array.isArray(data.withdrawals)) {
+          const existingMap = new Map((this.withdrawals || []).map(w => [w.id, w]));
+          data.withdrawals.forEach(w => { if (w && w.id) existingMap.set(w.id, w); });
+          this.withdrawals = Array.from(existingMap.values());
+        }
+
+        // Import history
+        if (Array.isArray(data.history) && data.history.length > 0) {
+          this.history = data.history;
+        }
+
+        this.saveCustomersDB(this.customersDb);
+        this.saveActiveBets(this.activeBets);
+        this.saveWithdrawals(this.withdrawals);
+        this.pushStateToServer({ 
+          customersDb: this.customersDb, 
+          activeBets: this.activeBets, 
+          withdrawals: this.withdrawals,
+          history: this.history 
+        });
+
+        this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+        this.renderAdminActiveBetsTable();
+        this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+        this.showLedgerFeedback(`✅ Backup successfully imported! Restored ${importedCount} player accounts and ${(this.activeBets || []).length} active entries.`, true);
+      } catch (err) {
+        this.showLedgerFeedback(`❌ Failed to parse JSON: ${err.message}`, false);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  showLedgerFeedback(msg, isSuccess = true) {
+    if (this.adminLedgerFeedback) {
+      this.adminLedgerFeedback.textContent = msg;
+      this.adminLedgerFeedback.style.color = isSuccess ? '#2ecc71' : '#ff6b6b';
+      this.adminLedgerFeedback.classList.remove('hidden');
+      setTimeout(() => {
+        if (this.adminLedgerFeedback) this.adminLedgerFeedback.classList.add('hidden');
+      }, 5000);
+    }
   }
   renderWheel() {
     const ctx = this.ctx;

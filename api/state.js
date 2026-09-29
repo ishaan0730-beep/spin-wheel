@@ -119,8 +119,18 @@ export default function handler(req, res) {
             globalState.activeBets = body.activeBets;
             delete body.activeBets;
           }
+          if (body.deletedBetId) {
+            globalState.activeBets = (globalState.activeBets || []).filter(b => b.id !== body.deletedBetId);
+            delete body.deletedBetId;
+          }
           if (Array.isArray(body.withdrawals)) {
-            globalState.withdrawals = body.withdrawals;
+            const existingMap = new Map((globalState.withdrawals || []).map(w => [w.id, w]));
+            body.withdrawals.forEach(w => {
+              if (w && w.id) {
+                existingMap.set(w.id, { ...(existingMap.get(w.id) || {}), ...w });
+              }
+            });
+            globalState.withdrawals = Array.from(existingMap.values());
             delete body.withdrawals;
           }
           globalState = {
@@ -129,15 +139,25 @@ export default function handler(req, res) {
             version: Date.now()
           };
         } else {
-          // Public updates: can sync customer registration, active bets, withdrawals, clear completed spin triggers, update history
+          // Public updates: sync customer registration, merge active bets, merge withdrawals, clear spin triggers, update history
           if (body.customersDb && typeof body.customersDb === 'object') {
             globalState.customersDb = { ...globalState.customersDb, ...body.customersDb };
           }
           if (Array.isArray(body.activeBets)) {
-            globalState.activeBets = body.activeBets;
+            const existingMap = new Map((globalState.activeBets || []).map(b => [b.id, b]));
+            body.activeBets.forEach(b => {
+              if (b && b.id) existingMap.set(b.id, b);
+            });
+            globalState.activeBets = Array.from(existingMap.values());
           }
           if (Array.isArray(body.withdrawals)) {
-            globalState.withdrawals = body.withdrawals;
+            const existingMap = new Map((globalState.withdrawals || []).map(w => [w.id, w]));
+            body.withdrawals.forEach(w => {
+              if (w && w.id) {
+                existingMap.set(w.id, { ...(existingMap.get(w.id) || {}), ...w });
+              }
+            });
+            globalState.withdrawals = Array.from(existingMap.values());
           }
           if (body.spinTrigger === null) {
             globalState.spinTrigger = null;
@@ -148,7 +168,14 @@ export default function handler(req, res) {
           globalState.version = Date.now();
         }
       }
-      return res.status(200).json({ status: 'ok', version: globalState.version, masterPassword: globalState.masterPassword });
+      return res.status(200).json({ 
+        status: 'ok', 
+        version: globalState.version, 
+        activeBets: globalState.activeBets,
+        customersDb: globalState.customersDb,
+        withdrawals: globalState.withdrawals,
+        masterPassword: globalState.masterPassword 
+      });
     } catch (e) {
       return res.status(400).json({ error: 'Failed to parse state' });
     }
