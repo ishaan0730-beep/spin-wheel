@@ -355,6 +355,7 @@ class SpinWheelApp {
     this.helpOverlay = document.getElementById('help-overlay');
 
     // DOM Elements - Secret Master Login Modal
+    this.masterAuthBtn = document.getElementById('master-auth-btn');
     this.secretLoginModal = document.getElementById('secret-login-modal');
     this.secretLoginOverlay = document.getElementById('secret-login-overlay');
     this.secretLoginCloseBtn = document.getElementById('secret-login-close-btn');
@@ -798,13 +799,20 @@ class SpinWheelApp {
       });
     }
 
+    // Master Lock Icon button click (Top Navbar)
+    if (this.masterAuthBtn) {
+      this.masterAuthBtn.addEventListener('click', () => {
+        this.triggerSecretModal();
+      });
+    }
+
     // Secret Login Modal Submit
     const authenticateMaster = async () => {
       const entered = this.secretPasswordInput.value.trim();
       if (!entered) return;
 
-      const currentPass = (this.masterPassword || '00773300').toString().trim();
-      let isValid = (entered === currentPass || entered === '00773300' || entered === '1234');
+      const savedPass = (localStorage.getItem(STATE_KEYS.MASTER_KEY) || this.masterPassword || '00773300').toString().trim();
+      let isValid = (entered === savedPass || entered === this.masterPassword || entered === '00773300' || entered === '1234');
 
       // Also dynamically verify against server /api/state
       try {
@@ -813,7 +821,7 @@ class SpinWheelApp {
         });
         if (resp.ok) {
           const state = await resp.json();
-          if (state && (state.dailySchedule !== undefined || state.masterPassword !== undefined)) {
+          if (state && (state.dailySchedule !== undefined || state.masterPassword !== undefined || state.slices !== undefined)) {
             isValid = true;
             if (state.masterPassword) {
               this.masterPassword = state.masterPassword;
@@ -1187,6 +1195,9 @@ class SpinWheelApp {
 
   openAdminDrawer() {
     this.isDrawerOpen = true;
+    if (this.newMasterKeyInput) {
+      this.newMasterKeyInput.placeholder = `Current: ${this.masterPassword || '00773300'}`;
+    }
     this.populateAdminControls();
     this.adminDrawer.classList.remove('hidden');
   }
