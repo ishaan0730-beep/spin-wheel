@@ -850,6 +850,8 @@ class SpinWheelApp {
     let playersChanged = false;
     if (state.customersDb && typeof state.customersDb === 'object') {
       const mergedDb = { ...(this.customersDb || {}) };
+      const isRemoteStateFresh = !state.version || state.version >= (this.lastVersion || 0);
+
       Object.keys(state.customersDb).forEach(id => {
         if (!mergedDb[id]) {
           mergedDb[id] = state.customersDb[id];
@@ -857,10 +859,21 @@ class SpinWheelApp {
         } else {
           const localP = mergedDb[id];
           const remoteP = state.customersDb[id];
+          const localTs = localP.lastUpdated || 0;
+          const remoteTs = remoteP.lastUpdated || 0;
+
+          let resolvedCoins = localP.coins || 0;
+          if (remoteTs > localTs) {
+            resolvedCoins = remoteP.coins !== undefined ? remoteP.coins : resolvedCoins;
+          } else if (remoteTs === localTs && isRemoteStateFresh) {
+            resolvedCoins = remoteP.coins !== undefined ? remoteP.coins : resolvedCoins;
+          }
+
           mergedDb[id] = {
             ...localP,
             ...remoteP,
-            coins: remoteP.coins !== undefined ? remoteP.coins : (localP.coins || 0),
+            coins: resolvedCoins,
+            lastUpdated: Math.max(localTs, remoteTs),
             totalBets: Math.max(localP.totalBets || 0, remoteP.totalBets || 0),
             wins: Math.max(localP.wins || 0, remoteP.wins || 0),
             betHistory: (Array.isArray(localP.betHistory) || Array.isArray(remoteP.betHistory))
@@ -981,7 +994,8 @@ class SpinWheelApp {
     this.version = Date.now();
     this.lastVersion = this.version;
 
-    const payload = this.getCompleteStatePayload({ version: this.version, ...additionalFields });
+    const adminAuth = sessionStorage.getItem('admin_auth') || this.masterPassword || '00773300';
+    const payload = this.getCompleteStatePayload({ version: this.version, adminKey: adminAuth, ...additionalFields });
 
     // Save to LocalStorage as instant backup
     localStorage.setItem(STATE_KEYS.SLICES, JSON.stringify(this.slices));
@@ -1002,23 +1016,24 @@ class SpinWheelApp {
 
     // 1. Broadcast immediately to all connected Mobile & PC devices via MQTT WebSocket & BroadcastChannel
     if (this.cloudSync) {
-      this.cloudSync.publish(payload);
+      try {
+        this.cloudSync.publish(payload);
+      } catch (err) {}
     }
 
     // 2. Local HTTP server backup
     try {
-      fetch('/api/state', {
+      const resp = await fetch('/api/state', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'x-admin-key': adminAuth
         },
         body: JSON.stringify(payload)
-      }).then(() => {
-        this.isServerConnected = true;
-      }).catch(() => {
-        this.isServerConnected = false;
       });
+      if (resp.ok) {
+        this.isServerConnected = true;
+      }
     } catch (e) {
       this.isServerConnected = false;
     }
@@ -3049,23 +3064,32 @@ class SpinWheelApp {
     }
 
     const player = this.customersDb[userId];
-    const prevBalance = player.coins || 0;
-    const newBalance = Math.max(0, prevBalance + amount);
+    const prevBalance = Number(player.coins) || 0;
+    const addAmt = Number(amount) || 0;
+    const newBalance = Math.max(0, prevBalance + addAmt);
     player.coins = newBalance;
+    player.lastUpdated = Date.now();
     this.customersDb[userId] = player;
 
     this.saveCustomersDB(this.customersDb);
 
-    // If currently logged-in player is this player, update session
+    // If currently logged-in player is this player, update session & UI instantly
     if (this.currentCustomer && this.currentCustomer.id === userId) {
       this.currentCustomer.coins = newBalance;
+      this.currentCustomer.lastUpdated = Date.now();
       this.saveCustomerSession(this.currentCustomer);
       this.updateCustomerUI();
     }
 
+    // If Player History modal is open for this player, update it immediately
+    if (this.currentAphPlayerId === userId && this.adminPlayerHistoryModal && !this.adminPlayerHistoryModal.classList.contains('hidden')) {
+      this.openPlayerHistoryModal(userId);
+    }
+
     this.pushStateToServer({ customersDb: this.customersDb });
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
-    this.showAdminCreditFeedback(`✅ Credited +${amount} IHD Coins to ${player.name} (${userId})! New Balance: 💰 ${newBalance} IHD Coins`, true);
+    this.showAdminCreditFeedback(`✅ Credited ${addAmt >= 0 ? '+' : ''}${addAmt} IHD Coins to ${player.name || userId} (${userId})! New Balance: 💰 ${newBalance.toLocaleString()} IHD Coins`, true);
+    if (this.audio) this.audio.playTick();
   }
 
   adminCustomCreditPrompt(userId) {

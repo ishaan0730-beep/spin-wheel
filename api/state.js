@@ -112,7 +112,11 @@ export default function handler(req, res) {
 
           delete body.adminKey;
           if (body.customersDb && typeof body.customersDb === 'object') {
-            globalState.customersDb = { ...globalState.customersDb, ...body.customersDb };
+            const merged = { ...(globalState.customersDb || {}) };
+            Object.keys(body.customersDb).forEach(id => {
+              merged[id] = { ...(merged[id] || {}), ...body.customersDb[id] };
+            });
+            globalState.customersDb = merged;
             delete body.customersDb;
           }
           if (Array.isArray(body.activeBets)) {
@@ -141,7 +145,11 @@ export default function handler(req, res) {
         } else {
           // Public updates: sync customer registration, merge active bets, merge withdrawals, clear spin triggers, update history
           if (body.customersDb && typeof body.customersDb === 'object') {
-            globalState.customersDb = { ...globalState.customersDb, ...body.customersDb };
+            const merged = { ...(globalState.customersDb || {}) };
+            Object.keys(body.customersDb).forEach(id => {
+              merged[id] = { ...(merged[id] || {}), ...body.customersDb[id] };
+            });
+            globalState.customersDb = merged;
           }
           if (Array.isArray(body.activeBets)) {
             const existingMap = new Map((globalState.activeBets || []).map(b => [b.id, b]));
