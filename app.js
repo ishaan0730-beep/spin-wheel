@@ -194,6 +194,7 @@ class CloudSyncEngine {
   constructor(app) {
     this.app = app;
     this.topic = 'spinwheel3d_sync_v6_global';
+    this.clientId = 'spin_' + Math.random().toString(16).slice(2, 10);
     this.mqttClient = null;
     this.isConnected = false;
     this.broadcastChannel = null;
@@ -204,7 +205,11 @@ class CloudSyncEngine {
         this.broadcastChannel = new BroadcastChannel('spinwheel_live_sync_v6');
         this.broadcastChannel.onmessage = (e) => {
           if (e.data) {
-            this.app.handleIncomingRealtimeState(e.data);
+            if (e.data.type === 'REQ_SYNC' && e.data.senderId !== this.clientId) {
+              this.publishFullState('RES_SYNC');
+            } else {
+              this.app.handleIncomingRealtimeState(e.data);
+            }
           }
         };
       } catch (e) {}
@@ -220,7 +225,6 @@ class CloudSyncEngine {
       return;
     }
 
-    const clientId = 'spin_' + Math.random().toString(16).slice(2, 10);
     const endpoints = [
       'wss://broker.emqx.io:8084/mqtt',
       'wss://broker.hivemq.com:8884/mqtt',
@@ -233,7 +237,7 @@ class CloudSyncEngine {
       try {
         const brokerUrl = endpoints[currentIdx];
         this.mqttClient = mqtt.connect(brokerUrl, {
-          clientId: clientId,
+          clientId: this.clientId,
           clean: true,
           connectTimeout: 5000,
           reconnectPeriod: 4000,
@@ -244,13 +248,28 @@ class CloudSyncEngine {
           this.isConnected = true;
           this.updateConnectionUI(true);
           this.mqttClient.subscribe(this.topic, { qos: 1 });
+
+          // Request state from active peers on connect
+          this.requestSync();
+          // Also announce our state after 1.5s
+          setTimeout(() => {
+            if (this.isConnected) {
+              this.publishFullState('ANNOUNCE_STATE');
+            }
+          }, 1500);
         });
 
         this.mqttClient.on('message', (topic, payload) => {
           if (topic === this.topic) {
             try {
               const parsed = JSON.parse(payload.toString());
-              this.app.handleIncomingRealtimeState(parsed);
+              if (parsed.type === 'REQ_SYNC') {
+                if (parsed.senderId !== this.clientId) {
+                  this.publishFullState('RES_SYNC');
+                }
+              } else {
+                this.app.handleIncomingRealtimeState(parsed);
+              }
             } catch (err) {}
           }
         });
@@ -279,6 +298,21 @@ class CloudSyncEngine {
       dot.style.background = online ? '#00f0ff' : '#ffd700';
       dot.style.boxShadow = online ? '0 0 10px #00f0ff' : '0 0 8px #ffd700';
     }
+  }
+
+  requestSync() {
+    const reqPayload = { type: 'REQ_SYNC', senderId: this.clientId };
+    if (this.broadcastChannel) {
+      try { this.broadcastChannel.postMessage(reqPayload); } catch (e) {}
+    }
+    if (this.mqttClient && this.isConnected) {
+      try { this.mqttClient.publish(this.topic, JSON.stringify(reqPayload), { qos: 1, retain: false }); } catch (e) {}
+    }
+  }
+
+  publishFullState(actionType = 'SYNC_UPDATE') {
+    const p = this.app.getCompleteStatePayload({ type: actionType });
+    this.publish(p);
   }
 
   publish(state) {
@@ -812,37 +846,99 @@ class SpinWheelApp {
       localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
     }
 
-    // 8. Registered Players Database
+    // 8. Registered Players Database (INTELLIGENT DEEP MERGE)
+    let playersChanged = false;
     if (state.customersDb && typeof state.customersDb === 'object') {
-      this.customersDb = { ...this.customersDb, ...state.customersDb };
+      const mergedDb = { ...(this.customersDb || {}) };
+      Object.keys(state.customersDb).forEach(id => {
+        if (!mergedDb[id]) {
+          mergedDb[id] = state.customersDb[id];
+          playersChanged = true;
+        } else {
+          const localP = mergedDb[id];
+          const remoteP = state.customersDb[id];
+          mergedDb[id] = {
+            ...localP,
+            ...remoteP,
+            coins: remoteP.coins !== undefined ? remoteP.coins : (localP.coins || 0),
+            totalBets: Math.max(localP.totalBets || 0, remoteP.totalBets || 0),
+            wins: Math.max(localP.wins || 0, remoteP.wins || 0),
+            betHistory: (Array.isArray(localP.betHistory) || Array.isArray(remoteP.betHistory))
+              ? Array.from(new Map([
+                  ...(Array.isArray(localP.betHistory) ? localP.betHistory : []),
+                  ...(Array.isArray(remoteP.betHistory) ? remoteP.betHistory : [])
+                ].map(item => [item.id || (item.timestamp + '_' + item.number), item])).values())
+              : [],
+            bankDetails: remoteP.bankDetails || localP.bankDetails || null
+          };
+          playersChanged = true;
+        }
+      });
+      if (state.newPlayer && state.newPlayer.id) {
+        mergedDb[state.newPlayer.id] = state.newPlayer;
+        playersChanged = true;
+      }
+      this.customersDb = mergedDb;
       this.saveCustomersDB(this.customersDb);
       if (this.currentCustomer && this.customersDb[this.currentCustomer.id]) {
         this.currentCustomer = this.customersDb[this.currentCustomer.id];
         this.saveCustomerSession(this.currentCustomer);
         this.updateCustomerUI();
       }
-      if (this.isDrawerOpen) {
-        this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
-      }
+    } else if (state.newPlayer && state.newPlayer.id) {
+      this.customersDb = this.customersDb || {};
+      this.customersDb[state.newPlayer.id] = state.newPlayer;
+      this.saveCustomersDB(this.customersDb);
+      playersChanged = true;
     }
 
-    // 9. Active Bets & Predictions
-    if (Array.isArray(state.activeBets)) {
-      this.activeBets = state.activeBets;
-      this.saveActiveBets(this.activeBets);
-      if (this.isDrawerOpen) {
-        this.renderAdminActiveBetsTable();
+    if (playersChanged || this.isDrawerOpen) {
+      this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    }
+
+    // 9. Active Bets & Predictions (SMART MERGE - NEVER ACCIDENTALLY WIPE)
+    let betsChanged = false;
+    if (state.deletedBetId) {
+      const beforeLen = (this.activeBets || []).length;
+      this.activeBets = (this.activeBets || []).filter(b => b.id !== state.deletedBetId);
+      if (this.activeBets.length !== beforeLen) betsChanged = true;
+    }
+    if (Array.isArray(state.activeBets) || state.newBet) {
+      const existingMap = new Map((this.activeBets || []).map(b => [b.id, b]));
+      if (Array.isArray(state.activeBets)) {
+        state.activeBets.forEach(b => {
+          if (b && b.id && (!state.deletedBetId || b.id !== state.deletedBetId)) {
+            existingMap.set(b.id, b);
+          }
+        });
       }
+      if (state.newBet && state.newBet.id && (!state.deletedBetId || state.newBet.id !== state.deletedBetId)) {
+        existingMap.set(state.newBet.id, state.newBet);
+      }
+      this.activeBets = Array.from(existingMap.values());
+      this.saveActiveBets(this.activeBets);
+      betsChanged = true;
+    }
+    if (betsChanged || this.isDrawerOpen) {
+      this.renderAdminActiveBetsTable();
+      this.updateCustomerUI();
     }
 
     // 10. Withdrawals Requests Database
     if (Array.isArray(state.withdrawals)) {
-      this.withdrawals = state.withdrawals;
+      const wdMap = new Map((this.withdrawals || []).map(w => [w.id, w]));
+      state.withdrawals.forEach(w => {
+        if (w && w.id) wdMap.set(w.id, w);
+      });
+      this.withdrawals = Array.from(wdMap.values()).sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0));
       this.saveWithdrawals(this.withdrawals);
       this.renderCustomerWithdrawalHistory();
-      if (this.isDrawerOpen) {
-        this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
-      }
+      this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+    }
+
+    // Refresh open Player History Modal in real-time
+    if (this.currentAphPlayerId && this.adminPlayerHistoryModal && !this.adminPlayerHistoryModal.classList.contains('hidden')) {
+      this.openPlayerHistoryModal(this.currentAphPlayerId);
     }
 
     // Update UI components
@@ -860,13 +956,9 @@ class SpinWheelApp {
     }
   }
 
-  async pushStateToServer(additionalFields = {}) {
-    this.version = Date.now();
-    this.lastVersion = this.version;
-
+  getCompleteStatePayload(additionalFields = {}) {
     const adminAuth = sessionStorage.getItem('admin_auth') || this.masterPassword || '00773300';
-
-    const payload = {
+    return {
       slices: this.slices,
       history: this.history,
       forcedNext: this.forcedNext,
@@ -876,13 +968,20 @@ class SpinWheelApp {
       customSecs: this.customSecs,
       customTimerTarget: this.customTimerTarget,
       masterPassword: this.masterPassword,
-      customersDb: this.customersDb,
-      activeBets: this.activeBets,
-      withdrawals: this.withdrawals,
+      customersDb: this.customersDb || {},
+      activeBets: this.activeBets || [],
+      withdrawals: this.withdrawals || [],
       adminKey: adminAuth,
-      version: this.version,
+      version: this.version || Date.now(),
       ...additionalFields
     };
+  }
+
+  async pushStateToServer(additionalFields = {}) {
+    this.version = Date.now();
+    this.lastVersion = this.version;
+
+    const payload = this.getCompleteStatePayload({ version: this.version, ...additionalFields });
 
     // Save to LocalStorage as instant backup
     localStorage.setItem(STATE_KEYS.SLICES, JSON.stringify(this.slices));
@@ -1912,6 +2011,12 @@ class SpinWheelApp {
     this.updateCustomerUI();
     this.closeAuthModal();
 
+    // Broadcast new player immediately across all devices & server
+    this.pushStateToServer({
+      customersDb: this.customersDb,
+      newPlayer: newCustomer
+    });
+
     this.confetti.fire(2500);
     this.audio.playWinFanfare();
     if (this.predictionFeedbackMsg) {
@@ -1978,6 +2083,9 @@ class SpinWheelApp {
     this.saveCustomerSession(this.customersDb[userId]);
     this.updateCustomerUI();
     this.closeAuthModal();
+
+    // Broadcast updated account to cloud
+    this.pushStateToServer({ customersDb: this.customersDb });
 
     this.confetti.fire(2000);
     this.audio.playWinFanfare();
@@ -2358,6 +2466,10 @@ class SpinWheelApp {
     this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
     this.renderMiniWheel();
     this.adminDrawer.classList.remove('hidden');
+
+    // Request latest state from cloud peers & server
+    if (this.cloudSync) this.cloudSync.requestSync();
+    this.pullStateFromServer();
   }
 
   closeAdminDrawer() {
@@ -2529,11 +2641,13 @@ class SpinWheelApp {
     });
 
     this.adminRefreshPlayersBtn?.addEventListener('click', () => {
+      if (this.cloudSync) this.cloudSync.requestSync();
       this.pullStateFromServer().then(() => this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : ''));
       this.showAdminCreditFeedback('🔄 Player list refreshed!', true);
     });
 
     this.adminRefreshBetsBtn?.addEventListener('click', () => {
+      if (this.cloudSync) this.cloudSync.requestSync();
       this.pullStateFromServer().then(() => this.renderAdminActiveBetsTable());
       this.showAdminCreditFeedback('🔄 Live bets refreshed!', true);
     });
@@ -2563,6 +2677,7 @@ class SpinWheelApp {
     });
 
     this.adminRefreshWithdrawalsBtn?.addEventListener('click', () => {
+      if (this.cloudSync) this.cloudSync.requestSync();
       this.pullStateFromServer().then(() => this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : ''));
       this.showAdminCreditFeedback('🔄 Withdrawal requests refreshed!', true);
     });
@@ -2632,6 +2747,7 @@ class SpinWheelApp {
   }
 
   setAdminTab(tabName) {
+    if (this.cloudSync) this.cloudSync.requestSync();
     if (tabName === 'players') {
       this.adminNavPlayersBtn?.classList.add('active');
       this.adminNavSpinBtn?.classList.remove('active');
