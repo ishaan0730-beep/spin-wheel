@@ -1,5 +1,18 @@
 {
   "version": 2,
+  "redirects": [
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "spinwheel3d.vercel.app"
+        }
+      ],
+      "destination": "https://www.spinandwin.world/$1",
+      "permanent": true
+    }
+  ],
   "routes": [
     {
       "src": "/api/state",
