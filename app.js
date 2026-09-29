@@ -32,7 +32,10 @@ const STATE_KEYS = {
   MASTER_KEY: 'lucky_spin_master_password_v6',
   TIMER_MODE: 'lucky_spin_timer_mode_v6',
   CUSTOM_SECS: 'lucky_spin_custom_secs_v6',
-  MANUAL_ROUND_TITLE: 'lucky_spin_manual_round_title_v6'
+  MANUAL_ROUND_TITLE: 'lucky_spin_manual_round_title_v6',
+  CUSTOMER_USER: 'lucky_spin_current_customer_v6',
+  CUSTOMERS_DB: 'lucky_spin_customers_db_v6',
+  CURRENT_BET: 'lucky_spin_current_bet_v6'
 };
 
 // Vibrant Luxury Wheel Slice Color Palettes
@@ -354,11 +357,63 @@ class SpinWheelApp {
     this.helpCloseBtn = document.getElementById('help-close-btn');
     this.helpOverlay = document.getElementById('help-overlay');
 
-    // DOM Elements - Secret Master Login Modal
+    // Customer / Player State
+    this.currentCustomer = this.loadCustomerSession();
+    this.customersDb = this.loadCustomersDB();
+    this.currentBet = this.loadCurrentBet();
+    this.selectedBetAmount = 50;
+    this.selectedBetNumber = null;
+    this.isSignUpMode = false;
+
+    // DOM Elements - Dual Auth Modal (Customer & Admin)
+    this.authModal = document.getElementById('auth-modal');
+    this.authOverlay = document.getElementById('auth-overlay');
+    this.authCloseBtn = document.getElementById('auth-close-btn');
+    this.tabBtnCustomer = document.getElementById('tab-btn-customer');
+    this.tabBtnAdmin = document.getElementById('tab-btn-admin');
+    this.customerAuthPane = document.getElementById('customer-auth-pane');
+    this.adminAuthPane = document.getElementById('admin-auth-pane');
+
+    // Customer Auth Elements
+    this.custSubtabSignin = document.getElementById('cust-subtab-signin');
+    this.custSubtabSignup = document.getElementById('cust-subtab-signup');
+    this.customerLoggedInView = document.getElementById('customer-logged-in-view');
+    this.dashPlayerName = document.getElementById('dash-player-name');
+    this.dashPlayerCoins = document.getElementById('dash-player-coins');
+    this.claimDailyBonusBtn = document.getElementById('claim-daily-bonus-btn');
+    this.dashLogoutBtn = document.getElementById('dash-logout-btn');
+    this.dashBonusMsg = document.getElementById('dash-bonus-msg');
+    this.customerAuthForm = document.getElementById('customer-auth-form');
+    this.custNameGroup = document.getElementById('cust-name-group');
+    this.custNameInput = document.getElementById('cust-name-input');
+    this.custIdInput = document.getElementById('cust-id-input');
+    this.custPinInput = document.getElementById('cust-pin-input');
+    this.custAuthError = document.getElementById('cust-auth-error');
+    this.custAuthSuccess = document.getElementById('cust-auth-success');
+    this.custSubmitBtn = document.getElementById('cust-submit-btn');
+    this.custGuestBtn = document.getElementById('cust-guest-btn');
+
+    // Header Customer Profile / Login Button
+    this.customerLoginBtn = document.getElementById('customer-login-btn');
+    this.customerProfileChip = document.getElementById('customer-profile-chip');
+    this.chipPlayerName = document.getElementById('chip-player-name');
+    this.chipPlayerCoins = document.getElementById('chip-player-coins');
+    this.customerDashboardBtn = document.getElementById('customer-dashboard-btn');
+    this.customerLogoutBtn = document.getElementById('customer-logout-btn');
+
+    // Customer Prediction Widget Elements
+    this.customerPredictionSection = document.getElementById('customer-prediction-section');
+    this.playerWalletDisplay = document.getElementById('player-wallet-display');
+    this.predictionNumberChips = document.getElementById('prediction-number-chips');
+    this.placePredictionBtn = document.getElementById('place-prediction-btn');
+    this.activeBetNotice = document.getElementById('active-bet-notice');
+    this.betSelectedNum = document.getElementById('bet-selected-num');
+    this.betSelectedCoins = document.getElementById('bet-selected-coins');
+    this.betPotentialWin = document.getElementById('bet-potential-win');
+    this.predictionFeedbackMsg = document.getElementById('prediction-feedback-msg');
+
+    // Admin Master Auth Elements
     this.masterAuthBtn = document.getElementById('master-auth-btn');
-    this.secretLoginModal = document.getElementById('secret-login-modal');
-    this.secretLoginOverlay = document.getElementById('secret-login-overlay');
-    this.secretLoginCloseBtn = document.getElementById('secret-login-close-btn');
     this.secretPasswordInput = document.getElementById('secret-password-input');
     this.secretLoginSubmitBtn = document.getElementById('secret-login-submit-btn');
     this.secretLoginError = document.getElementById('secret-login-error');
@@ -423,8 +478,11 @@ class SpinWheelApp {
   async init() {
     this.setupCanvasDPI();
     this.bindEvents();
+    this.bindCustomerEvents();
     this.updateSoundUI();
     this.renderWheel();
+    this.renderPredictionChips();
+    this.updateCustomerUI();
     this.renderLast3Results();
     this.populateAdminControls();
     this.startTimerEngine();
@@ -612,6 +670,7 @@ class SpinWheelApp {
     // Update UI components
     if (wheelNeedsRedraw && !this.isSpinning) {
       this.renderWheel();
+      this.renderPredictionChips();
     }
     if (historyNeedsRedraw) {
       this.renderLast3Results();
@@ -744,6 +803,59 @@ class SpinWheelApp {
     };
   }
 
+  loadCustomerSession() {
+    try {
+      const saved = localStorage.getItem(STATE_KEYS.CUSTOMER_USER);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  }
+
+  saveCustomerSession(user) {
+    this.currentCustomer = user;
+    if (user) {
+      localStorage.setItem(STATE_KEYS.CUSTOMER_USER, JSON.stringify(user));
+      if (this.customersDb && user.id) {
+        this.customersDb[user.id] = { ...user };
+        this.saveCustomersDB(this.customersDb);
+      }
+    } else {
+      localStorage.removeItem(STATE_KEYS.CUSTOMER_USER);
+    }
+  }
+
+  loadCustomersDB() {
+    try {
+      const saved = localStorage.getItem(STATE_KEYS.CUSTOMERS_DB);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {};
+  }
+
+  saveCustomersDB(db) {
+    this.customersDb = db;
+    try {
+      localStorage.setItem(STATE_KEYS.CUSTOMERS_DB, JSON.stringify(db));
+    } catch (e) {}
+  }
+
+  loadCurrentBet() {
+    try {
+      const saved = localStorage.getItem(STATE_KEYS.CURRENT_BET);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  }
+
+  saveCurrentBet(bet) {
+    this.currentBet = bet;
+    if (bet) {
+      localStorage.setItem(STATE_KEYS.CURRENT_BET, JSON.stringify(bet));
+    } else {
+      localStorage.removeItem(STATE_KEYS.CURRENT_BET);
+    }
+  }
+
   // ==========================================================
   // EVENT BINDINGS
   // ==========================================================
@@ -806,7 +918,22 @@ class SpinWheelApp {
       });
     }
 
-    // Secret Login Modal Submit
+    // Top Navbar Customer Login button click
+    if (this.customerLoginBtn) {
+      this.customerLoginBtn.addEventListener('click', () => {
+        this.openAuthModal('customer');
+      });
+    }
+
+    // Dual Auth Modal Close / Overlay
+    if (this.authCloseBtn) {
+      this.authCloseBtn.addEventListener('click', () => this.closeAuthModal());
+    }
+    if (this.authOverlay) {
+      this.authOverlay.addEventListener('click', () => this.closeAuthModal());
+    }
+
+    // Secret Login Modal Submit (Admin Tab)
     const authenticateMaster = async () => {
       const entered = this.secretPasswordInput.value.trim();
       if (!entered) return;
@@ -836,26 +963,23 @@ class SpinWheelApp {
         this.masterPassword = entered;
         localStorage.setItem(STATE_KEYS.MASTER_KEY, entered);
         sessionStorage.setItem('admin_auth', entered);
-        this.secretLoginError.classList.add('hidden');
-        this.secretLoginModal.classList.add('hidden');
+        if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
+        this.closeAuthModal();
         this.openAdminDrawer();
         this.pullStateFromServer();
       } else {
-        this.secretLoginError.classList.remove('hidden');
+        if (this.secretLoginError) this.secretLoginError.classList.remove('hidden');
       }
     };
 
-    this.secretLoginSubmitBtn.addEventListener('click', authenticateMaster);
-    this.secretPasswordInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') authenticateMaster();
-    });
-
-    this.secretLoginCloseBtn.addEventListener('click', () => {
-      this.secretLoginModal.classList.add('hidden');
-    });
-    this.secretLoginOverlay.addEventListener('click', () => {
-      this.secretLoginModal.classList.add('hidden');
-    });
+    if (this.secretLoginSubmitBtn) {
+      this.secretLoginSubmitBtn.addEventListener('click', authenticateMaster);
+    }
+    if (this.secretPasswordInput) {
+      this.secretPasswordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') authenticateMaster();
+      });
+    }
 
     // Admin Panel Close / Logout
     this.adminCloseBtn.addEventListener('click', () => this.closeAdminDrawer());
@@ -1077,6 +1201,7 @@ class SpinWheelApp {
       randNumbers.sort((a, b) => a - b);
       this.slices = randNumbers;
       this.renderWheel();
+      this.renderPredictionChips();
       this.populateAdminControls();
       this.pushStateToServer();
       this.showSlicesSaveFeedback('Generated & Synced 10 random numbers (1-100)!');
@@ -1095,6 +1220,7 @@ class SpinWheelApp {
       if (newSlices.length === 10) {
         this.slices = newSlices;
         this.renderWheel();
+        this.renderPredictionChips();
         this.populateAdminControls();
         this.pushStateToServer();
         this.showSlicesSaveFeedback('Wheel numbers updated & synced to all devices!');
@@ -1168,12 +1294,363 @@ class SpinWheelApp {
     if (navigator.vibrate) {
       try { navigator.vibrate([60, 40, 60]); } catch (e) {}
     }
-    this.secretPasswordInput.value = '';
-    this.secretLoginError.classList.add('hidden');
-    this.secretLoginModal.classList.remove('hidden');
-    setTimeout(() => {
-      this.secretPasswordInput.focus();
-    }, 150);
+    this.openAuthModal('admin');
+  }
+
+  // ==========================================================
+  // DUAL AUTH MODAL CONTROLLER (CUSTOMER & ADMIN)
+  // ==========================================================
+  openAuthModal(defaultTab = 'customer') {
+    if (!this.authModal) return;
+    this.authModal.classList.remove('hidden');
+    this.switchAuthTab(defaultTab);
+  }
+
+  closeAuthModal() {
+    if (this.authModal) {
+      this.authModal.classList.add('hidden');
+    }
+    if (this.custAuthError) this.custAuthError.classList.add('hidden');
+    if (this.custAuthSuccess) this.custAuthSuccess.classList.add('hidden');
+  }
+
+  switchAuthTab(tab) {
+    if (tab === 'customer') {
+      this.tabBtnCustomer?.classList.add('active');
+      this.tabBtnAdmin?.classList.remove('active');
+      this.customerAuthPane?.classList.remove('hidden');
+      this.adminAuthPane?.classList.add('hidden');
+      this.updateCustomerAuthPane();
+    } else {
+      this.tabBtnCustomer?.classList.remove('active');
+      this.tabBtnAdmin?.classList.add('active');
+      this.customerAuthPane?.classList.add('hidden');
+      this.adminAuthPane?.classList.remove('hidden');
+      if (this.secretPasswordInput) {
+        this.secretPasswordInput.value = '';
+        if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
+        setTimeout(() => this.secretPasswordInput.focus(), 150);
+      }
+    }
+  }
+
+  updateCustomerAuthPane() {
+    if (this.currentCustomer) {
+      this.customerLoggedInView?.classList.remove('hidden');
+      this.customerAuthForm?.classList.add('hidden');
+      if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
+      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
+    } else {
+      this.customerLoggedInView?.classList.add('hidden');
+      this.customerAuthForm?.classList.remove('hidden');
+      this.setCustomerAuthSubtab(this.isSignUpMode ? 'signup' : 'signin');
+    }
+  }
+
+  setCustomerAuthSubtab(mode) {
+    this.isSignUpMode = (mode === 'signup');
+    if (this.isSignUpMode) {
+      this.custSubtabSignup?.classList.add('active');
+      this.custSubtabSignin?.classList.remove('active');
+      this.custNameGroup?.classList.remove('hidden');
+      if (this.custSubmitBtn) this.custSubmitBtn.textContent = '🎁 Create Account & Claim 1,000 Coins';
+    } else {
+      this.custSubtabSignin?.classList.add('active');
+      this.custSubtabSignup?.classList.remove('active');
+      this.custNameGroup?.classList.add('hidden');
+      if (this.custSubmitBtn) this.custSubmitBtn.textContent = '🚀 Sign In to Play';
+    }
+    if (this.custAuthError) this.custAuthError.classList.add('hidden');
+    if (this.custAuthSuccess) this.custAuthSuccess.classList.add('hidden');
+  }
+
+  // ==========================================================
+  // CUSTOMER UI & PREDICTION LOGIC
+  // ==========================================================
+  updateCustomerUI() {
+    if (this.currentCustomer) {
+      this.customerLoginBtn?.classList.add('hidden');
+      this.customerProfileChip?.classList.remove('hidden');
+      if (this.chipPlayerName) this.chipPlayerName.textContent = this.currentCustomer.name || 'Player';
+      if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()}`;
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
+      if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
+      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
+    } else {
+      this.customerLoginBtn?.classList.remove('hidden');
+      this.customerProfileChip?.classList.add('hidden');
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = '💰 Guest (0 Coins)';
+    }
+
+    // Update active prediction bet notice
+    if (this.currentBet) {
+      this.activeBetNotice?.classList.remove('hidden');
+      if (this.betSelectedNum) this.betSelectedNum.textContent = `#${this.currentBet.number}`;
+      if (this.betSelectedCoins) this.betSelectedCoins.textContent = `${this.currentBet.amount}`;
+      if (this.betPotentialWin) this.betPotentialWin.textContent = `${this.currentBet.potentialWin || this.currentBet.amount * 10}`;
+    } else {
+      this.activeBetNotice?.classList.add('hidden');
+    }
+  }
+
+  renderPredictionChips() {
+    if (!this.predictionNumberChips) return;
+    this.predictionNumberChips.innerHTML = '';
+
+    this.slices.forEach(num => {
+      const btn = document.createElement('button');
+      btn.className = `predict-num-btn ${this.selectedBetNumber === num ? 'selected' : ''}`;
+      btn.setAttribute('data-num', num);
+      btn.textContent = `${num}`;
+      btn.addEventListener('click', () => {
+        this.selectedBetNumber = num;
+        this.predictionNumberChips.querySelectorAll('.predict-num-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        this.audio.playTick();
+        if (this.predictionFeedbackMsg) {
+          this.predictionFeedbackMsg.style.color = '#00f0ff';
+          this.predictionFeedbackMsg.textContent = `Selected #${num} for prediction!`;
+        }
+      });
+      this.predictionNumberChips.appendChild(btn);
+    });
+  }
+
+  bindCustomerEvents() {
+    // Modal Tab Buttons
+    this.tabBtnCustomer?.addEventListener('click', () => this.switchAuthTab('customer'));
+    this.tabBtnAdmin?.addEventListener('click', () => this.switchAuthTab('admin'));
+
+    // Customer Subtabs
+    this.custSubtabSignin?.addEventListener('click', () => this.setCustomerAuthSubtab('signin'));
+    this.custSubtabSignup?.addEventListener('click', () => this.setCustomerAuthSubtab('signup'));
+
+    // Customer Dashboard & Logout buttons
+    this.customerDashboardBtn?.addEventListener('click', () => this.openAuthModal('customer'));
+    this.customerLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
+    this.dashLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
+
+    // Customer Submit Form & Guest Login
+    this.custSubmitBtn?.addEventListener('click', () => this.handleCustomerAuth());
+    this.custPinInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleCustomerAuth();
+    });
+    this.custGuestBtn?.addEventListener('click', () => this.handleGuestLogin());
+
+    // Daily Bonus Claim
+    this.claimDailyBonusBtn?.addEventListener('click', () => this.handleDailyBonusClaim());
+
+    // Coin Chips (50, 100, 250, 500)
+    const coinChips = document.querySelectorAll('.coin-chip-btn');
+    coinChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        coinChips.forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+        this.selectedBetAmount = parseInt(chip.getAttribute('data-amount'), 10) || 50;
+        this.audio.playTick();
+      });
+    });
+
+    // Place Prediction Button
+    this.placePredictionBtn?.addEventListener('click', () => this.placeCustomerPrediction());
+  }
+
+  handleCustomerAuth() {
+    const id = this.custIdInput?.value.trim();
+    const pin = this.custPinInput?.value.trim();
+    const name = this.custNameInput?.value.trim() || 'Player';
+
+    if (!id) {
+      this.showCustomerAuthError('Please enter your Mobile Number or User ID.');
+      return;
+    }
+    if (!pin || pin.length < 3) {
+      this.showCustomerAuthError('Please enter a Password or PIN (min 3 characters).');
+      return;
+    }
+
+    if (this.isSignUpMode) {
+      // New Account Registration
+      if (this.customersDb[id]) {
+        this.showCustomerAuthError('An account with this ID already exists! Please Sign In.');
+        return;
+      }
+      const newCustomer = {
+        id: id,
+        name: name,
+        pin: pin,
+        coins: 1000,
+        joinedAt: Date.now(),
+        lastBonusDate: new Date().toDateString(),
+        totalBets: 0,
+        wins: 0
+      };
+      this.customersDb[id] = newCustomer;
+      this.saveCustomersDB(this.customersDb);
+      this.saveCustomerSession(newCustomer);
+      this.updateCustomerUI();
+      this.closeAuthModal();
+      this.confetti.fire(2500);
+      this.audio.playWinFanfare();
+      if (this.predictionFeedbackMsg) {
+        this.predictionFeedbackMsg.style.color = '#2ecc71';
+        this.predictionFeedbackMsg.textContent = `🎉 Welcome, ${name}! 1,000 Welcome Coins added to your wallet!`;
+        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
+      }
+    } else {
+      // Sign In
+      let user = this.customersDb[id];
+      if (user) {
+        if (user.pin !== pin) {
+          this.showCustomerAuthError('Incorrect Password or PIN. Please try again.');
+          return;
+        }
+      } else {
+        // First-time direct sign-in -> automatic 1,000 welcome coins!
+        user = {
+          id: id,
+          name: id.length === 10 ? `User ${id.slice(-4)}` : id,
+          pin: pin,
+          coins: 1000,
+          joinedAt: Date.now(),
+          lastBonusDate: null,
+          totalBets: 0,
+          wins: 0
+        };
+        this.customersDb[id] = user;
+        this.saveCustomersDB(this.customersDb);
+      }
+      this.saveCustomerSession(user);
+      this.updateCustomerUI();
+      this.closeAuthModal();
+      if (this.predictionFeedbackMsg) {
+        this.predictionFeedbackMsg.style.color = '#2ecc71';
+        this.predictionFeedbackMsg.textContent = `👋 Welcome back, ${user.name}!`;
+        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3500);
+      }
+    }
+  }
+
+  handleGuestLogin() {
+    const guestNum = Math.floor(Math.random() * 9000) + 1000;
+    const guestUser = {
+      id: `guest_${guestNum}`,
+      name: `Guest #${guestNum}`,
+      pin: 'guest',
+      coins: 1000,
+      isGuest: true,
+      joinedAt: Date.now(),
+      lastBonusDate: new Date().toDateString(),
+      totalBets: 0,
+      wins: 0
+    };
+    this.saveCustomerSession(guestUser);
+    this.updateCustomerUI();
+    this.closeAuthModal();
+    this.confetti.fire(2000);
+    this.audio.playWinFanfare();
+    if (this.predictionFeedbackMsg) {
+      this.predictionFeedbackMsg.style.color = '#2ecc71';
+      this.predictionFeedbackMsg.textContent = `⚡ Logged in as ${guestUser.name} with 1,000 Coins!`;
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4000);
+    }
+  }
+
+  handleCustomerLogout() {
+    this.saveCustomerSession(null);
+    this.currentBet = null;
+    this.saveCurrentBet(null);
+    this.updateCustomerUI();
+    this.closeAuthModal();
+    if (this.predictionFeedbackMsg) {
+      this.predictionFeedbackMsg.style.color = '#94a3b8';
+      this.predictionFeedbackMsg.textContent = 'Logged out successfully.';
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3000);
+    }
+  }
+
+  showCustomerAuthError(msg) {
+    if (this.custAuthError) {
+      this.custAuthError.textContent = `❌ ${msg}`;
+      this.custAuthError.classList.remove('hidden');
+    }
+  }
+
+  handleDailyBonusClaim() {
+    if (!this.currentCustomer) return;
+    const todayStr = new Date().toDateString();
+    if (this.currentCustomer.lastBonusDate === todayStr) {
+      if (this.dashBonusMsg) {
+        this.dashBonusMsg.style.color = '#ff9800';
+        this.dashBonusMsg.textContent = '⏳ Daily bonus already claimed today! Check back tomorrow.';
+        setTimeout(() => { if (this.dashBonusMsg) this.dashBonusMsg.textContent = ''; }, 3500);
+      }
+      return;
+    }
+    this.currentCustomer.coins = (this.currentCustomer.coins || 0) + 500;
+    this.currentCustomer.lastBonusDate = todayStr;
+    this.saveCustomerSession(this.currentCustomer);
+    this.updateCustomerUI();
+    if (this.dashBonusMsg) {
+      this.dashBonusMsg.style.color = '#2ecc71';
+      this.dashBonusMsg.textContent = '🎉 +500 Coins added to your wallet!';
+      setTimeout(() => { if (this.dashBonusMsg) this.dashBonusMsg.textContent = ''; }, 3500);
+    }
+    this.confetti.fire(2000);
+    this.audio.playWinFanfare();
+  }
+
+  placeCustomerPrediction() {
+    if (!this.currentCustomer) {
+      this.openAuthModal('customer');
+      if (this.predictionFeedbackMsg) {
+        this.predictionFeedbackMsg.style.color = '#f5b041';
+        this.predictionFeedbackMsg.textContent = '👉 Please login first to lock your prediction!';
+      }
+      return;
+    }
+
+    if (this.selectedBetNumber === null) {
+      if (this.predictionFeedbackMsg) {
+        this.predictionFeedbackMsg.style.color = '#ff6b6b';
+        this.predictionFeedbackMsg.textContent = '⚠️ Please select a number chip above!';
+        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3000);
+      }
+      return;
+    }
+
+    const amount = this.selectedBetAmount || 50;
+    if ((this.currentCustomer.coins || 0) < amount) {
+      if (this.predictionFeedbackMsg) {
+        this.predictionFeedbackMsg.style.color = '#ff6b6b';
+        this.predictionFeedbackMsg.textContent = '❌ Insufficient coins! Claim daily bonus or re-login.';
+        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3500);
+      }
+      return;
+    }
+
+    // Deduct coins
+    this.currentCustomer.coins -= amount;
+    this.currentCustomer.totalBets = (this.currentCustomer.totalBets || 0) + 1;
+    this.saveCustomerSession(this.currentCustomer);
+
+    const nextSlot = getNextSlotInfo(new Date());
+    this.currentBet = {
+      number: this.selectedBetNumber,
+      amount: amount,
+      potentialWin: amount * 10,
+      round: nextSlot.label,
+      timestamp: Date.now()
+    };
+    this.saveCurrentBet(this.currentBet);
+    this.updateCustomerUI();
+
+    if (this.predictionFeedbackMsg) {
+      this.predictionFeedbackMsg.style.color = '#2ecc71';
+      this.predictionFeedbackMsg.textContent = `✅ Locked ${amount} Coins on #${this.selectedBetNumber} for ${nextSlot.label} round!`;
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4000);
+    }
+    this.audio.playTick();
   }
 
   showSlicesSaveFeedback(msg) {
@@ -1676,6 +2153,32 @@ class SpinWheelApp {
       this.winTimeEl.textContent = `⚡ Test Spin Completed &bull; Winning Number: ${winningNumber} (History Not Saved)`;
     } else {
       this.winTimeEl.textContent = `Won at ${timeStr12} &bull; Round ${roundStr12}`;
+    }
+
+    // Evaluate Customer Prediction Bet & 10x Payout
+    if (this.currentBet) {
+      const bet = this.currentBet;
+      if (bet.number === winningNumber) {
+        const winAmount = bet.amount * 10;
+        if (this.currentCustomer) {
+          this.currentCustomer.coins = (this.currentCustomer.coins || 0) + winAmount;
+          this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+          this.saveCustomerSession(this.currentCustomer);
+        }
+        if (this.predictionFeedbackMsg) {
+          this.predictionFeedbackMsg.style.color = '#ffd700';
+          this.predictionFeedbackMsg.innerHTML = `🎉 <strong>PREDICTION JACKPOT!</strong> You predicted #${winningNumber} and won 💰${winAmount.toLocaleString()} Coins!`;
+        }
+      } else {
+        if (this.predictionFeedbackMsg) {
+          this.predictionFeedbackMsg.style.color = '#94a3b8';
+          this.predictionFeedbackMsg.textContent = `Round #${winningNumber} completed. Better luck on next round!`;
+          setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 6000);
+        }
+      }
+      this.currentBet = null;
+      this.saveCurrentBet(null);
+      this.updateCustomerUI();
     }
 
     // ONLY SAVE TO HISTORY IF THIS IS AN OFFICIAL ROUND (NOT A TEST SPIN)
