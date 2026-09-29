@@ -477,11 +477,9 @@ class SpinWheelApp {
     this.customBetInput = document.getElementById('custom-bet-input');
     this.placePredictionBtn = document.getElementById('place-prediction-btn');
     this.activeBetNotice = document.getElementById('active-bet-notice');
-    this.betSelectedNum = document.getElementById('bet-selected-num');
-    this.betSelectedCoins = document.getElementById('bet-selected-coins');
-    this.betPotentialWin = document.getElementById('bet-potential-win');
-    this.betTargetSlotInfo = document.getElementById('bet-target-slot-info');
-    this.betTargetDateInfo = document.getElementById('bet-target-date-info');
+    this.myActiveBetsCount = document.getElementById('my-active-bets-count');
+    this.myActiveBetsPool = document.getElementById('my-active-bets-pool');
+    this.myActiveBetsList = document.getElementById('my-active-bets-list');
     this.predictionFeedbackMsg = document.getElementById('prediction-feedback-msg');
 
     // Admin Master Auth Elements
@@ -1601,14 +1599,36 @@ class SpinWheelApp {
 
     this.updateTargetSlotDisplay();
 
-    // Update active prediction bet notice
-    if (this.currentBet) {
-      this.activeBetNotice?.classList.remove('hidden');
-      if (this.betSelectedNum) this.betSelectedNum.textContent = `#${this.currentBet.number}`;
-      if (this.betSelectedCoins) this.betSelectedCoins.textContent = `${this.currentBet.amount}`;
-      if (this.betPotentialWin) this.betPotentialWin.textContent = `${this.currentBet.potentialWin || this.currentBet.amount * 9}`;
-      if (this.betTargetSlotInfo) this.betTargetSlotInfo.textContent = this.currentBet.targetSlot || this.currentBet.round || '--';
-      if (this.betTargetDateInfo) this.betTargetDateInfo.textContent = this.currentBet.targetDate || 'Today';
+    // Render all active prediction bets for the logged-in player (Unlimited Entries)
+    if (this.currentCustomer) {
+      const myBets = (this.activeBets || []).filter(b => b.playerId === this.currentCustomer.id);
+      if (myBets.length > 0) {
+        this.activeBetNotice?.classList.remove('hidden');
+        const totalLockedCoins = myBets.reduce((sum, b) => sum + (b.amount || 0), 0);
+        if (this.myActiveBetsCount) this.myActiveBetsCount.textContent = myBets.length;
+        if (this.myActiveBetsPool) this.myActiveBetsPool.textContent = `Total: 💰 ${totalLockedCoins.toLocaleString()} IHD`;
+
+        if (this.myActiveBetsList) {
+          this.myActiveBetsList.innerHTML = '';
+          myBets.forEach(b => {
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 8px; font-size:0.73rem;';
+            item.innerHTML = `
+              <div>
+                <span style="display:inline-block; background:#ffd700; color:#000; font-weight:800; padding:1px 6px; border-radius:10px; font-size:0.75rem; margin-right:4px;">#${b.number}</span>
+                <strong style="color:var(--primary-gold-bright);">💰 ${b.amount} IHD</strong>
+                <span style="color:#2ecc71; font-weight:600; margin-left:4px;">(Win 9x: 💰 ${b.potentialWin || b.amount * 9})</span>
+              </div>
+              <div style="text-align:right; font-size:0.68rem; color:var(--text-secondary);">
+                <span style="color:#00f0ff; font-weight:700;">🕒 ${b.targetSlot || 'Next'}</span> &bull; <span>${b.targetDate || 'Today'}</span>
+              </div>
+            `;
+            this.myActiveBetsList.appendChild(item);
+          });
+        }
+      } else {
+        this.activeBetNotice?.classList.add('hidden');
+      }
     } else {
       this.activeBetNotice?.classList.add('hidden');
     }
@@ -2250,12 +2270,9 @@ class SpinWheelApp {
     this.currentBet = betObj;
     this.saveCurrentBet(this.currentBet);
 
-    // Update global active bets list
+    // UNLIMITED ENTRIES PER PLAYER: Add this new bet entry directly into activeBets
     if (!Array.isArray(this.activeBets)) this.activeBets = [];
-    this.activeBets = [
-      betObj,
-      ...this.activeBets.filter(b => !(b.playerId === betObj.playerId && b.targetSlot === betObj.targetSlot && b.targetDateFull === betObj.targetDateFull))
-    ];
+    this.activeBets = [betObj, ...this.activeBets];
     this.saveActiveBets(this.activeBets);
 
     this.updateCustomerUI();
@@ -3543,10 +3560,14 @@ class SpinWheelApp {
       this.winTimeEl.textContent = `Won at ${timeStr12} &bull; Round ${roundStr12}`;
     }
 
-    // Evaluate Customer Prediction Bets & 9x Multiplier Payouts for this round
+    // Evaluate Customer Prediction Bets & 9x Multiplier Payouts for this round (Unlimited Multi-Entries)
     if (!isTestSpin && Array.isArray(this.activeBets) && this.activeBets.length > 0) {
       const todayFormatted = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       
+      let myTotalWon = 0;
+      let myWinCount = 0;
+      let myLossCount = 0;
+
       this.activeBets.forEach(bet => {
         // Check if this bet targets this round slot
         const isSlotMatch = (bet.targetSlot === roundStr12 || !bet.targetSlot || bet.targetSlot === 'NEXT');
@@ -3562,23 +3583,34 @@ class SpinWheelApp {
             if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
               this.currentCustomer.coins = (this.currentCustomer.coins || 0) + winAmount;
               this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
-              this.saveCustomerSession(this.currentCustomer);
-              if (this.predictionFeedbackMsg) {
-                this.predictionFeedbackMsg.style.color = '#ffd700';
-                this.predictionFeedbackMsg.innerHTML = `🎉 <strong>PREDICTION WIN!</strong> You predicted #${winningNumber} for ${roundStr12} and won 💰${winAmount.toLocaleString()} IHD Coins (9x Multiplier auto-credited)!`;
-              }
+              myTotalWon += winAmount;
+              myWinCount++;
             }
           } else {
             if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
-              if (this.predictionFeedbackMsg) {
-                this.predictionFeedbackMsg.style.color = '#94a3b8';
-                this.predictionFeedbackMsg.textContent = `Round ${roundStr12} winning number was #${winningNumber}. Better luck on next round!`;
-                setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 6000);
-              }
+              myLossCount++;
             }
           }
         }
       });
+
+      if (this.currentCustomer) {
+        this.saveCustomerSession(this.currentCustomer);
+        if (myWinCount > 0) {
+          if (this.predictionFeedbackMsg) {
+            this.predictionFeedbackMsg.style.color = '#ffd700';
+            this.predictionFeedbackMsg.innerHTML = `🎉 <strong>PREDICTION WIN!</strong> Winning Number #${winningNumber}! You won 💰${myTotalWon.toLocaleString()} IHD Coins across ${myWinCount} winning entry(ies) (9x Multiplier Auto-Credited)!`;
+          }
+          if (this.confetti) this.confetti.fire(3000);
+          this.audio.playWinFanfare();
+        } else if (myLossCount > 0) {
+          if (this.predictionFeedbackMsg) {
+            this.predictionFeedbackMsg.style.color = '#94a3b8';
+            this.predictionFeedbackMsg.textContent = `Round ${roundStr12} winning number was #${winningNumber}. Better luck on next round!`;
+            setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 6000);
+          }
+        }
+      }
 
       // Filter out settled bets from activeBets
       this.activeBets = this.activeBets.filter(bet => {

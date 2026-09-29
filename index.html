@@ -207,16 +207,14 @@
           <button id="place-prediction-btn" class="btn btn-gold btn-sm" style="flex:2; height:38px;">Lock Prediction</button>
         </div>
 
-        <div id="active-bet-notice" class="active-bet-notice hidden">
-          <div style="display:flex; flex-direction:column; gap:3px; width:100%;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span>🎯 <strong>Your Bet:</strong> <strong id="bet-selected-num" style="color:#ffd700; font-size:0.95rem;">--</strong> (<strong id="bet-selected-coins">10</strong> IHD Coins)</span>
-              <span style="font-size:0.78rem; color:#2ecc71;">🏆 <strong>Win (9x):</strong> <strong id="bet-potential-win">90</strong> IHD Coins</span>
-            </div>
-            <div style="font-size:0.72rem; color:var(--text-secondary); display:flex; justify-content:space-between; border-top:1px dashed rgba(46,204,113,0.3); padding-top:3px; margin-top:2px;">
-              <span>🕒 <strong>Round Slot:</strong> <strong id="bet-target-slot-info" style="color:#fff;">--:--</strong></span>
-              <span>📅 <strong>Date:</strong> <strong id="bet-target-date-info" style="color:#fff;">--</strong></span>
-            </div>
+        <!-- ACTIVE PREDICTIONS LIST (UNLIMITED ENTRIES PER PLAYER) -->
+        <div id="active-bet-notice" class="active-bet-notice hidden" style="flex-direction:column; gap:0.4rem; padding:0.6rem 0.8rem; background:rgba(46,204,113,0.06); border:1px solid rgba(46,204,113,0.35); border-radius:var(--radius-sm);">
+          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:1px solid rgba(46,204,113,0.25); padding-bottom:3px;">
+            <span style="font-size:0.78rem; color:#2ecc71; font-weight:700;">🎯 My Active Locked Predictions (<span id="my-active-bets-count">0</span>)</span>
+            <span id="my-active-bets-pool" style="font-size:0.75rem; color:var(--primary-gold-bright); font-weight:800;">Total: 💰 0 IHD</span>
+          </div>
+          <div id="my-active-bets-list" style="display:flex; flex-direction:column; gap:5px; max-height:160px; overflow-y:auto; width:100%;">
+            <!-- Rendered dynamically for each entry -->
           </div>
         </div>
 
