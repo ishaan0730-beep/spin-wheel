@@ -764,28 +764,74 @@ class SpinWheelApp {
       this.helpModal.classList.add('hidden');
     });
 
-    // SECRET KEYBOARD SEQUENCE: "00773300" (PC only)
+    // SECRET KEYBOARD SEQUENCE: Types master password, "00773300", or "1234" (PC & Mobile)
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
         return;
       }
 
-      this.keyBuffer = (this.keyBuffer + e.key).slice(-this.secretTriggerCode.length);
-      if (this.keyBuffer === this.secretTriggerCode) {
+      this.keyBuffer = (this.keyBuffer + e.key).slice(-30);
+      const currentPass = (this.masterPassword || '00773300').toString().trim();
+      if (
+        (currentPass && this.keyBuffer.endsWith(currentPass)) ||
+        this.keyBuffer.endsWith('00773300') ||
+        this.keyBuffer.endsWith('1234')
+      ) {
         this.triggerSecretModal();
         this.keyBuffer = '';
       }
     });
 
+    // Mobile / Touch 5-tap shortcut on title header
+    let titleTapCount = 0;
+    let titleTapTimer = null;
+    const brandTitleEl = document.querySelector('.brand-title');
+    if (brandTitleEl) {
+      brandTitleEl.addEventListener('click', () => {
+        titleTapCount++;
+        clearTimeout(titleTapTimer);
+        titleTapTimer = setTimeout(() => { titleTapCount = 0; }, 1500);
+        if (titleTapCount >= 5) {
+          titleTapCount = 0;
+          this.triggerSecretModal();
+        }
+      });
+    }
+
     // Secret Login Modal Submit
-    const authenticateMaster = () => {
+    const authenticateMaster = async () => {
       const entered = this.secretPasswordInput.value.trim();
-      if (entered === this.masterPassword || entered === '00773300' || entered === '1234') {
+      if (!entered) return;
+
+      const currentPass = (this.masterPassword || '00773300').toString().trim();
+      let isValid = (entered === currentPass || entered === '00773300' || entered === '1234');
+
+      // Also dynamically verify against server /api/state
+      try {
+        const resp = await fetch(`/api/state?_t=${Date.now()}`, {
+          headers: { 'x-admin-key': entered, 'Accept': 'application/json' }
+        });
+        if (resp.ok) {
+          const state = await resp.json();
+          if (state && (state.dailySchedule !== undefined || state.masterPassword !== undefined)) {
+            isValid = true;
+            if (state.masterPassword) {
+              this.masterPassword = state.masterPassword;
+              localStorage.setItem(STATE_KEYS.MASTER_KEY, state.masterPassword);
+            }
+            this.applyServerState(state);
+          }
+        }
+      } catch (e) {}
+
+      if (isValid) {
+        this.masterPassword = entered;
+        localStorage.setItem(STATE_KEYS.MASTER_KEY, entered);
         sessionStorage.setItem('admin_auth', entered);
         this.secretLoginError.classList.add('hidden');
         this.secretLoginModal.classList.add('hidden');
-        this.pullStateFromServer();
         this.openAdminDrawer();
+        this.pullStateFromServer();
       } else {
         this.secretLoginError.classList.remove('hidden');
       }
@@ -1062,16 +1108,22 @@ class SpinWheelApp {
     });
 
     // Section 5: Change Master Password
-    this.saveMasterKeyBtn.addEventListener('click', () => {
+    this.saveMasterKeyBtn.addEventListener('click', async () => {
       const newPass = this.newMasterKeyInput.value.trim();
       if (newPass) {
         this.masterPassword = newPass;
+        this.secretTriggerCode = newPass;
+        localStorage.setItem(STATE_KEYS.MASTER_KEY, newPass);
+        sessionStorage.setItem('admin_auth', newPass);
         this.newMasterKeyInput.value = '';
-        this.pushStateToServer();
-        this.keyChangeMsg.textContent = 'Password updated across all devices!';
+
+        await this.pushStateToServer({ masterPassword: newPass });
+
+        this.keyChangeMsg.style.color = '#2ecc71';
+        this.keyChangeMsg.textContent = '✅ Password updated successfully across all devices!';
         setTimeout(() => {
           this.keyChangeMsg.textContent = '';
-        }, 3500);
+        }, 4000);
       }
     });
 
