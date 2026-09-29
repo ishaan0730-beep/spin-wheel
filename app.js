@@ -366,14 +366,16 @@ class SpinWheelApp {
     this.isSignUpMode = false;
     this.verifiedForgotUser = null;
 
-    // DOM Elements - Dual Auth Modal (Customer & Admin)
+    // DOM Elements - Customer Auth Modal
     this.authModal = document.getElementById('auth-modal');
     this.authOverlay = document.getElementById('auth-overlay');
     this.authCloseBtn = document.getElementById('auth-close-btn');
-    this.tabBtnCustomer = document.getElementById('tab-btn-customer');
-    this.tabBtnAdmin = document.getElementById('tab-btn-admin');
     this.customerAuthPane = document.getElementById('customer-auth-pane');
-    this.adminAuthPane = document.getElementById('admin-auth-pane');
+
+    // DOM Elements - Secret Master Admin Modal (Triggered solely by 00773300)
+    this.secretAdminModal = document.getElementById('secret-admin-modal');
+    this.secretAdminOverlay = document.getElementById('secret-admin-overlay');
+    this.secretAdminCloseBtn = document.getElementById('secret-admin-close-btn');
 
     // Customer Subtabs Bar & Logged In Overview
     this.customerSubtabsBar = document.getElementById('customer-subtabs-bar');
@@ -946,7 +948,7 @@ class SpinWheelApp {
       });
     }
 
-    // Master Lock Icon button click (Top Navbar)
+    // Master Lock Icon button click (if present in DOM)
     if (this.masterAuthBtn) {
       this.masterAuthBtn.addEventListener('click', () => {
         this.triggerSecretModal();
@@ -956,11 +958,11 @@ class SpinWheelApp {
     // Top Navbar Customer Login button click
     if (this.customerLoginBtn) {
       this.customerLoginBtn.addEventListener('click', () => {
-        this.openAuthModal('customer');
+        this.openAuthModal('signin');
       });
     }
 
-    // Dual Auth Modal Close / Overlay
+    // Customer Auth Modal Close / Overlay
     if (this.authCloseBtn) {
       this.authCloseBtn.addEventListener('click', () => this.closeAuthModal());
     }
@@ -968,7 +970,15 @@ class SpinWheelApp {
       this.authOverlay.addEventListener('click', () => this.closeAuthModal());
     }
 
-    // Secret Login Modal Submit (Admin Tab)
+    // Secret Admin Modal Close / Overlay
+    if (this.secretAdminCloseBtn) {
+      this.secretAdminCloseBtn.addEventListener('click', () => this.closeSecretAdminModal());
+    }
+    if (this.secretAdminOverlay) {
+      this.secretAdminOverlay.addEventListener('click', () => this.closeSecretAdminModal());
+    }
+
+    // Secret Master Admin Login Submit
     const authenticateMaster = async () => {
       const entered = this.secretPasswordInput.value.trim();
       if (!entered) return;
@@ -999,7 +1009,7 @@ class SpinWheelApp {
         localStorage.setItem(STATE_KEYS.MASTER_KEY, entered);
         sessionStorage.setItem('admin_auth', entered);
         if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
-        this.closeAuthModal();
+        this.closeSecretAdminModal();
         this.openAdminDrawer();
         this.pullStateFromServer();
       } else {
@@ -1329,16 +1339,42 @@ class SpinWheelApp {
     if (navigator.vibrate) {
       try { navigator.vibrate([60, 40, 60]); } catch (e) {}
     }
-    this.openAuthModal('admin');
+    this.closeAuthModal(); // Close player portal if open
+    if (this.secretAdminModal) {
+      this.secretAdminModal.classList.remove('hidden');
+      if (this.secretPasswordInput) {
+        this.secretPasswordInput.value = '';
+        if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
+        setTimeout(() => this.secretPasswordInput.focus(), 150);
+      }
+    }
+  }
+
+  closeSecretAdminModal() {
+    if (this.secretAdminModal) {
+      this.secretAdminModal.classList.add('hidden');
+    }
+    if (this.secretPasswordInput) {
+      this.secretPasswordInput.value = '';
+    }
+    if (this.secretLoginError) {
+      this.secretLoginError.classList.add('hidden');
+    }
   }
 
   // ==========================================================
-  // DUAL AUTH MODAL CONTROLLER (CUSTOMER & ADMIN)
+  // CUSTOMER PLAYER PORTAL MODAL
   // ==========================================================
-  openAuthModal(defaultTab = 'customer') {
+  openAuthModal(defaultMode = 'signin') {
     if (!this.authModal) return;
+    this.closeSecretAdminModal();
     this.authModal.classList.remove('hidden');
-    this.switchAuthTab(defaultTab);
+    this.updateCustomerAuthPane();
+    if (defaultMode === 'signup') {
+      this.setCustomerAuthSubtab('signup');
+    } else if (defaultMode === 'forgot') {
+      this.setCustomerAuthSubtab('forgot');
+    }
   }
 
   closeAuthModal() {
@@ -1356,26 +1392,6 @@ class SpinWheelApp {
     if (this.forgotStep1Error) this.forgotStep1Error.classList.add('hidden');
     if (this.forgotStep2Error) this.forgotStep2Error.classList.add('hidden');
     if (this.forgotStep2Success) this.forgotStep2Success.classList.add('hidden');
-  }
-
-  switchAuthTab(tab) {
-    if (tab === 'customer') {
-      this.tabBtnCustomer?.classList.add('active');
-      this.tabBtnAdmin?.classList.remove('active');
-      this.customerAuthPane?.classList.remove('hidden');
-      this.adminAuthPane?.classList.add('hidden');
-      this.updateCustomerAuthPane();
-    } else {
-      this.tabBtnCustomer?.classList.remove('active');
-      this.tabBtnAdmin?.classList.add('active');
-      this.customerAuthPane?.classList.add('hidden');
-      this.adminAuthPane?.classList.remove('hidden');
-      if (this.secretPasswordInput) {
-        this.secretPasswordInput.value = '';
-        if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
-        setTimeout(() => this.secretPasswordInput.focus(), 150);
-      }
-    }
   }
 
   updateCustomerAuthPane() {
@@ -1517,10 +1533,6 @@ class SpinWheelApp {
   }
 
   bindCustomerEvents() {
-    // Modal Tab Buttons
-    this.tabBtnCustomer?.addEventListener('click', () => this.switchAuthTab('customer'));
-    this.tabBtnAdmin?.addEventListener('click', () => this.switchAuthTab('admin'));
-
     // Customer Subtabs
     this.custSubtabSignin?.addEventListener('click', () => this.setCustomerAuthSubtab('signin'));
     this.custSubtabSignup?.addEventListener('click', () => this.setCustomerAuthSubtab('signup'));
@@ -1530,7 +1542,7 @@ class SpinWheelApp {
     this.forgotBackBtn?.addEventListener('click', () => this.setCustomerAuthSubtab('signin'));
 
     // Customer Dashboard & Logout buttons
-    this.customerDashboardBtn?.addEventListener('click', () => this.openAuthModal('customer'));
+    this.customerDashboardBtn?.addEventListener('click', () => this.openAuthModal('signin'));
     this.customerLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
     this.dashLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
 

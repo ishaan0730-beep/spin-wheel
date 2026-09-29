@@ -86,14 +86,6 @@
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
         </button>
-
-        <!-- Master Authentication Lock Button -->
-        <button id="master-auth-btn" class="icon-btn" title="Admin Master Login" aria-label="Master Login">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-        </button>
       </div>
     </header>
 
@@ -277,31 +269,24 @@
     </div>
   </div>
 
-  <!-- DUAL AUTHENTICATION MODAL: CUSTOMER & ADMIN -->
+  <!-- CUSTOMER PLAYER PORTAL MODAL (Dedicated to Players) -->
   <div id="auth-modal" class="modal-wrapper hidden">
     <div class="modal-overlay" id="auth-overlay"></div>
     <div class="modal-card auth-card">
       
-      <!-- Tab Switcher: Customer vs Admin -->
-      <div class="auth-tabs-header">
-        <button id="tab-btn-customer" class="auth-tab-btn active">
+      <!-- Customer Portal Header -->
+      <div class="modal-header">
+        <div class="modal-header-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
-          <span>Customer Login</span>
-        </button>
-        <button id="tab-btn-admin" class="auth-tab-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-          <span>Admin Login</span>
-        </button>
+          <h3>Player Portal</h3>
+        </div>
         <button id="auth-close-btn" class="icon-btn" aria-label="Close Modal">&times;</button>
       </div>
 
-      <!-- TAB 1: CUSTOMER AUTH PANE -->
+      <!-- CUSTOMER AUTH PANE -->
       <div id="customer-auth-pane" class="auth-pane">
         <div class="auth-subtabs" id="customer-subtabs-bar">
           <button id="cust-subtab-signin" class="subtab-btn active">Sign In</button>
@@ -454,26 +439,40 @@
 
       </div>
 
-      <!-- TAB 2: ADMIN MASTER AUTH PANE -->
-      <div id="admin-auth-pane" class="auth-pane hidden">
-        <div class="modal-body" style="padding: 0.5rem 0 0.5rem 0;">
-          <div class="admin-badge-notice">
-            <span style="font-size: 1.3rem;">👑</span>
-            <div>
-              <strong>Master Control Center</strong>
-              <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0;">Authorized access only for timing, rounds & schedule controllers.</p>
-            </div>
-          </div>
+    </div>
+  </div>
 
-          <p class="card-desc" style="margin-top: 0.85rem;">Enter Master Password to open Admin Panel:</p>
-          <div class="login-row">
-            <input type="password" id="secret-password-input" class="admin-input" placeholder="Master Password (e.g. 00773300)" autocomplete="current-password">
-            <button id="secret-login-submit-btn" class="btn btn-primary">Unlock</button>
-          </div>
-          <p id="secret-login-error" class="login-error hidden">❌ Invalid Master Password. Please try again.</p>
+  <!-- SECRET MASTER ADMIN LOGIN MODAL (Triggered ONLY via Keyboard sequence: 00773300) -->
+  <div id="secret-admin-modal" class="modal-wrapper hidden">
+    <div class="modal-overlay" id="secret-admin-overlay"></div>
+    <div class="modal-card auth-card" style="max-width: 420px;">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"></path>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+          </svg>
+          <h3>Master Control Center</h3>
         </div>
+        <button id="secret-admin-close-btn" class="icon-btn" aria-label="Close Admin Modal">&times;</button>
       </div>
 
+      <div class="modal-body" style="padding: 1.2rem;">
+        <div class="admin-badge-notice" style="margin-bottom: 0.9rem;">
+          <span style="font-size: 1.3rem;">👑</span>
+          <div>
+            <strong>Master Control Authentication</strong>
+            <p style="font-size: 0.76rem; color: var(--text-secondary); margin: 0;">Authorized access only for timing, rounds & schedule controllers.</p>
+          </div>
+        </div>
+
+        <p class="card-desc" style="margin-top: 0.85rem;">Enter Master Password to open Admin Panel:</p>
+        <div class="login-row">
+          <input type="password" id="secret-password-input" class="admin-input" placeholder="Master Password (e.g. 00773300)" autocomplete="current-password">
+          <button id="secret-login-submit-btn" class="btn btn-primary">Unlock</button>
+        </div>
+        <p id="secret-login-error" class="login-error hidden" style="margin-top:0.5rem;">❌ Invalid Master Password. Please try again.</p>
+      </div>
     </div>
   </div>
 
