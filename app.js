@@ -37,6 +37,7 @@ const STATE_KEYS = {
   CUSTOMERS_DB: 'lucky_spin_customers_db_v6',
   CURRENT_BET: 'lucky_spin_current_bet_v6',
   ACTIVE_BETS: 'lucky_spin_active_bets_v6',
+  DELETED_BET_IDS: 'lucky_spin_deleted_bet_ids_v6',
   WITHDRAWALS: 'lucky_spin_withdrawals_v6'
 };
 
@@ -397,6 +398,7 @@ class SpinWheelApp {
     this.currentCustomer = this.loadCustomerSession();
     this.customersDb = this.loadCustomersDB();
     this.currentBet = this.loadCurrentBet();
+    this.deletedBetIds = this.loadDeletedBetIds();
     this.activeBets = this.loadActiveBets();
     this.withdrawals = this.loadLocalWithdrawals();
     this.selectedBetAmount = 10;
@@ -909,28 +911,37 @@ class SpinWheelApp {
       this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     }
 
-    // 9. Active Bets & Predictions (SMART MERGE - NEVER ACCIDENTALLY WIPE)
+    // 9. Active Bets & Predictions (SMART FILTER - NEVER RESURRECT DELETED BETS)
     let betsChanged = false;
     if (state.deletedBetId) {
+      const delId = String(state.deletedBetId);
+      this.deletedBetIds.add(delId);
+      this.saveDeletedBetIds(this.deletedBetIds);
       const beforeLen = (this.activeBets || []).length;
-      this.activeBets = (this.activeBets || []).filter(b => b.id !== state.deletedBetId);
+      this.activeBets = (this.activeBets || []).filter(b => b && String(b.id) !== delId);
       if (this.activeBets.length !== beforeLen) betsChanged = true;
     }
-    if (Array.isArray(state.activeBets) || state.newBet) {
-      const existingMap = new Map((this.activeBets || []).map(b => [b.id, b]));
-      if (Array.isArray(state.activeBets)) {
-        state.activeBets.forEach(b => {
-          if (b && b.id && (!state.deletedBetId || b.id !== state.deletedBetId)) {
-            existingMap.set(b.id, b);
-          }
-        });
+    if (Array.isArray(state.deletedBetIds)) {
+      state.deletedBetIds.forEach(id => this.deletedBetIds.add(String(id)));
+      this.saveDeletedBetIds(this.deletedBetIds);
+    }
+
+    if (Array.isArray(state.activeBets)) {
+      const filtered = state.activeBets.filter(b => b && b.id && !this.deletedBetIds.has(String(b.id)));
+      const currJson = JSON.stringify((this.activeBets || []).map(b => b.id));
+      const newJson = JSON.stringify(filtered.map(b => b.id));
+      if (currJson !== newJson || state.deletedBetId) {
+        this.activeBets = filtered;
+        this.saveActiveBets(this.activeBets);
+        betsChanged = true;
       }
-      if (state.newBet && state.newBet.id && (!state.deletedBetId || state.newBet.id !== state.deletedBetId)) {
-        existingMap.set(state.newBet.id, state.newBet);
+    } else if (state.newBet && state.newBet.id && !this.deletedBetIds.has(String(state.newBet.id))) {
+      const exists = (this.activeBets || []).some(b => String(b.id) === String(state.newBet.id));
+      if (!exists) {
+        this.activeBets = [state.newBet, ...(this.activeBets || [])];
+        this.saveActiveBets(this.activeBets);
+        betsChanged = true;
       }
-      this.activeBets = Array.from(existingMap.values());
-      this.saveActiveBets(this.activeBets);
-      betsChanged = true;
     }
     if (betsChanged || this.isDrawerOpen) {
       this.renderAdminActiveBetsTable();
@@ -1141,16 +1152,38 @@ class SpinWheelApp {
     }
   }
 
+  loadDeletedBetIds() {
+    try {
+      const saved = localStorage.getItem(STATE_KEYS.DELETED_BET_IDS);
+      if (saved) return new Set(JSON.parse(saved));
+    } catch (e) {}
+    return new Set();
+  }
+
+  saveDeletedBetIds(setOrArr) {
+    try {
+      const arr = Array.from(setOrArr || []).slice(-200);
+      localStorage.setItem(STATE_KEYS.DELETED_BET_IDS, JSON.stringify(arr));
+    } catch (e) {}
+  }
+
   loadActiveBets() {
     try {
       const saved = localStorage.getItem(STATE_KEYS.ACTIVE_BETS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const deleted = this.deletedBetIds || this.loadDeletedBetIds();
+          return parsed.filter(b => b && b.id && !deleted.has(String(b.id)));
+        }
+      }
     } catch (e) {}
     return [];
   }
 
   saveActiveBets(bets) {
-    this.activeBets = Array.isArray(bets) ? bets : [];
+    const deleted = this.deletedBetIds || this.loadDeletedBetIds();
+    this.activeBets = Array.isArray(bets) ? bets.filter(b => b && b.id && !deleted.has(String(b.id))) : [];
     try {
       localStorage.setItem(STATE_KEYS.ACTIVE_BETS, JSON.stringify(this.activeBets));
     } catch (e) {}
@@ -3261,44 +3294,71 @@ class SpinWheelApp {
   }
 
   adminDeleteActiveBet(betId) {
-    const bet = (this.activeBets || []).find(b => b.id === betId);
-    if (!bet) return;
+    if (!betId) return;
+    const bet = (this.activeBets || []).find(b => String(b.id) === String(betId));
+    if (!bet) {
+      this.activeBets = (this.activeBets || []).filter(b => b && String(b.id) !== String(betId));
+      this.saveActiveBets(this.activeBets);
+      this.deletedBetIds.add(String(betId));
+      this.saveDeletedBetIds(this.deletedBetIds);
+      this.pushStateToServer({ activeBets: this.activeBets, deletedBetId: String(betId) });
+      this.renderAdminActiveBetsTable();
+      return;
+    }
 
-    if (!confirm(`Are you sure you want to CANCEL and REFUND 💰${bet.amount} IHD Coins to ${bet.playerName} (${bet.playerId}) for Prediction #${bet.number} (${bet.targetSlot})?`)) {
+    const pId = bet.memberId || bet.member_id || bet.userId || bet.playerId || bet.partyId || 'Player';
+    const pName = bet.name || bet.playerName || bet.partyName || bet.memberName || (this.customersDb && this.customersDb[pId] ? this.customersDb[pId].name : '') || pId;
+    const refundAmt = Number(bet.amount || bet.coins || bet.betAmount || 0);
+
+    if (!confirm(`Are you sure you want to CANCEL and REFUND 💰${refundAmt} IHD Coins to ${pName} (${pId}) for Prediction #${bet.number} (${bet.targetSlot || 'Next Round'})?`)) {
       return;
     }
 
     // 1. Refund coins to customer in customersDb
-    if (this.customersDb && this.customersDb[bet.playerId]) {
-      this.customersDb[bet.playerId].coins = (this.customersDb[bet.playerId].coins || 0) + bet.amount;
-      this.customersDb[bet.playerId].totalBets = Math.max(0, (this.customersDb[bet.playerId].totalBets || 1) - 1);
+    if (this.customersDb && this.customersDb[pId]) {
+      this.customersDb[pId].coins = (Number(this.customersDb[pId].coins) || 0) + refundAmt;
+      this.customersDb[pId].totalBets = Math.max(0, (Number(this.customersDb[pId].totalBets) || 1) - 1);
+      this.customersDb[pId].lastUpdated = Date.now();
+      
+      // Update status in betHistory if present
+      if (Array.isArray(this.customersDb[pId].betHistory)) {
+        const histItem = this.customersDb[pId].betHistory.find(h => String(h.id) === String(betId));
+        if (histItem) {
+          histItem.status = 'REFUNDED';
+        }
+      }
       this.saveCustomersDB(this.customersDb);
     }
 
     // 2. If logged in player is this player, update session and clear active bet
-    if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
-      this.currentCustomer.coins = (this.currentCustomer.coins || 0) + bet.amount;
-      this.currentCustomer.totalBets = Math.max(0, (this.currentCustomer.totalBets || 1) - 1);
+    if (this.currentCustomer && (this.currentCustomer.id === pId || this.currentCustomer.id === bet.playerId)) {
+      this.currentCustomer.coins = (Number(this.currentCustomer.coins) || 0) + refundAmt;
+      this.currentCustomer.totalBets = Math.max(0, (Number(this.currentCustomer.totalBets) || 1) - 1);
+      this.currentCustomer.lastUpdated = Date.now();
       this.saveCustomerSession(this.currentCustomer);
-      if (this.currentBet && this.currentBet.id === bet.id) {
+      if (this.currentBet && String(this.currentBet.id) === String(betId)) {
         this.currentBet = null;
         this.saveCurrentBet(null);
       }
       this.updateCustomerUI();
     }
 
-    // 3. Remove bet from activeBets
-    this.activeBets = (this.activeBets || []).filter(b => b.id !== betId);
+    // 3. Remove bet from activeBets & track in deletedBetIds set
+    this.activeBets = (this.activeBets || []).filter(b => b && String(b.id) !== String(betId));
     this.saveActiveBets(this.activeBets);
+    this.deletedBetIds.add(String(betId));
+    this.saveDeletedBetIds(this.deletedBetIds);
 
     // 4. Broadcast and push to server
-    this.pushStateToServer({ customersDb: this.customersDb, activeBets: this.activeBets, deletedBetId: betId });
+    this.pushStateToServer({ customersDb: this.customersDb, activeBets: this.activeBets, deletedBetId: String(betId) });
 
-    // 5. Update admin tables
+    // 5. Update admin tables & show instant feedback
     this.renderAdminActiveBetsTable();
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
-    this.showAdminCreditFeedback(`✅ Prediction entry cancelled! 💰${bet.amount} IHD Coins refunded to ${bet.playerName} (${bet.playerId}).`, true);
-    if (this.currentAphPlayerId === bet.playerId && !this.adminPlayerHistoryModal?.classList.contains('hidden')) {
+    this.showAdminCreditFeedback(`✅ Prediction #${bet.number} cancelled! 💰${refundAmt} IHD Coins refunded to ${pName} (${pId}).`, true);
+    if (this.audio) this.audio.playTick();
+
+    if (this.currentAphPlayerId === pId && this.adminPlayerHistoryModal && !this.adminPlayerHistoryModal.classList.contains('hidden')) {
       this.openPlayerHistoryModal(this.currentAphPlayerId);
     }
   }

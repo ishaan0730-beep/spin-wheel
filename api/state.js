@@ -25,6 +25,7 @@ let globalState = {
   spinTrigger: null,
   customersDb: {},
   activeBets: [],
+  deletedBetIds: [],
   withdrawals: [],
   version: 1
 };
@@ -104,6 +105,14 @@ export default function handler(req, res) {
       const isAdmin = checkAdminAuth(req, body);
 
       if (body && typeof body === 'object') {
+        if (body.deletedBetId) {
+          const delIdStr = String(body.deletedBetId);
+          if (!Array.isArray(globalState.deletedBetIds)) globalState.deletedBetIds = [];
+          if (!globalState.deletedBetIds.includes(delIdStr)) globalState.deletedBetIds.push(delIdStr);
+          globalState.activeBets = (globalState.activeBets || []).filter(b => String(b.id) !== delIdStr);
+          delete body.deletedBetId;
+        }
+
         if (isAdmin) {
           // If masterPassword is being updated, store it
           if (body.masterPassword && typeof body.masterPassword === 'string') {
@@ -120,12 +129,9 @@ export default function handler(req, res) {
             delete body.customersDb;
           }
           if (Array.isArray(body.activeBets)) {
-            globalState.activeBets = body.activeBets;
+            const delSet = new Set((globalState.deletedBetIds || []).map(String));
+            globalState.activeBets = body.activeBets.filter(b => b && b.id && !delSet.has(String(b.id)));
             delete body.activeBets;
-          }
-          if (body.deletedBetId) {
-            globalState.activeBets = (globalState.activeBets || []).filter(b => b.id !== body.deletedBetId);
-            delete body.deletedBetId;
           }
           if (Array.isArray(body.withdrawals)) {
             const existingMap = new Map((globalState.withdrawals || []).map(w => [w.id, w]));
@@ -152,9 +158,12 @@ export default function handler(req, res) {
             globalState.customersDb = merged;
           }
           if (Array.isArray(body.activeBets)) {
-            const existingMap = new Map((globalState.activeBets || []).map(b => [b.id, b]));
+            const delSet = new Set((globalState.deletedBetIds || []).map(String));
+            const existingMap = new Map((globalState.activeBets || []).map(b => [String(b.id), b]));
             body.activeBets.forEach(b => {
-              if (b && b.id) existingMap.set(b.id, b);
+              if (b && b.id && !delSet.has(String(b.id))) {
+                existingMap.set(String(b.id), b);
+              }
             });
             globalState.activeBets = Array.from(existingMap.values());
           }
