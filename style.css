@@ -1788,3 +1788,57 @@ body {
   justify-content: space-between;
 }
 
+/* Admin Section 5: Player Accounts & Credit Management */
+.player-stat-badge {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(245, 176, 65, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.stat-badge-lbl {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-badge-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.btn-xs {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  transition: all 0.15s ease;
+}
+
+.btn-xs:hover {
+  background: rgba(245, 176, 65, 0.2);
+  border-color: var(--primary-gold);
+  color: var(--primary-gold-bright);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+

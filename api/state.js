@@ -23,6 +23,7 @@ let globalState = {
   manualRoundTitle: null,
   masterPassword: "00773300",
   spinTrigger: null,
+  customersDb: {},
   version: 1
 };
 
@@ -105,13 +106,20 @@ export default function handler(req, res) {
           }
 
           delete body.adminKey;
+          if (body.customersDb && typeof body.customersDb === 'object') {
+            globalState.customersDb = { ...globalState.customersDb, ...body.customersDb };
+            delete body.customersDb;
+          }
           globalState = {
             ...globalState,
             ...body,
             version: Date.now()
           };
         } else {
-          // Public updates can only clear completed spin triggers or non-sensitive runtime states
+          // Public updates: can sync customer registration / session updates, clear completed spin triggers, update history
+          if (body.customersDb && typeof body.customersDb === 'object') {
+            globalState.customersDb = { ...globalState.customersDb, ...body.customersDb };
+          }
           if (body.spinTrigger === null) {
             globalState.spinTrigger = null;
           }

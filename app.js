@@ -503,7 +503,23 @@ class SpinWheelApp {
     this.scheduleTableBody = document.getElementById('schedule-table-body');
     this.autoFillScheduleBtn = document.getElementById('auto-fill-schedule-btn');
 
-    // Section 5 Controls
+    // Section 5 Controls (Registered Players & IHD Coin Credit Controller)
+    this.adminTotalPlayersCount = document.getElementById('admin-total-players-count');
+    this.adminTotalCoinsCount = document.getElementById('admin-total-coins-count');
+    this.adminCreditPlayerSelect = document.getElementById('admin-credit-player-select');
+    this.adminCreditAmountInput = document.getElementById('admin-credit-amount-input');
+    this.adminApplyCreditBtn = document.getElementById('admin-apply-credit-btn');
+    this.adminCreditFeedback = document.getElementById('admin-credit-feedback');
+    this.adminPlayerSearch = document.getElementById('admin-player-search');
+    this.adminPlayersTableBody = document.getElementById('admin-players-table-body');
+    this.adminRefreshPlayersBtn = document.getElementById('admin-refresh-players-btn');
+    this.quickCredit50 = document.getElementById('quick-credit-50');
+    this.quickCredit100 = document.getElementById('quick-credit-100');
+    this.quickCredit500 = document.getElementById('quick-credit-500');
+    this.quickCredit1000 = document.getElementById('quick-credit-1000');
+    this.quickCredit5000 = document.getElementById('quick-credit-5000');
+
+    // Section 6 Controls (Master Key & History)
     this.newMasterKeyInput = document.getElementById('new-master-key-input');
     this.saveMasterKeyBtn = document.getElementById('save-master-key-btn');
     this.keyChangeMsg = document.getElementById('key-change-msg');
@@ -516,6 +532,7 @@ class SpinWheelApp {
     this.setupCanvasDPI();
     this.bindEvents();
     this.bindCustomerEvents();
+    this.bindAdminPlayerEvents();
     this.updateSoundUI();
     this.renderWheel();
     this.renderPredictionChips();
@@ -704,6 +721,20 @@ class SpinWheelApp {
       localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
     }
 
+    // 8. Registered Players Database
+    if (state.customersDb && typeof state.customersDb === 'object') {
+      this.customersDb = { ...this.customersDb, ...state.customersDb };
+      this.saveCustomersDB(this.customersDb);
+      if (this.currentCustomer && this.customersDb[this.currentCustomer.id]) {
+        this.currentCustomer = this.customersDb[this.currentCustomer.id];
+        this.saveCustomerSession(this.currentCustomer);
+        this.updateCustomerUI();
+      }
+      if (this.isDrawerOpen) {
+        this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+      }
+    }
+
     // Update UI components
     if (wheelNeedsRedraw && !this.isSpinning) {
       this.renderWheel();
@@ -735,6 +766,7 @@ class SpinWheelApp {
       customSecs: this.customSecs,
       customTimerTarget: this.customTimerTarget,
       masterPassword: this.masterPassword,
+      customersDb: this.customersDb,
       adminKey: adminAuth,
       version: this.version,
       ...additionalFields
@@ -753,6 +785,7 @@ class SpinWheelApp {
     localStorage.setItem(STATE_KEYS.TIMER_MODE, this.timerMode);
     localStorage.setItem(STATE_KEYS.CUSTOM_SECS, this.customSecs);
     localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
+    this.saveCustomersDB(this.customersDb);
 
     // 1. Broadcast immediately to all connected Mobile & PC devices via MQTT WebSocket & BroadcastChannel
     if (this.cloudSync) {
@@ -1403,7 +1436,7 @@ class SpinWheelApp {
       this.customerForgotPane?.classList.add('hidden');
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
-      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
+      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD Coins`;
     } else {
       this.customerLoggedInView?.classList.add('hidden');
       this.customerSubtabsBar?.classList.remove('hidden');
@@ -1487,15 +1520,15 @@ class SpinWheelApp {
       this.customerLoginBtn?.classList.add('hidden');
       this.customerProfileChip?.classList.remove('hidden');
       if (this.chipPlayerName) this.chipPlayerName.textContent = this.currentCustomer.name || 'Player';
-      if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()}`;
-      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
+      if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD`;
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD Coins`;
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
-      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
+      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD Coins`;
     } else {
       this.customerLoginBtn?.classList.remove('hidden');
       this.customerProfileChip?.classList.add('hidden');
-      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = '💰 Logged Out (0 Coins)';
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = '💰 Logged Out (0 IHD Coins)';
     }
 
     // Update active prediction bet notice
@@ -1721,7 +1754,7 @@ class SpinWheelApp {
     this.audio.playWinFanfare();
     if (this.predictionFeedbackMsg) {
       this.predictionFeedbackMsg.style.color = '#2ecc71';
-      this.predictionFeedbackMsg.textContent = `🎉 Account created successfully! 10 Welcome Coins credited to your wallet!`;
+      this.predictionFeedbackMsg.textContent = `🎉 Account created successfully! 10 Welcome IHD Coins credited to your wallet!`;
       setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
     }
   }
@@ -1851,7 +1884,7 @@ class SpinWheelApp {
     if ((this.currentCustomer.coins || 0) < amount) {
       if (this.predictionFeedbackMsg) {
         this.predictionFeedbackMsg.style.color = '#ff6b6b';
-        this.predictionFeedbackMsg.textContent = `❌ Insufficient coins! Your balance is 💰${this.currentCustomer.coins || 0} Coins (Bet requires ${amount} Coins).`;
+        this.predictionFeedbackMsg.textContent = `❌ Insufficient IHD Coins! Your balance is 💰${this.currentCustomer.coins || 0} IHD Coins (Bet requires ${amount} IHD Coins).`;
         setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
       }
       return;
@@ -1875,7 +1908,7 @@ class SpinWheelApp {
 
     if (this.predictionFeedbackMsg) {
       this.predictionFeedbackMsg.style.color = '#2ecc71';
-      this.predictionFeedbackMsg.textContent = `✅ Locked ${amount} Coins on #${this.selectedBetNumber} for ${nextSlot.label} round (Potential 9x Win: ${amount * 9} Coins)!`;
+      this.predictionFeedbackMsg.textContent = `✅ Locked ${amount} IHD Coins on #${this.selectedBetNumber} for ${nextSlot.label} round (Potential 9x Win: ${amount * 9} IHD Coins)!`;
       setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4000);
     }
     this.audio.playTick();
@@ -1904,6 +1937,7 @@ class SpinWheelApp {
       this.newMasterKeyInput.placeholder = `Current: ${this.masterPassword || '00773300'}`;
     }
     this.populateAdminControls();
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     this.adminDrawer.classList.remove('hidden');
   }
 
@@ -2115,8 +2149,169 @@ class SpinWheelApp {
   }
 
   // ==========================================
-  // WHEEL CANVAS RENDERING
+  // SECTION 5: REGISTERED PLAYERS & IHD COIN MANAGER
   // ==========================================
+  setQuickCreditAmount(amt) {
+    if (this.adminCreditAmountInput) {
+      this.adminCreditAmountInput.value = amt;
+    }
+  }
+
+  bindAdminPlayerEvents() {
+    this.adminRefreshPlayersBtn?.addEventListener('click', () => {
+      this.pullStateFromServer().then(() => this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : ''));
+      this.showAdminCreditFeedback('🔄 Player list refreshed!', true);
+    });
+
+    this.quickCredit50?.addEventListener('click', () => this.setQuickCreditAmount(50));
+    this.quickCredit100?.addEventListener('click', () => this.setQuickCreditAmount(100));
+    this.quickCredit500?.addEventListener('click', () => this.setQuickCreditAmount(500));
+    this.quickCredit1000?.addEventListener('click', () => this.setQuickCreditAmount(1000));
+    this.quickCredit5000?.addEventListener('click', () => this.setQuickCreditAmount(5000));
+
+    this.adminPlayerSearch?.addEventListener('input', () => {
+      this.renderAdminPlayersList(this.adminPlayerSearch.value);
+    });
+
+    this.adminApplyCreditBtn?.addEventListener('click', () => {
+      const selectedId = this.adminCreditPlayerSelect?.value;
+      const amount = parseInt(this.adminCreditAmountInput?.value, 10);
+      if (!selectedId) {
+        this.showAdminCreditFeedback('❌ Please choose a registered player first!', false);
+        return;
+      }
+      if (isNaN(amount) || amount <= 0) {
+        this.showAdminCreditFeedback('❌ Please enter a valid credit amount!', false);
+        return;
+      }
+      this.adminAddPlayerCredit(selectedId, amount);
+    });
+  }
+
+  showAdminCreditFeedback(msg, isSuccess = true) {
+    if (this.adminCreditFeedback) {
+      this.adminCreditFeedback.textContent = msg;
+      this.adminCreditFeedback.style.color = isSuccess ? '#2ecc71' : '#ff6b6b';
+      setTimeout(() => {
+        if (this.adminCreditFeedback) this.adminCreditFeedback.textContent = '';
+      }, 4000);
+    }
+  }
+
+  adminAddPlayerCredit(userId, amount) {
+    if (!this.customersDb || !this.customersDb[userId]) {
+      this.showAdminCreditFeedback(`❌ Player "${userId}" not found!`, false);
+      return;
+    }
+
+    const player = this.customersDb[userId];
+    const prevBalance = player.coins || 0;
+    const newBalance = Math.max(0, prevBalance + amount);
+    player.coins = newBalance;
+    this.customersDb[userId] = player;
+
+    this.saveCustomersDB(this.customersDb);
+
+    // If currently logged-in player is this player, update session
+    if (this.currentCustomer && this.currentCustomer.id === userId) {
+      this.currentCustomer.coins = newBalance;
+      this.saveCustomerSession(this.currentCustomer);
+      this.updateCustomerUI();
+    }
+
+    this.pushStateToServer({ customersDb: this.customersDb });
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.showAdminCreditFeedback(`✅ Credited +${amount} IHD Coins to ${player.name} (${userId})! New Balance: 💰 ${newBalance} IHD Coins`, true);
+  }
+
+  adminCustomCreditPrompt(userId) {
+    const player = this.customersDb[userId];
+    if (!player) return;
+    const input = prompt(`Enter IHD Coins to add/deduct for ${player.name} (${userId})\nCurrent Balance: ${player.coins || 0} IHD Coins\n(e.g. 500 to add, -50 to deduct):`, '100');
+    if (input !== null) {
+      const amt = parseInt(input, 10);
+      if (!isNaN(amt) && amt !== 0) {
+        this.adminAddPlayerCredit(userId, amt);
+      }
+    }
+  }
+
+  renderAdminPlayersList(filterQuery = '') {
+    if (!this.adminPlayersTableBody) return;
+
+    const players = Object.values(this.customersDb || {});
+    const totalCount = players.length;
+    const totalCoins = players.reduce((sum, p) => sum + (p.coins || 0), 0);
+
+    if (this.adminTotalPlayersCount) {
+      this.adminTotalPlayersCount.textContent = totalCount;
+    }
+    if (this.adminTotalCoinsCount) {
+      this.adminTotalCoinsCount.textContent = `💰 ${totalCoins.toLocaleString()} IHD Coins`;
+    }
+
+    // Populate Select Dropdown
+    if (this.adminCreditPlayerSelect) {
+      const currentSelected = this.adminCreditPlayerSelect.value;
+      let opts = '<option value="">-- Choose a Registered Player --</option>';
+      players.forEach(p => {
+        const isSel = p.id === currentSelected ? 'selected' : '';
+        opts += `<option value="${p.id}" ${isSel}>${p.id} (${p.name || 'Player'} - 💰 ${(p.coins || 0).toLocaleString()} IHD Coins)</option>`;
+      });
+      this.adminCreditPlayerSelect.innerHTML = opts;
+    }
+
+    // Filter players for table
+    const q = (filterQuery || '').toLowerCase().trim();
+    const filteredPlayers = players.filter(p => {
+      if (!q) return true;
+      return (
+        (p.id && p.id.toLowerCase().includes(q)) ||
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.mobile && p.mobile.toLowerCase().includes(q))
+      );
+    });
+
+    if (filteredPlayers.length === 0) {
+      this.adminPlayersTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1rem;">
+            ${totalCount === 0 ? 'No registered players yet.' : 'No players match your search filter.'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    this.adminPlayersTableBody.innerHTML = '';
+    filteredPlayers.forEach(p => {
+      const tr = document.createElement('tr');
+      const coins = p.coins || 0;
+      tr.innerHTML = `
+        <td>
+          <strong style="color:#fff;">${p.name || 'Player'}</strong><br>
+          <span style="font-family:monospace; color:#00f0ff; font-weight:700;">ID: ${p.id}</span>
+        </td>
+        <td>
+          <span>📱 ${p.mobile || '--'}</span><br>
+          <span style="font-size:0.7rem; color:var(--text-muted);">🎂 ${p.dob || '--'}</span>
+        </td>
+        <td>
+          <strong style="color:var(--primary-gold-bright); font-size:0.85rem;">💰 ${coins.toLocaleString()} IHD</strong><br>
+          <span style="font-size:0.68rem; color:var(--text-secondary);">${p.totalBets || 0} Bets</span>
+        </td>
+        <td>
+          <div style="display:flex; gap:3px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-xs" title="Add 100 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 100)">+100</button>
+            <button class="btn btn-secondary btn-xs" title="Add 500 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 500)">+500</button>
+            <button class="btn btn-gold btn-xs" title="Add 1,000 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 1000)">+1k</button>
+            <button class="btn btn-secondary btn-xs" style="background:rgba(255,255,255,0.06); padding:2px 6px;" title="Custom Amount" onclick="app.adminCustomCreditPrompt('${p.id}')">±</button>
+          </div>
+        </td>
+      `;
+      this.adminPlayersTableBody.appendChild(tr);
+    });
+  }
   renderWheel() {
     const ctx = this.ctx;
     const numSlices = this.slices.length;
@@ -2395,7 +2590,7 @@ class SpinWheelApp {
         }
         if (this.predictionFeedbackMsg) {
           this.predictionFeedbackMsg.style.color = '#ffd700';
-          this.predictionFeedbackMsg.innerHTML = `🎉 <strong>PREDICTION WIN!</strong> You predicted #${winningNumber} and won 💰${winAmount.toLocaleString()} Coins (9x Multiplier auto-credited)!`;
+          this.predictionFeedbackMsg.innerHTML = `🎉 <strong>PREDICTION WIN!</strong> You predicted #${winningNumber} and won 💰${winAmount.toLocaleString()} IHD Coins (9x Multiplier auto-credited)!`;
         }
       } else {
         if (this.predictionFeedbackMsg) {

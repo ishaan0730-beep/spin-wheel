@@ -58,13 +58,13 @@
           </svg>
         </button>
 
-        <!-- Customer Login Button (When Logged Out) -->
-        <button id="customer-login-btn" class="btn-outline-gold" title="Customer / Player Login">
+        <!-- Login Button (When Logged Out) -->
+        <button id="customer-login-btn" class="btn-outline-gold" title="Login / Player Account">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
-          <span>Customer Login</span>
+          <span>Login</span>
         </button>
 
         <!-- Customer Profile Chip (When Logged In) -->
@@ -72,7 +72,7 @@
           <div class="player-avatar">👤</div>
           <div class="player-info">
             <span class="player-name" id="chip-player-name">Player</span>
-            <span class="player-coins" id="chip-player-coins">💰 10</span>
+            <span class="player-coins" id="chip-player-coins">💰 10 IHD Coins</span>
           </div>
           <button id="customer-dashboard-btn" class="icon-btn-xs" title="Player Dashboard">🪙</button>
           <button id="customer-logout-btn" class="icon-btn-xs" title="Logout">🚪</button>
@@ -157,7 +157,7 @@
       <section id="customer-prediction-section" class="customer-prediction-card">
         <div class="prediction-title-row">
           <h3>🎯 Predict Next Winner <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">(9x Multiplier &bull; Auto-Credit)</span></h3>
-          <span id="player-wallet-display" style="font-size: 0.82rem; font-weight:700; color:var(--primary-gold-bright);">💰 10 Coins</span>
+          <span id="player-wallet-display" style="font-size: 0.82rem; font-weight:700; color:var(--primary-gold-bright);">💰 10 IHD Coins</span>
         </div>
 
         <div class="prediction-grid-chips" id="prediction-number-chips">
@@ -165,7 +165,7 @@
         </div>
 
         <div class="prediction-amount-row">
-          <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:700;">Bet Coins:</span>
+          <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:700;">Bet IHD Coins:</span>
           <div class="coin-chips-wrapper">
             <button class="coin-chip-btn selected" data-amount="10">10</button>
             <button class="coin-chip-btn" data-amount="20">20</button>
@@ -187,8 +187,8 @@
         </div>
 
         <div id="active-bet-notice" class="active-bet-notice hidden">
-          <span>🎯 Your Bet: <strong id="bet-selected-num">--</strong> for <strong id="bet-selected-coins">10</strong> Coins</span>
-          <span style="font-size:0.75rem; opacity:0.95;">Win (9x): <strong id="bet-potential-win">90</strong> Coins</span>
+          <span>🎯 Your Bet: <strong id="bet-selected-num">--</strong> for <strong id="bet-selected-coins">10</strong> IHD Coins</span>
+          <span style="font-size:0.75rem; opacity:0.95;">Win (9x): <strong id="bet-potential-win">90</strong> IHD Coins</span>
         </div>
 
         <p id="prediction-feedback-msg" class="save-status-msg" style="display:block; margin-top:4px; font-size:0.76rem;"></p>
@@ -281,7 +281,7 @@
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
-          <h3>Player Portal</h3>
+          <h3>Login & Player Portal</h3>
         </div>
         <button id="auth-close-btn" class="icon-btn" aria-label="Close Modal">&times;</button>
       </div>
@@ -290,7 +290,7 @@
       <div id="customer-auth-pane" class="auth-pane">
         <div class="auth-subtabs" id="customer-subtabs-bar">
           <button id="cust-subtab-signin" class="subtab-btn active">Sign In</button>
-          <button id="cust-subtab-signup" class="subtab-btn">New Account (+10 Coins)</button>
+          <button id="cust-subtab-signup" class="subtab-btn">New Account (+10 IHD Coins)</button>
         </div>
 
         <!-- Logged In View -->
@@ -299,7 +299,7 @@
             <span style="font-size: 1.4rem;">👤</span>
             <div>
               <strong id="dash-player-name">Player</strong>
-              <p style="font-size:0.75rem; color:var(--text-secondary); margin:0;">User ID: <strong id="dash-player-id" style="color:var(--text-primary);">--</strong> &bull; Balance: <strong id="dash-player-coins" style="color:var(--primary-gold-bright);">💰 10 Coins</strong></p>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:0;">User ID: <strong id="dash-player-id" style="color:var(--text-primary);">--</strong> &bull; Balance: <strong id="dash-player-coins" style="color:var(--primary-gold-bright);">💰 10 IHD Coins</strong></p>
             </div>
           </div>
 
@@ -374,7 +374,7 @@
           <p id="cust-reg-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
 
           <div class="form-actions" style="margin-top: 0.75rem;">
-            <button id="cust-register-btn" class="btn btn-gold btn-block">🎁 Create Account & Claim 10 Coins</button>
+            <button id="cust-register-btn" class="btn btn-gold btn-block">🎁 Create Account & Claim 10 IHD Coins</button>
           </div>
         </form>
 
@@ -689,10 +689,93 @@
           </div>
         </div>
 
-        <!-- SECTION 5: CHANGE MASTER PASSWORD & HISTORY CLEAR -->
+        <!-- SECTION 5: REGISTERED PLAYERS & IHD COIN CREDIT CONTROLLER -->
+        <div class="admin-card control-highlight">
+          <div class="admin-card-header-flex">
+            <div class="admin-card-title">
+              <span class="step-num">5</span>
+              <h4>👥 Registered Players & IHD Coin Manager</h4>
+            </div>
+            <button id="admin-refresh-players-btn" class="btn btn-secondary btn-sm">🔄 Refresh List</button>
+          </div>
+          <p class="card-desc">View all registered players, inspect balances, and credit/deduct IHD Coins directly:</p>
+
+          <!-- Top Summary Badges -->
+          <div class="players-summary-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-bottom:0.75rem;">
+            <div class="player-stat-badge">
+              <span class="stat-badge-lbl">Total Registered Players</span>
+              <strong id="admin-total-players-count" class="stat-badge-val" style="color:#00f0ff;">0</strong>
+            </div>
+            <div class="player-stat-badge">
+              <span class="stat-badge-lbl">Total IHD Coins in Play</span>
+              <strong id="admin-total-coins-count" class="stat-badge-val highlight-gold">0 IHD Coins</strong>
+            </div>
+          </div>
+
+          <!-- Add / Credit IHD Coins to Player Card -->
+          <div class="admin-credit-box" style="background:rgba(0,0,0,0.35); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.75rem; margin-bottom:0.85rem;">
+            <div class="preset-box-title" style="margin-bottom:0.5rem;">
+              <span>💰 Credit IHD Coins to Player:</span>
+            </div>
+            
+            <div class="credit-fields-flex" style="display:flex; flex-direction:column; gap:0.5rem;">
+              <div>
+                <label class="field-label">Select Player / User ID:</label>
+                <select id="admin-credit-player-select" class="admin-select">
+                  <option value="">-- Choose a Registered Player --</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="field-label">IHD Coins to Add / Credit:</label>
+                <div style="display:flex; gap:0.4rem;">
+                  <input type="number" id="admin-credit-amount-input" class="admin-input" placeholder="Amount (e.g. 100)" value="100" min="1" step="10">
+                  <button id="admin-apply-credit-btn" class="btn btn-gold" style="white-space:nowrap;">➕ Credit IHD Coins</button>
+                </div>
+              </div>
+
+              <div class="quick-credit-preset-row" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
+                <span style="font-size:0.7rem; color:var(--text-muted); align-self:center; margin-right:4px;">Quick Add:</span>
+                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-50">+50</button>
+                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-100">+100</button>
+                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-500">+500</button>
+                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-1000">+1,000</button>
+                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-5000">+5,000</button>
+              </div>
+
+              <span id="admin-credit-feedback" class="save-status-msg" style="display:block;"></span>
+            </div>
+          </div>
+
+          <!-- Search Filter -->
+          <div style="margin-bottom:0.6rem;">
+            <input type="text" id="admin-player-search" class="admin-input" placeholder="🔍 Search players by User ID, Name, or Mobile...">
+          </div>
+
+          <!-- Interactive Players Table -->
+          <div class="schedule-table-wrap" style="max-height: 280px; overflow-y:auto;">
+            <table class="schedule-table" style="font-size:0.76rem;">
+              <thead>
+                <tr>
+                  <th>Player (User ID)</th>
+                  <th>Mobile / DOB</th>
+                  <th>IHD Balance</th>
+                  <th>Quick Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-players-table-body">
+                <tr>
+                  <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1rem;">No registered players yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SECTION 6: CHANGE MASTER PASSWORD & HISTORY CLEAR -->
         <div class="admin-card">
           <div class="admin-card-title">
-            <span class="step-num">5</span>
+            <span class="step-num">6</span>
             <h4>Change Master Password</h4>
           </div>
           <p class="card-desc">Update your Master Authentication password:</p>
