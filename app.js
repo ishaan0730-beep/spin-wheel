@@ -2388,19 +2388,78 @@ class SpinWheelApp {
     const slotChoice = this.playerTargetSlotSelect ? this.playerTargetSlotSelect.value : 'NEXT';
     const slotDetails = this.getTargetSlotDetails(slotChoice);
 
+    const playerId = this.currentCustomer.id || 'P_' + Date.now();
+    const playerName = this.currentCustomer.name || this.currentCustomer.id || 'Player';
+    const playerMobile = this.currentCustomer.mobile || '';
+    const dateFormatted = slotDetails.dateFormatted || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const dateFull = slotDetails.dateFull || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeSlot = slotDetails.slotLabel || '12:00 PM';
+    const displaySlotStr = slotDetails.displayStr || `${dateFormatted} • ${timeSlot}`;
+    const placedTimeStr = formatTime12(new Date());
+
     const betObj = {
       id: 'bet_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      playerId: this.currentCustomer.id,
-      playerName: this.currentCustomer.name || this.currentCustomer.id,
-      playerMobile: this.currentCustomer.mobile || '',
+      
+      // Member ID aliases (Num Ledger Pro compatibility)
+      memberId: playerId,
+      member_id: playerId,
+      userId: playerId,
+      playerId: playerId,
+      partyId: playerId,
+
+      // Name aliases (Num Ledger Pro compatibility)
+      name: playerName,
+      playerName: playerName,
+      partyName: playerName,
+      memberName: playerName,
+      customerName: playerName,
+      Name: playerName,
+      userName: playerName,
+
+      // Mobile / Contact aliases
+      mobile: playerMobile,
+      playerMobile: playerMobile,
+      partyMobile: playerMobile,
+      phone: playerMobile,
+      dob: this.currentCustomer.dob || '',
+
+      // Date aliases (Num Ledger Pro compatibility)
+      date: dateFormatted,
+      entryDate: dateFormatted,
+      Date: dateFormatted,
+      targetDate: dateFormatted,
+      targetDateFull: dateFull,
+      placedDate: dateFull,
+      createdDate: dateFormatted,
+      day: dateFormatted,
+
+      // Time Slot aliases (Num Ledger Pro compatibility)
+      timeSlot: timeSlot,
+      time_slot: timeSlot,
+      slot: timeSlot,
+      slotTime: timeSlot,
+      round: timeSlot,
+      targetSlot: timeSlot,
+      displaySlot: displaySlotStr,
+      time: placedTimeStr,
+      placedTime: placedTimeStr,
+
+      // Number aliases (Num Ledger Pro compatibility)
       number: this.selectedBetNumber,
+      no: this.selectedBetNumber,
+      num: this.selectedBetNumber,
+      betNumber: this.selectedBetNumber,
+      selectedNumber: this.selectedBetNumber,
+
+      // Amount & Payout aliases (Num Ledger Pro compatibility)
       amount: amount,
-      potentialWin: amount * 9, // 9X MULTIPLIER
-      targetSlot: slotDetails.slotLabel,
-      targetDate: slotDetails.dateFormatted,
-      targetDateFull: slotDetails.dateFull,
-      displaySlot: slotDetails.displayStr,
-      placedTime: formatTime12(new Date()),
+      betAmount: amount,
+      coins: amount,
+      multiplier: 9,
+      potentialWin: amount * 9,
+      winAmount: amount * 9,
+      payout: amount * 9,
+
       timestamp: Date.now(),
       status: 'ACTIVE'
     };
@@ -3128,33 +3187,44 @@ class SpinWheelApp {
 
     this.adminActiveBetsTableBody.innerHTML = '';
     bets.forEach(b => {
+      const pid = b.memberId || b.member_id || b.userId || b.playerId || b.partyId || '--';
+      const cust = (this.customersDb && this.customersDb[pid]) ? this.customersDb[pid] : null;
+      const pName = b.name || b.playerName || b.partyName || b.memberName || (cust ? cust.name : '') || pid || 'Player';
+      const pMobile = b.mobile || b.playerMobile || b.partyMobile || (cust ? cust.mobile : '') || '';
+      const numVal = b.number !== undefined ? b.number : (b.no !== undefined ? b.no : (b.num !== undefined ? b.num : '--'));
+      const amtVal = b.amount !== undefined ? b.amount : (b.coins !== undefined ? b.coins : 0);
+      const winVal = b.potentialWin || b.winAmount || amtVal * 9;
+      const targetSlotVal = b.timeSlot || b.slot || b.round || b.targetSlot || 'Next Round';
+      const targetDateVal = b.date || b.entryDate || b.Date || b.targetDate || 'Today';
+      const placedTimeVal = b.placedTime || b.time || 'Just now';
+
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>
-          <a href="javascript:void(0)" class="player-id-link" onclick="app.openPlayerHistoryModal('${b.playerId}')" title="Tap to view player profile & history">
-            <strong style="color:#fff;">${b.playerName || 'Player'}</strong><br>
-            <span style="font-family:monospace; color:#00f0ff; font-size:0.75rem; font-weight:700;">ID: ${b.playerId || '--'}</span>
+          <a href="javascript:void(0)" class="player-id-link" onclick="app.openPlayerHistoryModal('${pid}')" title="Tap to view player profile & history">
+            <strong style="color:#fff;">${pName}</strong><br>
+            <span style="font-family:monospace; color:#00f0ff; font-size:0.75rem; font-weight:700;">ID: ${pid}</span>
           </a>
-          ${b.playerMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${b.playerMobile}</span>` : ''}
+          ${pMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${pMobile}</span>` : ''}
         </td>
         <td>
           <span style="display:inline-block; background:#ffd700; color:#000; font-weight:800; font-size:0.92rem; padding:3px 10px; border-radius:12px; box-shadow:0 0 8px rgba(255,215,0,0.5);">
-            #${b.number}
+            #${numVal}
           </span>
         </td>
         <td>
-          <strong style="color:var(--primary-gold-bright); font-size:0.88rem;">💰 ${b.amount} IHD</strong>
+          <strong style="color:var(--primary-gold-bright); font-size:0.88rem;">💰 ${amtVal} IHD</strong>
         </td>
         <td>
-          <strong style="color:#2ecc71; font-size:0.84rem;">💰 ${b.potentialWin || b.amount * 9} IHD</strong><br>
+          <strong style="color:#2ecc71; font-size:0.84rem;">💰 ${winVal} IHD</strong><br>
           <span style="font-size:0.68rem; color:var(--text-muted);">9x Multiplier</span>
         </td>
         <td>
-          <span style="color:#00f0ff; font-weight:700; font-size:0.8rem;">🕒 ${b.targetSlot || 'Next Round'}</span><br>
-          <span style="font-size:0.7rem; color:var(--text-secondary);">📅 ${b.targetDate || 'Today'}</span>
+          <span style="color:#00f0ff; font-weight:700; font-size:0.8rem;">🕒 ${targetSlotVal}</span><br>
+          <span style="font-size:0.7rem; color:var(--text-secondary);">📅 ${targetDateVal}</span>
         </td>
         <td>
-          <span style="font-size:0.72rem; color:var(--text-secondary);">${b.placedTime || 'Just now'}</span>
+          <span style="font-size:0.72rem; color:var(--text-secondary);">${placedTimeVal}</span>
         </td>
         <td>
           <button class="btn btn-danger btn-xs" style="padding:3px 7px; font-weight:700; font-size:0.7rem;" title="Cancel Entry & Refund Coins to Party" onclick="app.adminDeleteActiveBet('${b.id}')">
@@ -3512,16 +3582,103 @@ class SpinWheelApp {
     const player = this.customersDb ? this.customersDb[playerId] : null;
     if (!player) return;
 
-    const activeBetsForPlayer = (this.activeBets || []).filter(b => b.playerId === playerId);
-    const histBets = Array.isArray(player.betHistory) ? player.betHistory : [];
-    const playerWds = (this.withdrawals || []).filter(w => w.customerId === playerId);
+    const rawActiveBets = (this.activeBets || []).filter(b => (b.playerId === playerId || b.memberId === playerId || b.partyId === playerId));
+    const rawHistBets = Array.isArray(player.betHistory) ? player.betHistory : [];
+    const playerWds = (this.withdrawals || []).filter(w => (w.customerId === playerId || w.memberId === playerId));
+
+    const mapBet = (b, idx) => {
+      const dVal = b.date || b.entryDate || b.Date || b.targetDate || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dFullVal = b.targetDateFull || b.placedDate || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const slotVal = b.timeSlot || b.slot || b.time_slot || b.slotTime || b.round || b.targetSlot || '12:00 PM';
+      const timeVal = b.placedTime || b.time || formatTime12(new Date(b.timestamp || Date.now()));
+      const amtVal = Number(b.amount !== undefined ? b.amount : (b.coins !== undefined ? b.coins : 10));
+      const winVal = Number(b.potentialWin !== undefined ? b.potentialWin : (b.winAmount !== undefined ? b.winAmount : amtVal * 9));
+      const numVal = Number(b.number !== undefined ? b.number : (b.no !== undefined ? b.no : 10));
+
+      return {
+        entryNo: idx + 1,
+        index: idx + 1,
+        srNo: idx + 1,
+        id: b.id || `bet_${Date.now()}_${idx}`,
+
+        // Date aliases
+        date: dVal,
+        entryDate: dVal,
+        Date: dVal,
+        targetDate: dVal,
+        targetDateFull: dFullVal,
+        placedDate: dFullVal,
+        createdDate: dVal,
+        day: dVal,
+
+        // Time Slot aliases
+        timeSlot: slotVal,
+        time_slot: slotVal,
+        slot: slotVal,
+        slotTime: slotVal,
+        round: slotVal,
+        targetSlot: slotVal,
+        displaySlot: b.displaySlot || `${dVal} • ${slotVal}`,
+        time: timeVal,
+        placedTime: timeVal,
+
+        // Member ID aliases
+        memberId: playerId,
+        member_id: playerId,
+        userId: playerId,
+        playerId: playerId,
+        partyId: playerId,
+
+        // Member Name aliases
+        name: player.name || playerId,
+        playerName: player.name || playerId,
+        partyName: player.name || playerId,
+        memberName: player.name || playerId,
+        customerName: player.name || playerId,
+        Name: player.name || playerId,
+        userName: player.name || playerId,
+
+        // Contact info
+        mobile: player.mobile || '',
+        playerMobile: player.mobile || '',
+        partyMobile: player.mobile || '',
+        phone: player.mobile || '',
+        dob: player.dob || '',
+
+        // Number aliases
+        number: numVal,
+        no: numVal,
+        num: numVal,
+        betNumber: numVal,
+        selectedNumber: numVal,
+
+        // Amount & Payout aliases
+        amount: amtVal,
+        betAmount: amtVal,
+        coins: amtVal,
+        multiplier: 9,
+        potentialWin: winVal,
+        winAmount: winVal,
+        payout: winVal,
+
+        timestamp: b.timestamp || Date.now(),
+        status: b.status || 'ACTIVE'
+      };
+    };
+
+    const formattedActiveBets = rawActiveBets.map(mapBet);
+    const formattedHistBets = rawHistBets.map(mapBet);
 
     const exportData = {
-      app: 'SpinWheel Pro / Num Ledger Pro Single Player Export',
+      appName: 'Num Ledger Pro',
+      fileType: 'NUM_LEDGER_PRO_SINGLE_PLAYER_EXPORT',
+      version: '6.0',
       exportedAt: new Date().toISOString(),
       playerProfile: {
         id: player.id,
+        memberId: player.id,
         name: player.name,
+        playerName: player.name,
         mobile: player.mobile,
         dob: player.dob,
         currentCoins: player.coins || 0,
@@ -3530,8 +3687,15 @@ class SpinWheelApp {
         joinedAt: player.joinedAt,
         bankDetails: player.bankDetails || null
       },
-      activePredictions: activeBetsForPlayer,
-      betHistory: histBets,
+      entries: formattedActiveBets,
+      activeBets: formattedActiveBets,
+      items: formattedActiveBets,
+      data: formattedActiveBets,
+      bets: formattedActiveBets,
+      records: formattedActiveBets,
+      list: formattedActiveBets,
+      activePredictions: formattedActiveBets,
+      betHistory: formattedHistBets,
       withdrawals: playerWds
     };
 
@@ -3555,28 +3719,102 @@ class SpinWheelApp {
     const playersList = Object.values(this.customersDb || {});
     const totalCoinsCirculation = playersList.reduce((sum, p) => sum + (p.coins || 0), 0);
     const activeBetsList = Array.isArray(this.activeBets) ? this.activeBets : [];
-    const totalBetPool = activeBetsList.reduce((sum, b) => sum + (b.amount || 0), 0);
+    const totalBetPool = activeBetsList.reduce((sum, b) => sum + (Number(b.amount) || Number(b.coins) || 0), 0);
     const withdrawalsList = Array.isArray(this.withdrawals) ? this.withdrawals : [];
 
+    const nextSlot = typeof getNextSlotInfo === 'function' ? getNextSlotInfo(now) : { label: '12:00 PM' };
+    const defaultDateFormatted = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const defaultDateFull = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
     // Format entries compatible with Num Ledger Pro / NumPredict Pro
-    const ledgerEntries = activeBetsList.map((b, idx) => ({
-      entryNo: idx + 1,
-      id: b.id,
-      partyId: b.playerId,
-      partyName: b.playerName,
-      partyMobile: b.playerMobile || '',
-      number: b.number,
-      amount: b.amount,
-      multiplier: 9,
-      potentialWin: b.potentialWin || b.amount * 9,
-      targetSlot: b.targetSlot,
-      targetDate: b.targetDate,
-      targetDateFull: b.targetDateFull,
-      displaySlot: b.displaySlot || `${b.targetDate} • ${b.targetSlot}`,
-      placedTime: b.placedTime,
-      timestamp: b.timestamp || Date.now(),
-      status: 'ACTIVE'
-    }));
+    const ledgerEntries = activeBetsList.map((b, idx) => {
+      const pid = b.memberId || b.member_id || b.userId || b.playerId || b.partyId || 'PLAYER';
+      const cust = (this.customersDb && this.customersDb[pid]) ? this.customersDb[pid] : null;
+
+      const pName = b.name || b.playerName || b.partyName || b.memberName || b.customerName || b.Name || (cust ? cust.name : '') || pid || 'Player';
+      const pMobile = b.mobile || b.playerMobile || b.partyMobile || b.phone || (cust ? cust.mobile : '') || '';
+      const pDob = b.dob || (cust ? cust.dob : '') || '';
+
+      const dVal = b.date || b.entryDate || b.Date || b.targetDate || defaultDateFormatted;
+      const dFullVal = b.targetDateFull || b.placedDate || defaultDateFull;
+      const slotVal = b.timeSlot || b.slot || b.time_slot || b.slotTime || b.round || b.targetSlot || nextSlot.label || '12:00 PM';
+      const timeVal = b.placedTime || b.time || formatTime12(new Date(b.timestamp || Date.now()));
+      const displaySlotVal = b.displaySlot || `${dVal} • ${slotVal}`;
+
+      const numVal = b.number !== undefined ? Number(b.number) : (b.no !== undefined ? Number(b.no) : (b.num !== undefined ? Number(b.num) : 10));
+      const amtVal = b.amount !== undefined ? Number(b.amount) : (b.coins !== undefined ? Number(b.coins) : (b.betAmount !== undefined ? Number(b.betAmount) : 10));
+      const winVal = b.potentialWin !== undefined ? Number(b.potentialWin) : (b.winAmount !== undefined ? Number(b.winAmount) : amtVal * 9);
+
+      return {
+        entryNo: idx + 1,
+        index: idx + 1,
+        srNo: idx + 1,
+        id: b.id || `bet_${Date.now()}_${idx}`,
+
+        // Date variations for Num Ledger Pro
+        date: dVal,
+        entryDate: dVal,
+        Date: dVal,
+        targetDate: dVal,
+        targetDateFull: dFullVal,
+        placedDate: dFullVal,
+        createdDate: dVal,
+        day: dVal,
+
+        // Time Slot variations for Num Ledger Pro
+        timeSlot: slotVal,
+        time_slot: slotVal,
+        slot: slotVal,
+        slotTime: slotVal,
+        round: slotVal,
+        targetSlot: slotVal,
+        displaySlot: displaySlotVal,
+        time: timeVal,
+        placedTime: timeVal,
+
+        // Member ID variations for Num Ledger Pro
+        memberId: pid,
+        member_id: pid,
+        userId: pid,
+        playerId: pid,
+        partyId: pid,
+
+        // Member Name variations for Num Ledger Pro
+        name: pName,
+        playerName: pName,
+        partyName: pName,
+        memberName: pName,
+        customerName: pName,
+        Name: pName,
+        userName: pName,
+
+        // Contact info
+        mobile: pMobile,
+        playerMobile: pMobile,
+        partyMobile: pMobile,
+        phone: pMobile,
+        dob: pDob,
+
+        // Prediction Number variations
+        number: numVal,
+        no: numVal,
+        num: numVal,
+        betNumber: numVal,
+        selectedNumber: numVal,
+
+        // Amount & Payout variations
+        amount: amtVal,
+        betAmount: amtVal,
+        coins: amtVal,
+        multiplier: 9,
+        potentialWin: winVal,
+        winAmount: winVal,
+        payout: winVal,
+
+        timestamp: b.timestamp || Date.now(),
+        status: b.status || 'ACTIVE'
+      };
+    });
 
     let exportData = {};
     let filename = '';
@@ -3585,12 +3823,20 @@ class SpinWheelApp {
       exportData = {
         appName: 'Num Ledger Pro',
         fileType: 'NUM_LEDGER_PRO_ACTIVE_ENTRIES',
+        version: '6.0',
         exportDate: now.toISOString(),
         formattedDate: now.toLocaleString(),
         totalEntries: ledgerEntries.length,
         totalBetPool: totalBetPool,
         entries: ledgerEntries,
-        activeBets: activeBetsList
+        activeBets: ledgerEntries,
+        items: ledgerEntries,
+        data: ledgerEntries,
+        bets: ledgerEntries,
+        records: ledgerEntries,
+        list: ledgerEntries,
+        ledgerEntries: ledgerEntries,
+        ledger: ledgerEntries
       };
       filename = `num_ledger_pro_active_entries_${dateStr}_${timeStr}.json`;
     } else {
@@ -3612,7 +3858,14 @@ class SpinWheelApp {
           totalRoundsInHistory: (this.history || []).length
         },
         entries: ledgerEntries,
-        activeBets: activeBetsList,
+        activeBets: ledgerEntries,
+        items: ledgerEntries,
+        data: ledgerEntries,
+        bets: ledgerEntries,
+        records: ledgerEntries,
+        list: ledgerEntries,
+        ledgerEntries: ledgerEntries,
+        ledger: ledgerEntries,
         players: playersList,
         customersDb: this.customersDb || {},
         withdrawals: withdrawalsList,
