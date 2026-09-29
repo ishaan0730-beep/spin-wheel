@@ -1696,28 +1696,83 @@ body {
 
 .prediction-amount-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.45rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.coin-chips-wrapper {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.4rem;
+  width: 100%;
 }
 
 .coin-chip-btn {
-  flex: 1;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 700;
   padding: 0.45rem 0.2rem;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  text-align: center;
+}
+
+.coin-chip-btn:hover {
+  background: rgba(245, 176, 65, 0.08);
+  border-color: rgba(245, 176, 65, 0.4);
 }
 
 .coin-chip-btn.selected {
   border-color: var(--primary-gold);
-  color: var(--primary-gold);
-  background: rgba(245, 176, 65, 0.12);
+  color: var(--primary-gold-bright);
+  background: rgba(245, 176, 65, 0.16);
+  box-shadow: 0 0 10px rgba(245, 176, 65, 0.25);
+}
+
+.prediction-action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+}
+
+.custom-bet-input-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.bet-input-field {
+  padding: 0.5rem 0.65rem !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: var(--primary-gold-bright) !important;
+}
+
+.password-rules-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  margin-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rule-item {
+  font-size: 0.68rem;
+  color: #ff6b6b;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.rule-item.valid {
+  color: #2ecc71;
 }
 
 .active-bet-notice {

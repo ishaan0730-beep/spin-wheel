@@ -361,9 +361,10 @@ class SpinWheelApp {
     this.currentCustomer = this.loadCustomerSession();
     this.customersDb = this.loadCustomersDB();
     this.currentBet = this.loadCurrentBet();
-    this.selectedBetAmount = 50;
+    this.selectedBetAmount = 10;
     this.selectedBetNumber = null;
     this.isSignUpMode = false;
+    this.verifiedForgotUser = null;
 
     // DOM Elements - Dual Auth Modal (Customer & Admin)
     this.authModal = document.getElementById('auth-modal');
@@ -374,24 +375,57 @@ class SpinWheelApp {
     this.customerAuthPane = document.getElementById('customer-auth-pane');
     this.adminAuthPane = document.getElementById('admin-auth-pane');
 
-    // Customer Auth Elements
+    // Customer Subtabs Bar & Logged In Overview
+    this.customerSubtabsBar = document.getElementById('customer-subtabs-bar');
     this.custSubtabSignin = document.getElementById('cust-subtab-signin');
     this.custSubtabSignup = document.getElementById('cust-subtab-signup');
     this.customerLoggedInView = document.getElementById('customer-logged-in-view');
     this.dashPlayerName = document.getElementById('dash-player-name');
+    this.dashPlayerId = document.getElementById('dash-player-id');
     this.dashPlayerCoins = document.getElementById('dash-player-coins');
-    this.claimDailyBonusBtn = document.getElementById('claim-daily-bonus-btn');
     this.dashLogoutBtn = document.getElementById('dash-logout-btn');
-    this.dashBonusMsg = document.getElementById('dash-bonus-msg');
-    this.customerAuthForm = document.getElementById('customer-auth-form');
-    this.custNameGroup = document.getElementById('cust-name-group');
-    this.custNameInput = document.getElementById('cust-name-input');
-    this.custIdInput = document.getElementById('cust-id-input');
-    this.custPinInput = document.getElementById('cust-pin-input');
-    this.custAuthError = document.getElementById('cust-auth-error');
-    this.custAuthSuccess = document.getElementById('cust-auth-success');
-    this.custSubmitBtn = document.getElementById('cust-submit-btn');
-    this.custGuestBtn = document.getElementById('cust-guest-btn');
+
+    // Customer Sign In Form
+    this.customerSigninForm = document.getElementById('customer-signin-form');
+    this.custLoginId = document.getElementById('cust-login-id');
+    this.custLoginPin = document.getElementById('cust-login-pin');
+    this.custForgotLink = document.getElementById('cust-forgot-link');
+    this.custLoginError = document.getElementById('cust-login-error');
+    this.custLoginSuccess = document.getElementById('cust-login-success');
+    this.custSigninBtn = document.getElementById('cust-signin-btn');
+
+    // Customer Sign Up Form
+    this.customerSignupForm = document.getElementById('customer-signup-form');
+    this.custRegName = document.getElementById('cust-reg-name');
+    this.custRegMobile = document.getElementById('cust-reg-mobile');
+    this.custRegId = document.getElementById('cust-reg-id');
+    this.custRegDob = document.getElementById('cust-reg-dob');
+    this.custRegPin = document.getElementById('cust-reg-pin');
+    this.custRegConfirmPin = document.getElementById('cust-reg-confirmpin');
+    this.custRegError = document.getElementById('cust-reg-error');
+    this.custRegSuccess = document.getElementById('cust-reg-success');
+    this.custRegisterBtn = document.getElementById('cust-register-btn');
+    this.ruleLen = document.getElementById('rule-len');
+    this.ruleUpper = document.getElementById('rule-upper');
+    this.ruleNum = document.getElementById('rule-num');
+
+    // Customer Forgot Password Pane
+    this.customerForgotPane = document.getElementById('customer-forgot-pane');
+    this.forgotStep1 = document.getElementById('forgot-step1');
+    this.forgotIdInput = document.getElementById('forgot-id-input');
+    this.forgotDobInput = document.getElementById('forgot-dob-input');
+    this.forgotStep1Error = document.getElementById('forgot-step1-error');
+    this.forgotVerifyBtn = document.getElementById('forgot-verify-btn');
+    this.forgotStep2 = document.getElementById('forgot-step2');
+    this.forgotNewPin = document.getElementById('forgot-new-pin');
+    this.forgotConfirmNewPin = document.getElementById('forgot-confirm-new-pin');
+    this.forgotStep2Error = document.getElementById('forgot-step2-error');
+    this.forgotStep2Success = document.getElementById('forgot-step2-success');
+    this.forgotResetBtn = document.getElementById('forgot-reset-btn');
+    this.forgotBackBtn = document.getElementById('forgot-back-btn');
+    this.forgotRuleLen = document.getElementById('forgot-rule-len');
+    this.forgotRuleUpper = document.getElementById('forgot-rule-upper');
+    this.forgotRuleNum = document.getElementById('forgot-rule-num');
 
     // Header Customer Profile / Login Button
     this.customerLoginBtn = document.getElementById('customer-login-btn');
@@ -405,6 +439,7 @@ class SpinWheelApp {
     this.customerPredictionSection = document.getElementById('customer-prediction-section');
     this.playerWalletDisplay = document.getElementById('player-wallet-display');
     this.predictionNumberChips = document.getElementById('prediction-number-chips');
+    this.customBetInput = document.getElementById('custom-bet-input');
     this.placePredictionBtn = document.getElementById('place-prediction-btn');
     this.activeBetNotice = document.getElementById('active-bet-notice');
     this.betSelectedNum = document.getElementById('bet-selected-num');
@@ -1310,8 +1345,17 @@ class SpinWheelApp {
     if (this.authModal) {
       this.authModal.classList.add('hidden');
     }
-    if (this.custAuthError) this.custAuthError.classList.add('hidden');
-    if (this.custAuthSuccess) this.custAuthSuccess.classList.add('hidden');
+    this.clearCustomerAuthFeedback();
+  }
+
+  clearCustomerAuthFeedback() {
+    if (this.custLoginError) this.custLoginError.classList.add('hidden');
+    if (this.custLoginSuccess) this.custLoginSuccess.classList.add('hidden');
+    if (this.custRegError) this.custRegError.classList.add('hidden');
+    if (this.custRegSuccess) this.custRegSuccess.classList.add('hidden');
+    if (this.forgotStep1Error) this.forgotStep1Error.classList.add('hidden');
+    if (this.forgotStep2Error) this.forgotStep2Error.classList.add('hidden');
+    if (this.forgotStep2Success) this.forgotStep2Success.classList.add('hidden');
   }
 
   switchAuthTab(tab) {
@@ -1337,31 +1381,86 @@ class SpinWheelApp {
   updateCustomerAuthPane() {
     if (this.currentCustomer) {
       this.customerLoggedInView?.classList.remove('hidden');
-      this.customerAuthForm?.classList.add('hidden');
+      this.customerSubtabsBar?.classList.add('hidden');
+      this.customerSigninForm?.classList.add('hidden');
+      this.customerSignupForm?.classList.add('hidden');
+      this.customerForgotPane?.classList.add('hidden');
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
+      if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
       if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
     } else {
       this.customerLoggedInView?.classList.add('hidden');
-      this.customerAuthForm?.classList.remove('hidden');
+      this.customerSubtabsBar?.classList.remove('hidden');
       this.setCustomerAuthSubtab(this.isSignUpMode ? 'signup' : 'signin');
     }
   }
 
   setCustomerAuthSubtab(mode) {
-    this.isSignUpMode = (mode === 'signup');
-    if (this.isSignUpMode) {
+    this.clearCustomerAuthFeedback();
+    if (mode === 'signup') {
+      this.isSignUpMode = true;
       this.custSubtabSignup?.classList.add('active');
       this.custSubtabSignin?.classList.remove('active');
-      this.custNameGroup?.classList.remove('hidden');
-      if (this.custSubmitBtn) this.custSubmitBtn.textContent = '🎁 Create Account & Claim 1,000 Coins';
+      this.customerSignupForm?.classList.remove('hidden');
+      this.customerSigninForm?.classList.add('hidden');
+      this.customerForgotPane?.classList.add('hidden');
+      this.customerSubtabsBar?.classList.remove('hidden');
+    } else if (mode === 'forgot') {
+      this.customerForgotPane?.classList.remove('hidden');
+      this.customerSignupForm?.classList.add('hidden');
+      this.customerSigninForm?.classList.add('hidden');
+      this.customerSubtabsBar?.classList.add('hidden');
+      this.resetForgotStep1();
     } else {
+      this.isSignUpMode = false;
       this.custSubtabSignin?.classList.add('active');
       this.custSubtabSignup?.classList.remove('active');
-      this.custNameGroup?.classList.add('hidden');
-      if (this.custSubmitBtn) this.custSubmitBtn.textContent = '🚀 Sign In to Play';
+      this.customerSigninForm?.classList.remove('hidden');
+      this.customerSignupForm?.classList.add('hidden');
+      this.customerForgotPane?.classList.add('hidden');
+      this.customerSubtabsBar?.classList.remove('hidden');
     }
-    if (this.custAuthError) this.custAuthError.classList.add('hidden');
-    if (this.custAuthSuccess) this.custAuthSuccess.classList.add('hidden');
+  }
+
+  validatePassword(pass) {
+    const p = pass || '';
+    const hasLength = p.length > 8; // Strictly greater than 8 characters (min 9)
+    const uppercaseMatches = p.match(/[A-Z]/g) || [];
+    const hasTwoUpper = uppercaseMatches.length >= 2;
+    const hasNumber = /\d/.test(p);
+    return {
+      isValid: hasLength && hasTwoUpper && hasNumber,
+      hasLength,
+      hasTwoUpper,
+      hasNumber
+    };
+  }
+
+  updatePasswordRuleChecklist(pass, lenEl, upperEl, numEl) {
+    const res = this.validatePassword(pass);
+    if (lenEl) {
+      lenEl.textContent = res.hasLength ? '✅ Min 9 characters (> 8)' : '❌ Min 9 characters (> 8)';
+      lenEl.className = `rule-item ${res.hasLength ? 'valid' : ''}`;
+    }
+    if (upperEl) {
+      upperEl.textContent = res.hasTwoUpper ? '✅ At least 2 Uppercase (A-Z)' : '❌ At least 2 Uppercase (A-Z)';
+      upperEl.className = `rule-item ${res.hasTwoUpper ? 'valid' : ''}`;
+    }
+    if (numEl) {
+      numEl.textContent = res.hasNumber ? '✅ Numbers included (0-9)' : '❌ Numbers included (0-9)';
+      numEl.className = `rule-item ${res.hasNumber ? 'valid' : ''}`;
+    }
+  }
+
+  resetForgotStep1() {
+    this.verifiedForgotUser = null;
+    this.forgotStep1?.classList.remove('hidden');
+    this.forgotStep2?.classList.add('hidden');
+    if (this.forgotIdInput) this.forgotIdInput.value = '';
+    if (this.forgotDobInput) this.forgotDobInput.value = '';
+    if (this.forgotNewPin) this.forgotNewPin.value = '';
+    if (this.forgotConfirmNewPin) this.forgotConfirmNewPin.value = '';
+    this.clearCustomerAuthFeedback();
   }
 
   // ==========================================================
@@ -1375,11 +1474,12 @@ class SpinWheelApp {
       if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()}`;
       if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
+      if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
       if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} Coins`;
     } else {
       this.customerLoginBtn?.classList.remove('hidden');
       this.customerProfileChip?.classList.add('hidden');
-      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = '💰 Guest (0 Coins)';
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = '💰 Logged Out (0 Coins)';
     }
 
     // Update active prediction bet notice
@@ -1387,7 +1487,7 @@ class SpinWheelApp {
       this.activeBetNotice?.classList.remove('hidden');
       if (this.betSelectedNum) this.betSelectedNum.textContent = `#${this.currentBet.number}`;
       if (this.betSelectedCoins) this.betSelectedCoins.textContent = `${this.currentBet.amount}`;
-      if (this.betPotentialWin) this.betPotentialWin.textContent = `${this.currentBet.potentialWin || this.currentBet.amount * 10}`;
+      if (this.betPotentialWin) this.betPotentialWin.textContent = `${this.currentBet.potentialWin || this.currentBet.amount * 9}`;
     } else {
       this.activeBetNotice?.classList.add('hidden');
     }
@@ -1425,134 +1525,259 @@ class SpinWheelApp {
     this.custSubtabSignin?.addEventListener('click', () => this.setCustomerAuthSubtab('signin'));
     this.custSubtabSignup?.addEventListener('click', () => this.setCustomerAuthSubtab('signup'));
 
+    // Forgot Password link & Back button
+    this.custForgotLink?.addEventListener('click', () => this.setCustomerAuthSubtab('forgot'));
+    this.forgotBackBtn?.addEventListener('click', () => this.setCustomerAuthSubtab('signin'));
+
     // Customer Dashboard & Logout buttons
     this.customerDashboardBtn?.addEventListener('click', () => this.openAuthModal('customer'));
     this.customerLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
     this.dashLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
 
-    // Customer Submit Form & Guest Login
-    this.custSubmitBtn?.addEventListener('click', () => this.handleCustomerAuth());
-    this.custPinInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.handleCustomerAuth();
+    // Live Password Strength Checklist updates
+    this.custRegPin?.addEventListener('input', () => {
+      this.updatePasswordRuleChecklist(this.custRegPin.value, this.ruleLen, this.ruleUpper, this.ruleNum);
     });
-    this.custGuestBtn?.addEventListener('click', () => this.handleGuestLogin());
+    this.forgotNewPin?.addEventListener('input', () => {
+      this.updatePasswordRuleChecklist(this.forgotNewPin.value, this.forgotRuleLen, this.forgotRuleUpper, this.forgotRuleNum);
+    });
 
-    // Daily Bonus Claim
-    this.claimDailyBonusBtn?.addEventListener('click', () => this.handleDailyBonusClaim());
+    // Sign In Submit
+    this.custSigninBtn?.addEventListener('click', () => this.handleCustomerSignIn());
+    this.custLoginPin?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleCustomerSignIn();
+    });
 
-    // Coin Chips (50, 100, 250, 500)
+    // Registration Submit
+    this.custRegisterBtn?.addEventListener('click', () => this.handleCustomerRegister());
+    this.custRegConfirmPin?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleCustomerRegister();
+    });
+
+    // Forgot Password Step 1: Verify ID + DOB
+    this.forgotVerifyBtn?.addEventListener('click', () => this.handleForgotVerify());
+    this.forgotDobInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleForgotVerify();
+    });
+
+    // Forgot Password Step 2: Reset Password
+    this.forgotResetBtn?.addEventListener('click', () => this.handleForgotReset());
+    this.forgotConfirmNewPin?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleForgotReset();
+    });
+
+    // Coin Bet Chips (10, 20, 30, 40, 50, 100, 150, 200)
     const coinChips = document.querySelectorAll('.coin-chip-btn');
     coinChips.forEach(chip => {
       chip.addEventListener('click', () => {
         coinChips.forEach(c => c.classList.remove('selected'));
         chip.classList.add('selected');
-        this.selectedBetAmount = parseInt(chip.getAttribute('data-amount'), 10) || 50;
+        const amt = parseInt(chip.getAttribute('data-amount'), 10) || 10;
+        this.selectedBetAmount = amt;
+        if (this.customBetInput) this.customBetInput.value = amt;
         this.audio.playTick();
       });
     });
+
+    // Custom Bet Input listener
+    if (this.customBetInput) {
+      this.customBetInput.addEventListener('input', () => {
+        let val = parseInt(this.customBetInput.value, 10);
+        if (!isNaN(val)) {
+          this.selectedBetAmount = val;
+          // Unselect chip highlight if custom value is not one of chip values
+          coinChips.forEach(c => {
+            if (parseInt(c.getAttribute('data-amount'), 10) === val) {
+              c.classList.add('selected');
+            } else {
+              c.classList.remove('selected');
+            }
+          });
+        }
+      });
+    }
 
     // Place Prediction Button
     this.placePredictionBtn?.addEventListener('click', () => this.placeCustomerPrediction());
   }
 
-  handleCustomerAuth() {
-    const id = this.custIdInput?.value.trim();
-    const pin = this.custPinInput?.value.trim();
-    const name = this.custNameInput?.value.trim() || 'Player';
+  handleCustomerSignIn() {
+    const id = this.custLoginId?.value.trim();
+    const pin = this.custLoginPin?.value.trim();
 
     if (!id) {
-      this.showCustomerAuthError('Please enter your Mobile Number or User ID.');
+      this.showCustomerAuthError('Please enter your User ID.', this.custLoginError);
       return;
     }
-    if (!pin || pin.length < 3) {
-      this.showCustomerAuthError('Please enter a Password or PIN (min 3 characters).');
+    if (!pin) {
+      this.showCustomerAuthError('Please enter your Password.', this.custLoginError);
       return;
     }
 
-    if (this.isSignUpMode) {
-      // New Account Registration
-      if (this.customersDb[id]) {
-        this.showCustomerAuthError('An account with this ID already exists! Please Sign In.');
-        return;
-      }
-      const newCustomer = {
-        id: id,
-        name: name,
-        pin: pin,
-        coins: 1000,
-        joinedAt: Date.now(),
-        lastBonusDate: new Date().toDateString(),
-        totalBets: 0,
-        wins: 0
-      };
-      this.customersDb[id] = newCustomer;
-      this.saveCustomersDB(this.customersDb);
-      this.saveCustomerSession(newCustomer);
-      this.updateCustomerUI();
-      this.closeAuthModal();
-      this.confetti.fire(2500);
-      this.audio.playWinFanfare();
-      if (this.predictionFeedbackMsg) {
-        this.predictionFeedbackMsg.style.color = '#2ecc71';
-        this.predictionFeedbackMsg.textContent = `🎉 Welcome, ${name}! 1,000 Welcome Coins added to your wallet!`;
-        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
-      }
-    } else {
-      // Sign In
-      let user = this.customersDb[id];
-      if (user) {
-        if (user.pin !== pin) {
-          this.showCustomerAuthError('Incorrect Password or PIN. Please try again.');
-          return;
-        }
-      } else {
-        // First-time direct sign-in -> automatic 1,000 welcome coins!
-        user = {
-          id: id,
-          name: id.length === 10 ? `User ${id.slice(-4)}` : id,
-          pin: pin,
-          coins: 1000,
-          joinedAt: Date.now(),
-          lastBonusDate: null,
-          totalBets: 0,
-          wins: 0
-        };
-        this.customersDb[id] = user;
-        this.saveCustomersDB(this.customersDb);
-      }
-      this.saveCustomerSession(user);
-      this.updateCustomerUI();
-      this.closeAuthModal();
-      if (this.predictionFeedbackMsg) {
-        this.predictionFeedbackMsg.style.color = '#2ecc71';
-        this.predictionFeedbackMsg.textContent = `👋 Welcome back, ${user.name}!`;
-        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3500);
-      }
+    const user = this.customersDb[id];
+    if (!user || user.pin !== pin) {
+      this.showCustomerAuthError('Invalid User ID or Password. Please check or use Forgot Password.', this.custLoginError);
+      return;
+    }
+
+    this.saveCustomerSession(user);
+    this.updateCustomerUI();
+    this.closeAuthModal();
+    if (this.predictionFeedbackMsg) {
+      this.predictionFeedbackMsg.style.color = '#2ecc71';
+      this.predictionFeedbackMsg.textContent = `👋 Welcome back, ${user.name}!`;
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3500);
     }
   }
 
-  handleGuestLogin() {
-    const guestNum = Math.floor(Math.random() * 9000) + 1000;
-    const guestUser = {
-      id: `guest_${guestNum}`,
-      name: `Guest #${guestNum}`,
-      pin: 'guest',
-      coins: 1000,
-      isGuest: true,
+  handleCustomerRegister() {
+    const name = this.custRegName?.value.trim();
+    const mobile = this.custRegMobile?.value.trim();
+    const id = this.custRegId?.value.trim();
+    const dob = this.custRegDob?.value.trim();
+    const pin = this.custRegPin?.value.trim();
+    const confirmPin = this.custRegConfirmPin?.value.trim();
+
+    if (!name || name.length < 2) {
+      this.showCustomerAuthError('Please enter your Full Name.', this.custRegError);
+      return;
+    }
+
+    if (!mobile || !/^\d{10}$/.test(mobile)) {
+      this.showCustomerAuthError('Please enter a valid 10-digit Mobile Number.', this.custRegError);
+      return;
+    }
+
+    if (!id || id.length < 3) {
+      this.showCustomerAuthError('Please create a User ID.', this.custRegError);
+      return;
+    }
+
+    // User ID must contain both letters and digits (Name + Numbers format)
+    const hasLetters = /[a-zA-Z]/.test(id);
+    const hasDigits = /\d/.test(id);
+    if (!hasLetters || !hasDigits) {
+      this.showCustomerAuthError('User ID must be in Name + Number format (e.g. Rahul9876 or Aman21).', this.custRegError);
+      return;
+    }
+
+    if (this.customersDb[id]) {
+      this.showCustomerAuthError(`User ID "${id}" is already registered! Please Sign In or pick another ID.`, this.custRegError);
+      return;
+    }
+
+    if (!dob) {
+      this.showCustomerAuthError('Please select your Date of Birth (DOB).', this.custRegError);
+      return;
+    }
+
+    const passValidation = this.validatePassword(pin);
+    if (!passValidation.isValid) {
+      let reason = 'Password does not meet requirements:';
+      if (!passValidation.hasLength) reason += ' Min 9 characters (> 8).';
+      if (!passValidation.hasTwoUpper) reason += ' At least 2 uppercase letters (A-Z).';
+      if (!passValidation.hasNumber) reason += ' Must include numbers (0-9).';
+      this.showCustomerAuthError(reason, this.custRegError);
+      return;
+    }
+
+    if (pin !== confirmPin) {
+      this.showCustomerAuthError('Passwords do not match. Please verify.', this.custRegError);
+      return;
+    }
+
+    // CREATE CUSTOMER ACCOUNT WITH EXACTLY 10 FREE WELCOME COINS
+    const newCustomer = {
+      id: id,
+      name: name,
+      mobile: mobile,
+      dob: dob,
+      pin: pin,
+      coins: 10, // ONLY 10 COINS
       joinedAt: Date.now(),
-      lastBonusDate: new Date().toDateString(),
       totalBets: 0,
       wins: 0
     };
-    this.saveCustomerSession(guestUser);
+
+    this.customersDb[id] = newCustomer;
+    this.saveCustomersDB(this.customersDb);
+    this.saveCustomerSession(newCustomer);
     this.updateCustomerUI();
     this.closeAuthModal();
+
+    this.confetti.fire(2500);
+    this.audio.playWinFanfare();
+    if (this.predictionFeedbackMsg) {
+      this.predictionFeedbackMsg.style.color = '#2ecc71';
+      this.predictionFeedbackMsg.textContent = `🎉 Account created successfully! 10 Welcome Coins credited to your wallet!`;
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
+    }
+  }
+
+  handleForgotVerify() {
+    const id = this.forgotIdInput?.value.trim();
+    const dob = this.forgotDobInput?.value.trim();
+
+    if (!id) {
+      this.showCustomerAuthError('Please enter your User ID.', this.forgotStep1Error);
+      return;
+    }
+    if (!dob) {
+      this.showCustomerAuthError('Please select your Date of Birth (DOB).', this.forgotStep1Error);
+      return;
+    }
+
+    const user = this.customersDb[id];
+    if (!user || user.dob !== dob) {
+      this.showCustomerAuthError('❌ User ID and Date of Birth do not match our registered records.', this.forgotStep1Error);
+      return;
+    }
+
+    // Success -> proceed to Step 2
+    this.verifiedForgotUser = user;
+    this.forgotStep1?.classList.add('hidden');
+    this.forgotStep2?.classList.remove('hidden');
+    if (this.forgotStep1Error) this.forgotStep1Error.classList.add('hidden');
+  }
+
+  handleForgotReset() {
+    if (!this.verifiedForgotUser) {
+      this.showCustomerAuthError('Verification session expired. Please retry.', this.forgotStep2Error);
+      return;
+    }
+
+    const newPin = this.forgotNewPin?.value.trim();
+    const confirmPin = this.forgotConfirmNewPin?.value.trim();
+
+    const passValidation = this.validatePassword(newPin);
+    if (!passValidation.isValid) {
+      let reason = 'New Password must have:';
+      if (!passValidation.hasLength) reason += ' Min 9 characters (> 8).';
+      if (!passValidation.hasTwoUpper) reason += ' At least 2 uppercase letters.';
+      if (!passValidation.hasNumber) reason += ' Numbers included.';
+      this.showCustomerAuthError(reason, this.forgotStep2Error);
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      this.showCustomerAuthError('Passwords do not match.', this.forgotStep2Error);
+      return;
+    }
+
+    // Update password
+    const userId = this.verifiedForgotUser.id;
+    this.customersDb[userId].pin = newPin;
+    this.saveCustomersDB(this.customersDb);
+    this.saveCustomerSession(this.customersDb[userId]);
+    this.updateCustomerUI();
+    this.closeAuthModal();
+
     this.confetti.fire(2000);
     this.audio.playWinFanfare();
     if (this.predictionFeedbackMsg) {
       this.predictionFeedbackMsg.style.color = '#2ecc71';
-      this.predictionFeedbackMsg.textContent = `⚡ Logged in as ${guestUser.name} with 1,000 Coins!`;
-      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4000);
+      this.predictionFeedbackMsg.textContent = `✅ Password updated successfully! Logged in as ${this.customersDb[userId].name}.`;
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
     }
   }
 
@@ -1569,35 +1794,11 @@ class SpinWheelApp {
     }
   }
 
-  showCustomerAuthError(msg) {
-    if (this.custAuthError) {
-      this.custAuthError.textContent = `❌ ${msg}`;
-      this.custAuthError.classList.remove('hidden');
+  showCustomerAuthError(msg, targetEl) {
+    if (targetEl) {
+      targetEl.textContent = `❌ ${msg}`;
+      targetEl.classList.remove('hidden');
     }
-  }
-
-  handleDailyBonusClaim() {
-    if (!this.currentCustomer) return;
-    const todayStr = new Date().toDateString();
-    if (this.currentCustomer.lastBonusDate === todayStr) {
-      if (this.dashBonusMsg) {
-        this.dashBonusMsg.style.color = '#ff9800';
-        this.dashBonusMsg.textContent = '⏳ Daily bonus already claimed today! Check back tomorrow.';
-        setTimeout(() => { if (this.dashBonusMsg) this.dashBonusMsg.textContent = ''; }, 3500);
-      }
-      return;
-    }
-    this.currentCustomer.coins = (this.currentCustomer.coins || 0) + 500;
-    this.currentCustomer.lastBonusDate = todayStr;
-    this.saveCustomerSession(this.currentCustomer);
-    this.updateCustomerUI();
-    if (this.dashBonusMsg) {
-      this.dashBonusMsg.style.color = '#2ecc71';
-      this.dashBonusMsg.textContent = '🎉 +500 Coins added to your wallet!';
-      setTimeout(() => { if (this.dashBonusMsg) this.dashBonusMsg.textContent = ''; }, 3500);
-    }
-    this.confetti.fire(2000);
-    this.audio.playWinFanfare();
   }
 
   placeCustomerPrediction() {
@@ -1605,7 +1806,7 @@ class SpinWheelApp {
       this.openAuthModal('customer');
       if (this.predictionFeedbackMsg) {
         this.predictionFeedbackMsg.style.color = '#f5b041';
-        this.predictionFeedbackMsg.textContent = '👉 Please login first to lock your prediction!';
+        this.predictionFeedbackMsg.textContent = '👉 Please Sign In or Register to place a prediction!';
       }
       return;
     }
@@ -1613,18 +1814,33 @@ class SpinWheelApp {
     if (this.selectedBetNumber === null) {
       if (this.predictionFeedbackMsg) {
         this.predictionFeedbackMsg.style.color = '#ff6b6b';
-        this.predictionFeedbackMsg.textContent = '⚠️ Please select a number chip above!';
+        this.predictionFeedbackMsg.textContent = '⚠️ Please select a number chip (10..100) above!';
         setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3000);
       }
       return;
     }
 
-    const amount = this.selectedBetAmount || 50;
+    let amount = parseInt(this.selectedBetAmount, 10);
+    if (this.customBetInput && this.customBetInput.value) {
+      const customVal = parseInt(this.customBetInput.value, 10);
+      if (!isNaN(customVal)) amount = customVal;
+    }
+
+    // Strict validation: between 10 and 200, strictly in multiples of 10 (10, 20, 30, 40 ... 200)
+    if (isNaN(amount) || amount < 10 || amount > 200 || amount % 10 !== 0) {
+      if (this.predictionFeedbackMsg) {
+        this.predictionFeedbackMsg.style.color = '#ff6b6b';
+        this.predictionFeedbackMsg.textContent = '❌ Bet amount must be between 10 and 200 in multiples of 10 (10, 20, 30, 40... 200)!';
+        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
+      }
+      return;
+    }
+
     if ((this.currentCustomer.coins || 0) < amount) {
       if (this.predictionFeedbackMsg) {
         this.predictionFeedbackMsg.style.color = '#ff6b6b';
-        this.predictionFeedbackMsg.textContent = '❌ Insufficient coins! Claim daily bonus or re-login.';
-        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3500);
+        this.predictionFeedbackMsg.textContent = `❌ Insufficient coins! Your balance is 💰${this.currentCustomer.coins || 0} Coins (Bet requires ${amount} Coins).`;
+        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
       }
       return;
     }
@@ -1638,7 +1854,7 @@ class SpinWheelApp {
     this.currentBet = {
       number: this.selectedBetNumber,
       amount: amount,
-      potentialWin: amount * 10,
+      potentialWin: amount * 9, // 9X MULTIPLIER
       round: nextSlot.label,
       timestamp: Date.now()
     };
@@ -1647,7 +1863,7 @@ class SpinWheelApp {
 
     if (this.predictionFeedbackMsg) {
       this.predictionFeedbackMsg.style.color = '#2ecc71';
-      this.predictionFeedbackMsg.textContent = `✅ Locked ${amount} Coins on #${this.selectedBetNumber} for ${nextSlot.label} round!`;
+      this.predictionFeedbackMsg.textContent = `✅ Locked ${amount} Coins on #${this.selectedBetNumber} for ${nextSlot.label} round (Potential 9x Win: ${amount * 9} Coins)!`;
       setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4000);
     }
     this.audio.playTick();
@@ -2155,11 +2371,11 @@ class SpinWheelApp {
       this.winTimeEl.textContent = `Won at ${timeStr12} &bull; Round ${roundStr12}`;
     }
 
-    // Evaluate Customer Prediction Bet & 10x Payout
+    // Evaluate Customer Prediction Bet & 9x Payout
     if (this.currentBet) {
       const bet = this.currentBet;
       if (bet.number === winningNumber) {
-        const winAmount = bet.amount * 10;
+        const winAmount = bet.amount * 9; // 9X MULTIPLIER
         if (this.currentCustomer) {
           this.currentCustomer.coins = (this.currentCustomer.coins || 0) + winAmount;
           this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
@@ -2167,7 +2383,7 @@ class SpinWheelApp {
         }
         if (this.predictionFeedbackMsg) {
           this.predictionFeedbackMsg.style.color = '#ffd700';
-          this.predictionFeedbackMsg.innerHTML = `🎉 <strong>PREDICTION JACKPOT!</strong> You predicted #${winningNumber} and won 💰${winAmount.toLocaleString()} Coins!`;
+          this.predictionFeedbackMsg.innerHTML = `🎉 <strong>PREDICTION WIN!</strong> You predicted #${winningNumber} and won 💰${winAmount.toLocaleString()} Coins (9x Multiplier auto-credited)!`;
         }
       } else {
         if (this.predictionFeedbackMsg) {

@@ -72,7 +72,7 @@
           <div class="player-avatar">👤</div>
           <div class="player-info">
             <span class="player-name" id="chip-player-name">Player</span>
-            <span class="player-coins" id="chip-player-coins">💰 1,000</span>
+            <span class="player-coins" id="chip-player-coins">💰 10</span>
           </div>
           <button id="customer-dashboard-btn" class="icon-btn-xs" title="Player Dashboard">🪙</button>
           <button id="customer-logout-btn" class="icon-btn-xs" title="Logout">🚪</button>
@@ -164,8 +164,8 @@
       <!-- CUSTOMER LIVE PREDICTION PANEL -->
       <section id="customer-prediction-section" class="customer-prediction-card">
         <div class="prediction-title-row">
-          <h3>🎯 Predict Next Winner <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">(10x Multiplier)</span></h3>
-          <span id="player-wallet-display" style="font-size: 0.82rem; font-weight:700; color:var(--primary-gold-bright);">💰 1,000 Coins</span>
+          <h3>🎯 Predict Next Winner <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">(9x Multiplier &bull; Auto-Credit)</span></h3>
+          <span id="player-wallet-display" style="font-size: 0.82rem; font-weight:700; color:var(--primary-gold-bright);">💰 10 Coins</span>
         </div>
 
         <div class="prediction-grid-chips" id="prediction-number-chips">
@@ -173,17 +173,30 @@
         </div>
 
         <div class="prediction-amount-row">
-          <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:700;">Coins:</span>
-          <button class="coin-chip-btn selected" data-amount="50">50</button>
-          <button class="coin-chip-btn" data-amount="100">100</button>
-          <button class="coin-chip-btn" data-amount="250">250</button>
-          <button class="coin-chip-btn" data-amount="500">500</button>
-          <button id="place-prediction-btn" class="btn btn-gold btn-sm" style="flex:2;">Lock Prediction</button>
+          <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:700;">Bet Coins:</span>
+          <div class="coin-chips-wrapper">
+            <button class="coin-chip-btn selected" data-amount="10">10</button>
+            <button class="coin-chip-btn" data-amount="20">20</button>
+            <button class="coin-chip-btn" data-amount="30">30</button>
+            <button class="coin-chip-btn" data-amount="40">40</button>
+            <button class="coin-chip-btn" data-amount="50">50</button>
+            <button class="coin-chip-btn" data-amount="100">100</button>
+            <button class="coin-chip-btn" data-amount="150">150</button>
+            <button class="coin-chip-btn" data-amount="200">200</button>
+          </div>
+        </div>
+
+        <div class="prediction-action-row">
+          <div class="custom-bet-input-wrap">
+            <label style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">Custom (10-200):</label>
+            <input type="number" id="custom-bet-input" min="10" max="200" step="10" value="10" class="admin-input bet-input-field" placeholder="10..200">
+          </div>
+          <button id="place-prediction-btn" class="btn btn-gold btn-sm" style="flex:2; height:38px;">Lock Prediction</button>
         </div>
 
         <div id="active-bet-notice" class="active-bet-notice hidden">
-          <span>🎯 Your Bet: <strong id="bet-selected-num">--</strong> for <strong id="bet-selected-coins">50</strong> Coins</span>
-          <span style="font-size:0.75rem; opacity:0.95;">Win: <strong id="bet-potential-win">500</strong> Coins</span>
+          <span>🎯 Your Bet: <strong id="bet-selected-num">--</strong> for <strong id="bet-selected-coins">10</strong> Coins</span>
+          <span style="font-size:0.75rem; opacity:0.95;">Win (9x): <strong id="bet-potential-win">90</strong> Coins</span>
         </div>
 
         <p id="prediction-feedback-msg" class="save-status-msg" style="display:block; margin-top:4px; font-size:0.76rem;"></p>
@@ -290,51 +303,155 @@
 
       <!-- TAB 1: CUSTOMER AUTH PANE -->
       <div id="customer-auth-pane" class="auth-pane">
-        <div class="auth-subtabs">
+        <div class="auth-subtabs" id="customer-subtabs-bar">
           <button id="cust-subtab-signin" class="subtab-btn active">Sign In</button>
-          <button id="cust-subtab-signup" class="subtab-btn">New Account (+1,000 Coins)</button>
+          <button id="cust-subtab-signup" class="subtab-btn">New Account (+10 Coins)</button>
         </div>
 
+        <!-- Logged In View -->
         <div id="customer-logged-in-view" class="customer-logged-in-view hidden">
           <div class="admin-badge-notice" style="margin-bottom: 0.85rem;">
             <span style="font-size: 1.4rem;">👤</span>
             <div>
               <strong id="dash-player-name">Player</strong>
-              <p style="font-size:0.75rem; color:var(--text-secondary); margin:0;">Account Balance: <strong id="dash-player-coins" style="color:var(--primary-gold-bright);">💰 1,000 Coins</strong></p>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:0;">User ID: <strong id="dash-player-id" style="color:var(--text-primary);">--</strong> &bull; Balance: <strong id="dash-player-coins" style="color:var(--primary-gold-bright);">💰 10 Coins</strong></p>
             </div>
           </div>
 
-          <div style="display:flex; gap:0.5rem; margin-bottom: 0.75rem;">
-            <button id="claim-daily-bonus-btn" class="btn btn-gold btn-block">🎁 Claim +500 Free Coins</button>
+          <div style="margin-bottom: 0.75rem;">
             <button id="dash-logout-btn" class="btn btn-secondary btn-block">🚪 Sign Out</button>
           </div>
-          <p id="dash-bonus-msg" class="save-status-msg"></p>
         </div>
 
-        <form id="customer-auth-form" class="auth-form" onsubmit="return false;">
-          <div class="form-group hidden" id="cust-name-group">
-            <label class="field-label">Your Name:</label>
-            <input type="text" id="cust-name-input" class="admin-input" placeholder="e.g. Rahul Sharma" autocomplete="name">
+        <!-- Sign In Form -->
+        <form id="customer-signin-form" class="auth-form" onsubmit="return false;">
+          <div class="form-group">
+            <label class="field-label">User ID:</label>
+            <input type="text" id="cust-login-id" class="admin-input" placeholder="e.g. Rahul9876" autocomplete="username">
           </div>
 
           <div class="form-group" style="margin-top: 0.5rem;">
-            <label class="field-label">Mobile Number / User ID:</label>
-            <input type="text" id="cust-id-input" class="admin-input" placeholder="e.g. 9876543210" autocomplete="username">
+            <label class="field-label">Password:</label>
+            <input type="password" id="cust-login-pin" class="admin-input" placeholder="Enter Password" autocomplete="current-password">
           </div>
 
-          <div class="form-group" style="margin-top: 0.5rem;">
-            <label class="field-label">Password / PIN (4-6 digits):</label>
-            <input type="password" id="cust-pin-input" class="admin-input" placeholder="Enter Password or PIN" autocomplete="current-password">
+          <div style="display:flex; justify-content:flex-end; margin-top:0.35rem;">
+            <button type="button" id="cust-forgot-link" class="link-btn" style="background:none; border:none; color:var(--primary-gold); font-size:0.75rem; font-weight:600; cursor:pointer; text-decoration:underline;">Forgot Password?</button>
           </div>
 
-          <p id="cust-auth-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
-          <p id="cust-auth-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
+          <p id="cust-login-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
+          <p id="cust-login-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
 
-          <div class="form-actions" style="margin-top: 0.85rem;">
-            <button id="cust-submit-btn" class="btn btn-gold btn-block">🚀 Sign In to Play</button>
-            <button id="cust-guest-btn" class="btn btn-secondary btn-block" style="margin-top: 0.45rem;">⚡ Quick 1-Click Guest Login (1,000 Free Coins)</button>
+          <div class="form-actions" style="margin-top: 0.75rem;">
+            <button id="cust-signin-btn" class="btn btn-gold btn-block">🚀 Sign In</button>
           </div>
         </form>
+
+        <!-- New Account Registration Form -->
+        <form id="customer-signup-form" class="auth-form hidden" onsubmit="return false;">
+          <div class="form-group">
+            <label class="field-label">Full Name:</label>
+            <input type="text" id="cust-reg-name" class="admin-input" placeholder="e.g. Rahul Sharma" autocomplete="name">
+          </div>
+
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label class="field-label">Mobile Number (10 Digits):</label>
+            <input type="tel" id="cust-reg-mobile" maxlength="10" class="admin-input" placeholder="e.g. 9876543210" autocomplete="tel">
+          </div>
+
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label class="field-label">User ID (Name + Numbers):</label>
+            <input type="text" id="cust-reg-id" class="admin-input" placeholder="e.g. Rahul9876" autocomplete="username">
+            <small style="font-size:0.68rem; color:var(--text-muted); display:block; margin-top:2px;">User ID must contain Name + Numbers (e.g. Aman21)</small>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label class="field-label">Date of Birth (DOB):</label>
+            <input type="date" id="cust-reg-dob" class="admin-input" style="color-scheme: dark;">
+          </div>
+
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label class="field-label">Password:</label>
+            <input type="password" id="cust-reg-pin" class="admin-input" placeholder="Create Password" autocomplete="new-password">
+            <div class="password-rules-box">
+              <span id="rule-len" class="rule-item">❌ Min 9 characters (&gt; 8)</span>
+              <span id="rule-upper" class="rule-item">❌ At least 2 Uppercase (A-Z)</span>
+              <span id="rule-num" class="rule-item">❌ Numbers included (0-9)</span>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label class="field-label">Confirm Password:</label>
+            <input type="password" id="cust-reg-confirmpin" class="admin-input" placeholder="Confirm Password" autocomplete="new-password">
+          </div>
+
+          <p id="cust-reg-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
+          <p id="cust-reg-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
+
+          <div class="form-actions" style="margin-top: 0.75rem;">
+            <button id="cust-register-btn" class="btn btn-gold btn-block">🎁 Create Account & Claim 10 Coins</button>
+          </div>
+        </form>
+
+        <!-- Forgot Password Pane -->
+        <div id="customer-forgot-pane" class="auth-form hidden">
+          <div class="admin-badge-notice" style="margin-bottom:0.75rem;">
+            <span style="font-size: 1.2rem;">🔑</span>
+            <div>
+              <strong>Reset Forgotten Password</strong>
+              <p style="font-size:0.72rem; color:var(--text-secondary); margin:0;">Enter User ID and DOB to verify your account.</p>
+            </div>
+          </div>
+
+          <!-- Step 1: Verification -->
+          <div id="forgot-step1">
+            <div class="form-group">
+              <label class="field-label">User ID:</label>
+              <input type="text" id="forgot-id-input" class="admin-input" placeholder="Enter your registered User ID">
+            </div>
+
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">Date of Birth (DOB):</label>
+              <input type="date" id="forgot-dob-input" class="admin-input" style="color-scheme: dark;">
+            </div>
+
+            <p id="forgot-step1-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
+
+            <div class="form-actions" style="margin-top: 0.75rem;">
+              <button id="forgot-verify-btn" class="btn btn-primary btn-block">Verify Identity & Continue</button>
+            </div>
+          </div>
+
+          <!-- Step 2: New Password (shown upon successful DOB verification) -->
+          <div id="forgot-step2" class="hidden">
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">New Password:</label>
+              <input type="password" id="forgot-new-pin" class="admin-input" placeholder="Enter New Password">
+              <div class="password-rules-box">
+                <span id="forgot-rule-len" class="rule-item">❌ Min 9 characters (&gt; 8)</span>
+                <span id="forgot-rule-upper" class="rule-item">❌ At least 2 Uppercase (A-Z)</span>
+                <span id="forgot-rule-num" class="rule-item">❌ Numbers included (0-9)</span>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">Confirm New Password:</label>
+              <input type="password" id="forgot-confirm-new-pin" class="admin-input" placeholder="Confirm New Password">
+            </div>
+
+            <p id="forgot-step2-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
+            <p id="forgot-step2-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
+
+            <div class="form-actions" style="margin-top: 0.75rem;">
+              <button id="forgot-reset-btn" class="btn btn-gold btn-block">🔒 Save New Password & Login</button>
+            </div>
+          </div>
+
+          <div style="text-align:center; margin-top:0.75rem;">
+            <button type="button" id="forgot-back-btn" class="link-btn" style="background:none; border:none; color:var(--text-secondary); font-size:0.75rem; cursor:pointer; text-decoration:underline;">&larr; Back to Sign In</button>
+          </div>
+        </div>
+
       </div>
 
       <!-- TAB 2: ADMIN MASTER AUTH PANE -->
