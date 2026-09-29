@@ -475,9 +475,6 @@ class SpinWheelApp {
     this.setCustomTimerBtn = document.getElementById('set-custom-timer-btn');
     this.quickRoundHourSelect = document.getElementById('quick-round-hour-select');
     this.manualRoundWinnerSelect = document.getElementById('manual-round-winner-select');
-    this.manualRoundWinnerInput = document.getElementById('manual-round-winner-input');
-    this.customTitleRow = document.getElementById('custom-title-row');
-    this.manualRoundTitleInput = document.getElementById('manual-round-title-input');
     this.applyTimeWinnerBtn = document.getElementById('apply-time-winner-btn');
     this.testTimeWinnerBtn = document.getElementById('test-time-winner-btn');
     this.activeTimingBadge = document.getElementById('active-timing-badge');
@@ -486,26 +483,7 @@ class SpinWheelApp {
     this.clearTimingBtn = document.getElementById('clear-timing-btn');
     this.timerStatusFeedback = document.getElementById('timer-status-feedback');
 
-    // Section 2 Controls
-    this.forcedSelect = document.getElementById('forced-winner-select');
-    this.applyForcedBtn = document.getElementById('apply-forced-btn');
-    this.quickTestSpinBtn = document.getElementById('quick-test-spin-btn');
-    this.activeForcedIndicator = document.getElementById('active-forced-indicator');
-    this.forcedTargetNumberEl = document.getElementById('forced-target-number');
-    this.clearForcedBtn = document.getElementById('clear-forced-btn');
-    this.queueRound1 = document.getElementById('queue-round-1');
-    this.queueRound2 = document.getElementById('queue-round-2');
-    this.queueRound3 = document.getElementById('queue-round-3');
-    this.saveQueueBtn = document.getElementById('save-queue-btn');
-    this.queueSaveMsg = document.getElementById('queue-save-msg');
-
-    // Section 3 Controls
-    this.slotsEditorGrid = document.getElementById('slots-editor-grid');
-    this.saveSlicesBtn = document.getElementById('save-slices-btn');
-    this.randomizeSlicesBtn = document.getElementById('randomize-slices-btn');
-    this.slicesSaveMsg = document.getElementById('slices-save-msg');
-
-    // Section 4 Controls (4-Slot Daily Schedule)
+    // Section 2 Controls (4-Slot Daily Schedule)
     this.scheduleTableBody = document.getElementById('schedule-table-body');
     this.autoFillScheduleBtn = document.getElementById('auto-fill-schedule-btn');
 
@@ -688,16 +666,9 @@ class SpinWheelApp {
     let wheelNeedsRedraw = false;
     let historyNeedsRedraw = false;
 
-    // 1. Slices (Permanent 10 numbers)
-    if (Array.isArray(state.slices) && state.slices.length === 10) {
-      const currentJson = JSON.stringify(this.slices);
-      const newJson = JSON.stringify(state.slices);
-      if (currentJson !== newJson) {
-        this.slices = state.slices.map(n => Math.min(100, Math.max(1, parseInt(n, 10) || 1)));
-        localStorage.setItem(STATE_KEYS.SLICES, JSON.stringify(this.slices));
-        wheelNeedsRedraw = true;
-      }
-    }
+    // 1. Slices (Strictly fixed 10 numbers: 10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
+    this.slices = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    localStorage.setItem(STATE_KEYS.SLICES, JSON.stringify(this.slices));
 
     // 2. History
     if (Array.isArray(state.history)) {
@@ -865,20 +836,7 @@ class SpinWheelApp {
   // LOCAL STORAGE LOADERS
   // ==========================================================
   loadLocalSlices() {
-    try {
-      const saved = localStorage.getItem(STATE_KEYS.SLICES);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 10) {
-          const oldList = [26, 33, 35, 38, 42, 59, 68, 77, 86, 94];
-          const isOld = parsed.every((v, i) => v === oldList[i]);
-          if (!isOld) {
-            return parsed.map(n => Math.min(100, Math.max(1, parseInt(n, 10) || 1)));
-          }
-        }
-      }
-    } catch (e) {}
-    return [...this.defaultSlices];
+    return [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
   }
 
   loadLocalHistory() {
@@ -1154,89 +1112,50 @@ class SpinWheelApp {
     });
 
     // Specific Round Timing Dropdown change (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM)
-    this.quickRoundHourSelect.addEventListener('change', () => {
-      const val = this.quickRoundHourSelect.value;
-      if (val === 'CUSTOM') {
-        this.customTitleRow.classList.remove('hidden');
-        this.manualRoundTitleInput.focus();
-      } else {
-        this.customTitleRow.classList.add('hidden');
-        this.manualRoundTitleInput.value = val;
-      }
-      this.updateSection1BadgeForSelectedSlot();
-    });
-
-    // Winning Number Selector dropdown change
-    this.manualRoundWinnerSelect.addEventListener('change', () => {
-      const val = this.manualRoundWinnerSelect.value;
-      if (val === 'CUSTOM') {
-        this.manualRoundWinnerInput.classList.remove('hidden');
-        this.manualRoundWinnerInput.focus();
-      } else {
-        this.manualRoundWinnerInput.classList.add('hidden');
-        this.manualRoundWinnerInput.value = val;
-      }
-    });
+    if (this.quickRoundHourSelect) {
+      this.quickRoundHourSelect.addEventListener('change', () => {
+        this.updateSection1BadgeForSelectedSlot();
+      });
+    }
 
     // Section 1: Set Round Time & Lock Predetermined Winner (Real Round)
-    this.applyTimeWinnerBtn.addEventListener('click', () => {
-      let roundTitle = this.quickRoundHourSelect.value;
-      if (roundTitle === 'CUSTOM') {
-        roundTitle = this.manualRoundTitleInput.value.trim() || '12:00 PM';
-      }
+    if (this.applyTimeWinnerBtn) {
+      this.applyTimeWinnerBtn.addEventListener('click', () => {
+        const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : '12:00 PM';
+        let winnerNum = parseInt(this.manualRoundWinnerSelect?.value, 10);
+        if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) winnerNum = this.slices[0] || 10;
 
-      let winnerNum;
-      if (this.manualRoundWinnerSelect.value === 'CUSTOM') {
-        winnerNum = parseInt(this.manualRoundWinnerInput.value, 10);
-      } else {
-        winnerNum = parseInt(this.manualRoundWinnerSelect.value, 10);
-      }
+        // 1. Lock predetermined winner for this specific slot in daily schedule
+        if (this.dailySchedule[roundTitle] !== undefined) {
+          this.dailySchedule[roundTitle] = winnerNum;
+          this.renderDailyScheduleTable();
+        } else {
+          this.forcedNext = winnerNum;
+        }
 
-      if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 10;
-      if (winnerNum > 100) winnerNum = 100;
+        // 2. Update Active Timing Badge
+        this.updateSection1BadgeForSelectedSlot();
 
-      // 1. Lock predetermined winner for this specific slot in daily schedule
-      if (this.dailySchedule[roundTitle] !== undefined) {
-        this.dailySchedule[roundTitle] = winnerNum;
-        this.renderDailyScheduleTable();
-      } else {
-        this.forcedNext = winnerNum;
-        this.updateForcedWinnerUI();
-      }
+        // 3. Switch to REAL schedule mode
+        this.timerMode = 'REAL';
+        this.customTimerTarget = null;
+        if (this.timerModeReal) this.timerModeReal.checked = true;
 
-      // 2. Update Active Timing Badge
-      this.updateSection1BadgeForSelectedSlot();
-
-      // 3. Switch to REAL schedule mode
-      this.timerMode = 'REAL';
-      this.customTimerTarget = null;
-      if (this.timerModeReal) this.timerModeReal.checked = true;
-
-      // 4. Broadcast to all devices in real-time
-      this.pushStateToServer({
-        timerMode: 'REAL',
-        customTimerTarget: null
+        // 4. Broadcast to all devices in real-time
+        this.pushStateToServer({
+          timerMode: 'REAL',
+          customTimerTarget: null
+        });
+        this.showTimerFeedback(`✅ Locked Winner #${winnerNum} for Slot "${roundTitle}"!`);
       });
-      this.showTimerFeedback(`✅ Locked Winner #${winnerNum} for Slot "${roundTitle}"!`);
-    });
+    }
 
     // Section 1: Test Winner Right Now (Test Spin - DOES NOT SAVE TO HISTORY)
     if (this.testTimeWinnerBtn) {
       this.testTimeWinnerBtn.addEventListener('click', () => {
-        let winnerNum;
-        if (this.manualRoundWinnerSelect.value === 'CUSTOM') {
-          winnerNum = parseInt(this.manualRoundWinnerInput.value, 10);
-        } else {
-          winnerNum = parseInt(this.manualRoundWinnerSelect.value, 10);
-        }
-
-        if (isNaN(winnerNum) || winnerNum < 1) winnerNum = this.slices[0] || 10;
-        if (winnerNum > 100) winnerNum = 100;
-
-        let roundTitle = this.quickRoundHourSelect.value;
-        if (roundTitle === 'CUSTOM') {
-          roundTitle = this.manualRoundTitleInput.value.trim() || '12:00 PM';
-        }
+        let winnerNum = parseInt(this.manualRoundWinnerSelect?.value, 10);
+        if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) winnerNum = this.slices[0] || 10;
+        const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : '12:00 PM';
 
         this.closeAdminDrawer();
         setTimeout(() => {
@@ -1246,137 +1165,57 @@ class SpinWheelApp {
     }
 
     // Section 1: Clear / Reset Winner Only (Time slot remains the EXACT same!)
-    this.clearTimingBtn.addEventListener('click', () => {
-      // Keep the active time slot exactly as selected or currently active
-      const selectedSlot = (this.quickRoundHourSelect && this.quickRoundHourSelect.value) 
-        || (this.badgeTimingText && this.badgeTimingText.textContent.trim()) 
-        || '12:00 PM';
+    if (this.clearTimingBtn) {
+      this.clearTimingBtn.addEventListener('click', () => {
+        const selectedSlot = (this.quickRoundHourSelect && this.quickRoundHourSelect.value) 
+          || (this.badgeTimingText && this.badgeTimingText.textContent.trim()) 
+          || '12:00 PM';
 
-      this.forcedNext = null;
-
-      // Reset the predetermined winner for this slot back to AUTO in schedule
-      if (this.dailySchedule[selectedSlot] !== undefined) {
-        this.dailySchedule[selectedSlot] = 'AUTO';
-      }
-
-      this.updateForcedWinnerUI();
-      this.renderDailyScheduleTable();
-
-      // Reset the selector UI back to default
-      if (this.slices && this.slices.length > 0) {
-        this.manualRoundWinnerSelect.value = this.slices[0];
-      }
-      this.manualRoundWinnerInput.value = '';
-      this.manualRoundWinnerInput.classList.add('hidden');
-
-      // Update badge display - Time slot remains strictly unchanged!
-      this.activeTimingBadge.classList.remove('hidden');
-      this.badgeTimingText.textContent = selectedSlot;
-      this.badgeTimingWinner.textContent = 'Auto (Random)';
-
-      // Keep round time select locked on the exact same time slot
-      if (this.quickRoundHourSelect) {
-        this.quickRoundHourSelect.value = selectedSlot;
-      }
-
-      this.pushStateToServer();
-      this.showTimerFeedback(`✅ Winner for Slot "${selectedSlot}" reset to Auto (Time slot remains active)!`);
-    });
-
-    // Section 2: Set Next Winner
-    this.applyForcedBtn.addEventListener('click', () => {
-      const val = this.forcedSelect.value;
-      if (val === 'AUTO') {
         this.forcedNext = null;
-      } else {
-        this.forcedNext = parseInt(val, 10);
-      }
-      this.updateForcedWinnerUI();
-      this.pushStateToServer();
-      this.showTimerFeedback('Upcoming winner setting saved to all devices!');
-    });
 
-    // Section 2: Quick Test Spin (Test Spin - DOES NOT SAVE TO HISTORY)
-    if (this.quickTestSpinBtn) {
-      this.quickTestSpinBtn.addEventListener('click', () => {
-        const val = this.forcedSelect.value;
-        let target = null;
-        if (val !== 'AUTO') {
-          target = parseInt(val, 10);
+        // Reset the predetermined winner for this slot back to AUTO in schedule
+        if (this.dailySchedule[selectedSlot] !== undefined) {
+          this.dailySchedule[selectedSlot] = 'AUTO';
         }
-        this.closeAdminDrawer();
-        setTimeout(() => {
-          this.dispatchSynchronizedSpin('Quick Test Spin', true, target);
-        }, 200);
+
+        this.renderDailyScheduleTable();
+
+        // Reset the selector UI back to default
+        if (this.slices && this.slices.length > 0 && this.manualRoundWinnerSelect) {
+          this.manualRoundWinnerSelect.value = this.slices[0];
+        }
+
+        // Update badge display - Time slot remains strictly unchanged!
+        if (this.activeTimingBadge) {
+          this.activeTimingBadge.classList.remove('hidden');
+          if (this.badgeTimingText) this.badgeTimingText.textContent = selectedSlot;
+          if (this.badgeTimingWinner) this.badgeTimingWinner.textContent = 'Auto (Random)';
+        }
+
+        if (this.quickRoundHourSelect) {
+          this.quickRoundHourSelect.value = selectedSlot;
+        }
+
+        this.pushStateToServer();
+        this.showTimerFeedback(`✅ Winner for Slot "${selectedSlot}" reset to Auto (Time slot remains active)!`);
       });
     }
 
-    this.clearForcedBtn.addEventListener('click', () => {
-      this.forcedNext = null;
-      this.updateForcedWinnerUI();
-      this.pushStateToServer();
-    });
-
-    // Section 2: Save Upcoming Queue
-    this.saveQueueBtn.addEventListener('click', () => {
-      const q1 = this.queueRound1.value === 'AUTO' ? 'AUTO' : parseInt(this.queueRound1.value, 10);
-      const q2 = this.queueRound2.value === 'AUTO' ? 'AUTO' : parseInt(this.queueRound2.value, 10);
-      const q3 = this.queueRound3.value === 'AUTO' ? 'AUTO' : parseInt(this.queueRound3.value, 10);
-      this.upcomingQueue = [q1, q2, q3];
-      this.pushStateToServer();
-      this.queueSaveMsg.textContent = 'Upcoming queue saved to all devices!';
-      setTimeout(() => { this.queueSaveMsg.textContent = ''; }, 3000);
-    });
-
-    // Section 3: Randomize 1-100
-    this.randomizeSlicesBtn.addEventListener('click', () => {
-      const randNumbers = [];
-      while (randNumbers.length < 10) {
-        const r = Math.floor(Math.random() * 100) + 1;
-        if (!randNumbers.includes(r)) randNumbers.push(r);
-      }
-      randNumbers.sort((a, b) => a - b);
-      this.slices = randNumbers;
-      this.renderWheel();
-      this.renderPredictionChips();
-      this.populateAdminControls();
-      this.pushStateToServer();
-      this.showSlicesSaveFeedback('Generated & Synced 10 random numbers (1-100)!');
-    });
-
-    // Section 3: Save Manual 10 Slots
-    this.saveSlicesBtn.addEventListener('click', () => {
-      const inputs = document.querySelectorAll('.slot-input');
-      const newSlices = [];
-      inputs.forEach(inp => {
-        let val = parseInt(inp.value, 10);
-        if (isNaN(val) || val < 1) val = 1;
-        if (val > 100) val = 100;
-        newSlices.push(val);
-      });
-      if (newSlices.length === 10) {
-        this.slices = newSlices;
-        this.renderWheel();
-        this.renderPredictionChips();
-        this.populateAdminControls();
+    // Section 2: Auto Fill 4 Slots
+    if (this.autoFillScheduleBtn) {
+      this.autoFillScheduleBtn.addEventListener('click', () => {
+        const sched = {};
+        DAILY_SLOTS.forEach(slot => {
+          const randIdx = Math.floor(Math.random() * this.slices.length);
+          sched[slot.label] = this.slices[randIdx];
+        });
+        this.dailySchedule = sched;
+        this.renderDailyScheduleTable();
+        this.updateSection1BadgeForSelectedSlot();
         this.pushStateToServer();
-        this.showSlicesSaveFeedback('Wheel numbers updated & synced to all devices!');
-      }
-    });
-
-    // Section 4: Auto Fill 4 Slots
-    this.autoFillScheduleBtn.addEventListener('click', () => {
-      const sched = {};
-      DAILY_SLOTS.forEach(slot => {
-        const randIdx = Math.floor(Math.random() * this.slices.length);
-        sched[slot.label] = this.slices[randIdx];
+        this.showTimerFeedback('Auto-filled 4 daily slots!');
       });
-      this.dailySchedule = sched;
-      this.renderDailyScheduleTable();
-      this.updateSection1BadgeForSelectedSlot();
-      this.pushStateToServer();
-      this.showTimerFeedback('Auto-filled 4 daily slots!');
-    });
+    }
 
     // Section 5: Change Master Password
     this.saveMasterKeyBtn.addEventListener('click', async () => {
@@ -2094,13 +1933,11 @@ class SpinWheelApp {
   }
 
   updateForcedWinnerUI() {
-    if (this.forcedNext !== null && this.forcedNext !== undefined) {
-      this.activeForcedIndicator.classList.remove('hidden');
+    if (this.forcedTargetNumberEl && this.forcedNext !== null && this.forcedNext !== undefined) {
+      this.activeForcedIndicator?.classList.remove('hidden');
       this.forcedTargetNumberEl.textContent = `Number ${this.forcedNext}`;
-      this.forcedSelect.value = this.forcedNext;
     } else {
-      this.activeForcedIndicator.classList.add('hidden');
-      this.forcedSelect.value = 'AUTO';
+      this.activeForcedIndicator?.classList.add('hidden');
     }
   }
 
@@ -2108,130 +1945,75 @@ class SpinWheelApp {
     const selectedSlot = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : '12:00 PM';
     const preset = this.dailySchedule[selectedSlot];
 
-    this.activeTimingBadge.classList.remove('hidden');
-    this.badgeTimingText.textContent = selectedSlot;
+    if (this.activeTimingBadge) {
+      this.activeTimingBadge.classList.remove('hidden');
+      if (this.badgeTimingText) this.badgeTimingText.textContent = selectedSlot;
 
-    if (preset && preset !== 'AUTO') {
-      this.badgeTimingWinner.textContent = `${preset}`;
-    } else if (this.forcedNext !== null) {
-      this.badgeTimingWinner.textContent = `${this.forcedNext}`;
-    } else {
-      this.badgeTimingWinner.textContent = 'Auto (Random)';
+      if (preset && preset !== 'AUTO') {
+        if (this.badgeTimingWinner) this.badgeTimingWinner.textContent = `${preset}`;
+      } else if (this.forcedNext !== null) {
+        if (this.badgeTimingWinner) this.badgeTimingWinner.textContent = `${this.forcedNext}`;
+      } else {
+        if (this.badgeTimingWinner) this.badgeTimingWinner.textContent = 'Auto (Random)';
+      }
     }
 
     // Also synchronize the winning number selector for this slot
-    if (preset && preset !== 'AUTO') {
-      const numVal = parseInt(preset, 10);
-      if (this.slices.includes(numVal)) {
-        this.manualRoundWinnerSelect.value = numVal;
-        this.manualRoundWinnerInput.classList.add('hidden');
+    if (this.manualRoundWinnerSelect) {
+      if (preset && preset !== 'AUTO') {
+        const numVal = parseInt(preset, 10);
+        if (this.slices.includes(numVal)) {
+          this.manualRoundWinnerSelect.value = numVal;
+        }
+      } else if (this.forcedNext !== null) {
+        const forcedNum = parseInt(this.forcedNext, 10);
+        if (this.slices.includes(forcedNum)) {
+          this.manualRoundWinnerSelect.value = forcedNum;
+        }
       } else {
-        this.manualRoundWinnerSelect.value = 'CUSTOM';
-        this.manualRoundWinnerInput.classList.remove('hidden');
-        this.manualRoundWinnerInput.value = numVal;
+        if (this.slices && this.slices.length > 0) {
+          this.manualRoundWinnerSelect.value = this.slices[0];
+        }
       }
-    } else if (this.forcedNext !== null) {
-      const forcedNum = parseInt(this.forcedNext, 10);
-      if (this.slices.includes(forcedNum)) {
-        this.manualRoundWinnerSelect.value = forcedNum;
-        this.manualRoundWinnerInput.classList.add('hidden');
-      } else {
-        this.manualRoundWinnerSelect.value = 'CUSTOM';
-        this.manualRoundWinnerInput.classList.remove('hidden');
-        this.manualRoundWinnerInput.value = forcedNum;
-      }
-    } else {
-      if (this.slices && this.slices.length > 0) {
-        this.manualRoundWinnerSelect.value = this.slices[0];
-      }
-      this.manualRoundWinnerInput.classList.add('hidden');
     }
   }
 
   populateAdminControls() {
     // Populate Timer Mode Radios & Inputs
     if (this.timerMode === 'MANUAL') {
-      this.timerModeManual.checked = true;
+      if (this.timerModeManual) this.timerModeManual.checked = true;
       const mins = Math.floor(this.customSecs / 60);
       const secs = this.customSecs % 60;
-      this.customTimerMins.value = mins;
-      this.customTimerSecs.value = secs;
+      if (this.customTimerMins) this.customTimerMins.value = mins;
+      if (this.customTimerSecs) this.customTimerSecs.value = secs;
     } else {
-      this.timerModeReal.checked = true;
+      if (this.timerModeReal) this.timerModeReal.checked = true;
     }
 
     // Set default selected slot in Section 1 to upcoming slot if not set
     const nextSlot = getNextSlotInfo(new Date());
-    const currentSelected = this.quickRoundHourSelect.value;
-    if (!currentSelected || currentSelected === 'CUSTOM') {
-      this.quickRoundHourSelect.value = nextSlot.label;
+    if (this.quickRoundHourSelect) {
+      const currentSelected = this.quickRoundHourSelect.value;
+      if (!currentSelected) {
+        this.quickRoundHourSelect.value = nextSlot.label;
+      }
     }
 
-    // Populate Section 1 Winning Number dropdown with the 10 permanent slices
-    this.manualRoundWinnerSelect.innerHTML = '';
-    this.slices.forEach((num, idx) => {
-      const opt = document.createElement('option');
-      opt.value = num;
-      opt.textContent = `Slot #${idx + 1}: ${num}`;
-      this.manualRoundWinnerSelect.appendChild(opt);
-    });
-    const customOpt = document.createElement('option');
-    customOpt.value = 'CUSTOM';
-    customOpt.textContent = 'Custom Number (1-100)...';
-    this.manualRoundWinnerSelect.appendChild(customOpt);
+    // Populate Section 1 Winning Number dropdown with the 10 permanent fixed slices
+    if (this.manualRoundWinnerSelect) {
+      this.manualRoundWinnerSelect.innerHTML = '';
+      this.slices.forEach((num, idx) => {
+        const opt = document.createElement('option');
+        opt.value = num;
+        opt.textContent = `Number ${num} (Slot #${idx + 1})`;
+        this.manualRoundWinnerSelect.appendChild(opt);
+      });
+    }
 
     // Update Section 1 Badge and selector for currently selected slot
     this.updateSection1BadgeForSelectedSlot();
 
-    // 1. Populate Forced Select Dropdown in Section 2
-    this.forcedSelect.innerHTML = '<option value="AUTO">🎲 Automatic / Random Choice</option>';
-    this.slices.forEach((num, idx) => {
-      const opt = document.createElement('option');
-      opt.value = num;
-      opt.textContent = `Slot #${idx + 1}: ${num}`;
-      this.forcedSelect.appendChild(opt);
-    });
-    this.updateForcedWinnerUI();
-
-    // Populate Upcoming Queue Selects
-    [this.queueRound1, this.queueRound2, this.queueRound3].forEach((sel, qIdx) => {
-      sel.innerHTML = '<option value="AUTO">🎲 Auto</option>';
-      this.slices.forEach(num => {
-        const opt = document.createElement('option');
-        opt.value = num;
-        opt.textContent = `${num}`;
-        if (this.upcomingQueue[qIdx] !== 'AUTO' && parseInt(this.upcomingQueue[qIdx], 10) === num) {
-          opt.selected = true;
-        }
-        sel.appendChild(opt);
-      });
-    });
-
-    // 2. Populate 10 Slots Inputs
-    this.slotsEditorGrid.innerHTML = '';
-    this.slices.forEach((num, idx) => {
-      const div = document.createElement('div');
-      div.className = 'slot-input-item';
-      div.innerHTML = `
-        <span class="slot-label">Slot #${idx + 1}</span>
-        <input type="number" min="1" max="100" class="slot-input" value="${num}" data-index="${idx}">
-      `;
-      this.slotsEditorGrid.appendChild(div);
-    });
-
-    const inputs = this.slotsEditorGrid.querySelectorAll('.slot-input');
-    inputs.forEach(inp => {
-      inp.addEventListener('input', (e) => {
-        const idx = parseInt(e.target.getAttribute('data-index'), 10);
-        let val = parseInt(e.target.value, 10);
-        if (!isNaN(val) && val >= 1 && val <= 100) {
-          this.slices[idx] = val;
-          this.renderWheel();
-        }
-      });
-    });
-
-    // 3. Render 4-Slot Daily Schedule Table
+    // Render 4-Slot Daily Schedule Table
     this.renderDailyScheduleTable();
   }
 
@@ -2706,24 +2488,17 @@ class SpinWheelApp {
     const currentSlot = getCurrentActiveSlot(new Date());
     const nextSlot = getNextSlotInfo(new Date());
 
-    // 1. Highest Priority: Forced Next Winner
+    // 1. Highest Priority: Forced Next Winner (if manually set)
     if (this.forcedNext !== null && this.forcedNext !== undefined) {
       const forced = parseInt(this.forcedNext, 10);
       this.forcedNext = null;
       this.updateForcedWinnerUI();
-      return forced;
-    }
-
-    // 2. Second Priority: Upcoming Queue (1st slot)
-    if (this.upcomingQueue && this.upcomingQueue.length > 0 && this.upcomingQueue[0] !== 'AUTO') {
-      const queueVal = parseInt(this.upcomingQueue[0], 10);
-      this.upcomingQueue = [this.upcomingQueue[1] || 'AUTO', this.upcomingQueue[2] || 'AUTO', 'AUTO'];
-      if (this.slices.includes(queueVal)) {
-        return queueVal;
+      if (this.slices.includes(forced)) {
+        return forced;
       }
     }
 
-    // 3. Third Priority: 4-Slot Predetermined Schedule for this slot
+    // 2. 4-Slot Predetermined Schedule for current/next slot
     const scheduledVal = this.dailySchedule[currentSlot.label] || this.dailySchedule[nextSlot.label];
     if (scheduledVal && scheduledVal !== 'AUTO') {
       const schedNum = parseInt(scheduledVal, 10);
@@ -2732,7 +2507,7 @@ class SpinWheelApp {
       }
     }
 
-    // 4. Fallback: Pick random number from permanent 10 slices
+    // 3. Fallback: Pick random number from fixed 10 slices (10, 20, 30... 100)
     const randIdx = Math.floor(Math.random() * this.slices.length);
     return this.slices[randIdx];
   }

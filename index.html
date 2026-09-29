@@ -595,12 +595,12 @@
                 </div>
               </div>
 
-              <!-- SPECIFIC ROUND TIMING & WINNING NUMBER SETUP (e.g. 04:00 PM -> 21) -->
+              <!-- SPECIFIC ROUND TIMING & WINNING NUMBER SETUP (e.g. 04:00 PM -> 20) -->
               <div class="round-winner-preset-box" style="margin-top: 0.9rem;">
                 <div class="preset-box-title">
                   <span>🎯 Set Round Timing & Predetermined Winner:</span>
                 </div>
-                <p class="card-desc" style="margin-bottom: 0.5rem; font-size: 0.76rem;">Pick a round time (e.g. 04:00 PM) and choose what number will win at that time (e.g. 21):</p>
+                <p class="card-desc" style="margin-bottom: 0.5rem; font-size: 0.76rem;">Pick a round time (12PM, 4PM, 8PM, 11PM) and choose what fixed number will win at that time (10-100):</p>
                 
                 <div class="timing-winner-grid">
                   <div class="grid-field">
@@ -610,32 +610,24 @@
                       <option value="04:00 PM" selected>04:00 PM</option>
                       <option value="08:00 PM">08:00 PM</option>
                       <option value="11:00 PM">11:00 PM</option>
-                      <option value="CUSTOM">Custom Title / Text...</option>
                     </select>
                   </div>
 
                   <div class="grid-field">
-                    <label class="field-label">Winning Number:</label>
+                    <label class="field-label">Winning Number (Fixed 10-100):</label>
                     <select id="manual-round-winner-select" class="admin-select">
-                      <!-- Dynamically populated with the 10 permanent wheel slices -->
+                      <!-- Dynamically populated with fixed 10-100 numbers -->
                     </select>
-                    <input type="number" id="manual-round-winner-input" class="admin-input hidden" min="1" max="100" placeholder="Type 1-100" style="margin-top: 4px;">
                   </div>
                 </div>
 
-                <!-- Custom Round Title Input (Shown if custom chosen or for manual edits) -->
-                <div id="custom-title-row" class="custom-title-row hidden" style="margin-top: 0.5rem;">
-                  <label class="field-label">Custom Round Title / Time:</label>
-                  <input type="text" id="manual-round-title-input" class="admin-input" placeholder="e.g. 04:00 PM or Special Live Round 1" value="04:00 PM">
-                </div>
-
                 <div class="timing-actions-row" style="margin-top: 0.65rem;">
-                  <button id="apply-time-winner-btn" class="btn btn-gold btn-block">🔒 Set Round Time & Lock Winner (e.g. 04:00 PM ➔ 21)</button>
+                  <button id="apply-time-winner-btn" class="btn btn-gold btn-block">🔒 Set Round Time & Lock Winner (e.g. 04:00 PM ➔ 20)</button>
                   <button id="test-time-winner-btn" class="btn btn-primary btn-block" style="margin-top: 0.45rem;">⚡ Test This Winner Right Now (No History Save)</button>
                 </div>
 
                 <div id="active-timing-badge" class="active-timing-badge hidden">
-                  <span>🎯 Active: Round <strong id="badge-timing-text">04:00 PM</strong> &bull; Locked Winner: <strong id="badge-timing-winner" class="highlight-gold">21</strong></span>
+                  <span>🎯 Active: Round <strong id="badge-timing-text">04:00 PM</strong> &bull; Locked Winner: <strong id="badge-timing-winner" class="highlight-gold">20</strong></span>
                   <button id="clear-timing-btn" class="btn-text">Reset</button>
                 </div>
 
@@ -643,85 +635,11 @@
               </div>
             </div>
 
-            <!-- SECTION 2: DECIDE UPCOMING WINNER -->
-            <div class="admin-card">
-              <div class="admin-card-title">
-                <span class="step-num">2</span>
-                <h4>Change Upcoming Winner</h4>
-              </div>
-              <p class="card-desc">Choose which number will win on the next scheduled spin:</p>
-              
-              <div class="forced-selector-row">
-                <select id="forced-winner-select" class="admin-select">
-                  <option value="AUTO">🎲 Automatic / Random Choice</option>
-                </select>
-                <button id="apply-forced-btn" class="btn btn-primary">Lock Winner</button>
-              </div>
-
-              <div class="quick-test-row" style="margin-top: 0.6rem;">
-                <button id="quick-test-spin-btn" class="btn btn-gold btn-block">⚡ Test Upcoming Winner Right Now (No History Save)</button>
-              </div>
-
-              <div id="active-forced-indicator" class="active-forced-tag hidden">
-                <span>Locked Upcoming Winner: </span>
-                <strong id="forced-target-number">None</strong>
-                <button id="clear-forced-btn" class="btn-text">Clear</button>
-              </div>
-
-              <!-- UPCOMING 3 ROUNDS QUEUE -->
-              <div class="upcoming-queue-box">
-                <div class="queue-title">
-                  <span>📅 Preset Next 3 Upcoming Rounds:</span>
-                  <button id="save-queue-btn" class="btn btn-secondary btn-sm">Save Queue</button>
-                </div>
-                <div class="queue-grid">
-                  <div class="queue-item">
-                    <span class="queue-label">Next (1st)</span>
-                    <select id="queue-round-1" class="admin-select queue-select">
-                      <option value="AUTO">Auto</option>
-                    </select>
-                  </div>
-                  <div class="queue-item">
-                    <span class="queue-label">2nd Next</span>
-                    <select id="queue-round-2" class="admin-select queue-select">
-                      <option value="AUTO">Auto</option>
-                    </select>
-                  </div>
-                  <div class="queue-item">
-                    <span class="queue-label">3rd Next</span>
-                    <select id="queue-round-3" class="admin-select queue-select">
-                      <option value="AUTO">Auto</option>
-                    </select>
-                  </div>
-                </div>
-                <span id="queue-save-msg" class="save-status-msg" style="display:block; margin-top:4px;"></span>
-              </div>
-            </div>
-
-            <!-- SECTION 3: CHANGE 10 WHEEL NUMBERS MANUALLY (1-100) -->
+            <!-- SECTION 2: 4-SLOT PREDETERMINED SCHEDULE (12PM, 4PM, 8PM, 11PM) -->
             <div class="admin-card">
               <div class="admin-card-header-flex">
                 <div class="admin-card-title">
-                  <span class="step-num">3</span>
-                  <h4>Manual 10 Slices Editor (1-100)</h4>
-                </div>
-                <button id="randomize-slices-btn" class="btn btn-secondary btn-sm">🎲 Randomize 1-100</button>
-              </div>
-              <p class="card-desc">Type custom values (1 to 100) for each of the 10 slots with live preview:</p>
-              <div class="slots-editor-grid" id="slots-editor-grid">
-                <!-- 10 editable input slots -->
-              </div>
-              <div class="admin-actions-row">
-                <button id="save-slices-btn" class="btn btn-primary">Save Wheel Numbers</button>
-                <span id="slices-save-msg" class="save-status-msg"></span>
-              </div>
-            </div>
-
-            <!-- SECTION 4: 4-SLOT PREDETERMINED SCHEDULE (12PM, 4PM, 8PM, 11PM) -->
-            <div class="admin-card">
-              <div class="admin-card-header-flex">
-                <div class="admin-card-title">
-                  <span class="step-num">4</span>
+                  <span class="step-num">2</span>
                   <h4>4-Slot Predetermined Schedule</h4>
                 </div>
                 <button id="auto-fill-schedule-btn" class="btn btn-secondary btn-sm">Auto Fill 4 Slots</button>
@@ -743,10 +661,10 @@
               </div>
             </div>
 
-            <!-- SECTION 6: CHANGE MASTER PASSWORD & HISTORY CLEAR -->
+            <!-- SECTION 3: CHANGE MASTER PASSWORD & HISTORY CLEAR -->
             <div class="admin-card">
               <div class="admin-card-title">
-                <span class="step-num">6</span>
+                <span class="step-num">3</span>
                 <h4>Change Master Password & Data</h4>
               </div>
               <p class="card-desc">Update your Master Authentication password:</p>
@@ -766,11 +684,11 @@
           <!-- TAB 2: PLAYERS & LIVE BETS -->
           <div id="admin-tab-players-pane" class="admin-tab-pane hidden">
             
-            <!-- SECTION 5: REGISTERED PLAYERS & IHD COIN CREDIT CONTROLLER -->
+            <!-- SECTION 4: REGISTERED PLAYERS & IHD COIN CREDIT CONTROLLER -->
             <div class="admin-card control-highlight">
               <div class="admin-card-header-flex">
                 <div class="admin-card-title">
-                  <span class="step-num">5</span>
+                  <span class="step-num">4</span>
                   <h4>👥 Registered Players & IHD Coin Manager</h4>
                 </div>
                 <button id="admin-refresh-players-btn" class="btn btn-secondary btn-sm">🔄 Refresh List</button>
