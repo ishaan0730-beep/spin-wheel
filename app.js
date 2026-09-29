@@ -574,6 +574,36 @@ class SpinWheelApp {
     this.adminRejectQuickReason = document.getElementById('admin-reject-quick-reason');
     this.adminRejectReasonText = document.getElementById('admin-reject-reason-text');
 
+    // Admin Player Profile & Complete History Modal Elements
+    this.adminPlayerHistoryModal = document.getElementById('admin-player-history-modal');
+    this.adminPlayerHistoryOverlay = document.getElementById('admin-player-history-overlay');
+    this.adminPlayerHistoryCloseBtn = document.getElementById('admin-player-history-close-btn');
+    this.aphAvatarIcon = document.getElementById('aph-avatar-icon');
+    this.aphPlayerName = document.getElementById('aph-player-name');
+    this.aphPlayerId = document.getElementById('aph-player-id');
+    this.aphPlayerMobile = document.getElementById('aph-player-mobile');
+    this.aphPlayerDob = document.getElementById('aph-player-dob');
+    this.aphPlayerJoined = document.getElementById('aph-player-joined');
+    this.aphPlayerPin = document.getElementById('aph-player-pin');
+    this.aphTogglePinBtn = document.getElementById('aph-toggle-pin-btn');
+    this.aphCoinsBalance = document.getElementById('aph-coins-balance');
+    this.aphTotalBets = document.getElementById('aph-total-bets');
+    this.aphTotalWins = document.getElementById('aph-total-wins');
+    this.aphTotalWd = document.getElementById('aph-total-wd');
+    this.aphBankAccName = document.getElementById('aph-bank-acc-name');
+    this.aphBankAccNum = document.getElementById('aph-bank-acc-num');
+    this.aphBankIfsc = document.getElementById('aph-bank-ifsc');
+    this.aphBetsTableBody = document.getElementById('aph-bets-table-body');
+    this.aphWdTableBody = document.getElementById('aph-wd-table-body');
+    this.aphTabBadgeBets = document.getElementById('aph-tab-badge-bets');
+    this.aphTabBadgeWd = document.getElementById('aph-tab-badge-wd');
+    this.aphQuickCreditAmount = document.getElementById('aph-quick-credit-amount');
+    this.aphQuickCreditBtn = document.getElementById('aph-quick-credit-btn');
+    this.aphQuickCreditFeedback = document.getElementById('aph-quick-credit-feedback');
+    this.aphExportPlayerJsonBtn = document.getElementById('aph-export-player-json-btn');
+    this.currentAphPlayerId = null;
+    this.currentAphTab = 'bets';
+
     this.adminMiniCanvas = document.getElementById('admin-mini-wheel-canvas');
     this.adminMiniCtx = this.adminMiniCanvas ? this.adminMiniCanvas.getContext('2d') : null;
     this.adminMiniCountdown = document.getElementById('admin-mini-countdown');
@@ -2243,10 +2273,9 @@ class SpinWheelApp {
       return;
     }
 
-    // Deduct coins
+    // Deduct coins & track bet history
     this.currentCustomer.coins -= amount;
     this.currentCustomer.totalBets = (this.currentCustomer.totalBets || 0) + 1;
-    this.saveCustomerSession(this.currentCustomer);
 
     const slotChoice = this.playerTargetSlotSelect ? this.playerTargetSlotSelect.value : 'NEXT';
     const slotDetails = this.getTargetSlotDetails(slotChoice);
@@ -2264,8 +2293,23 @@ class SpinWheelApp {
       targetDateFull: slotDetails.dateFull,
       displaySlot: slotDetails.displayStr,
       placedTime: formatTime12(new Date()),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      status: 'ACTIVE'
     };
+
+    if (!Array.isArray(this.currentCustomer.betHistory)) this.currentCustomer.betHistory = [];
+    this.currentCustomer.betHistory.unshift(betObj);
+    this.saveCustomerSession(this.currentCustomer);
+
+    if (this.customersDb && this.customersDb[this.currentCustomer.id]) {
+      this.customersDb[this.currentCustomer.id].coins = this.currentCustomer.coins;
+      this.customersDb[this.currentCustomer.id].totalBets = this.currentCustomer.totalBets;
+      if (!Array.isArray(this.customersDb[this.currentCustomer.id].betHistory)) {
+        this.customersDb[this.currentCustomer.id].betHistory = [];
+      }
+      this.customersDb[this.currentCustomer.id].betHistory.unshift(betObj);
+      this.saveCustomersDB(this.customersDb);
+    }
 
     this.currentBet = betObj;
     this.saveCurrentBet(this.currentBet);
@@ -2557,6 +2601,11 @@ class SpinWheelApp {
       this.adminConfirmReject();
     });
 
+    // Admin Player Full History Modal Events
+    this.adminPlayerHistoryCloseBtn?.addEventListener('click', () => this.closePlayerHistoryModal());
+    this.adminPlayerHistoryOverlay?.addEventListener('click', () => this.closePlayerHistoryModal());
+    this.aphTogglePinBtn?.addEventListener('click', () => this.toggleAphPin());
+
     this.quickCredit50?.addEventListener('click', () => this.setQuickCreditAmount(50));
     this.quickCredit100?.addEventListener('click', () => this.setQuickCreditAmount(100));
     this.quickCredit500?.addEventListener('click', () => this.setQuickCreditAmount(500));
@@ -2689,8 +2738,10 @@ class SpinWheelApp {
 
       tr.innerHTML = `
         <td>
-          <strong style="color:#fff;">${w.customerName || 'Player'}</strong><br>
-          <span style="font-family:monospace; color:#00f0ff; font-weight:700; font-size:0.75rem;">ID: ${w.customerId}</span>
+          <a href="javascript:void(0)" class="player-id-link" onclick="app.openPlayerHistoryModal('${w.customerId}')" title="Tap to view player profile & history">
+            <strong style="color:#fff;">${w.customerName || 'Player'}</strong><br>
+            <span style="font-family:monospace; color:#00f0ff; font-weight:700; font-size:0.75rem;">ID: ${w.customerId}</span>
+          </a>
           ${w.customerMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${w.customerMobile}</span>` : ''}
         </td>
         <td>
@@ -2910,8 +2961,10 @@ class SpinWheelApp {
       const coins = p.coins || 0;
       tr.innerHTML = `
         <td>
-          <strong style="color:#fff;">${p.name || 'Player'}</strong><br>
-          <span style="font-family:monospace; color:#00f0ff; font-weight:700;">ID: ${p.id}</span>
+          <a href="javascript:void(0)" class="player-id-link" onclick="app.openPlayerHistoryModal('${p.id}')" title="Tap to view full history of ${p.name || p.id}">
+            <strong style="color:#fff; display:block;">${p.name || 'Player'}</strong>
+            <span style="font-family:monospace; color:#00f0ff; font-weight:700;">ID: ${p.id}</span>
+          </a>
         </td>
         <td>
           <span>📱 ${p.mobile || '--'}</span><br>
@@ -2922,11 +2975,12 @@ class SpinWheelApp {
           <span style="font-size:0.68rem; color:var(--text-secondary);">${p.totalBets || 0} Bets</span>
         </td>
         <td>
-          <div style="display:flex; gap:3px; flex-wrap:wrap;">
+          <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:center;">
             <button class="btn btn-secondary btn-xs" title="Add 100 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 100)">+100</button>
             <button class="btn btn-secondary btn-xs" title="Add 500 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 500)">+500</button>
             <button class="btn btn-gold btn-xs" title="Add 1,000 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 1000)">+1k</button>
             <button class="btn btn-secondary btn-xs" style="background:rgba(255,255,255,0.06); padding:2px 6px;" title="Custom Amount" onclick="app.adminCustomCreditPrompt('${p.id}')">±</button>
+            <button class="btn btn-primary btn-xs" style="padding:2px 6px; font-size:0.68rem;" title="View Full History" onclick="app.openPlayerHistoryModal('${p.id}')">📜 History</button>
           </div>
         </td>
       `;
@@ -2961,8 +3015,10 @@ class SpinWheelApp {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>
-          <strong style="color:#fff;">${b.playerName || 'Player'}</strong><br>
-          <span style="font-family:monospace; color:#00f0ff; font-size:0.75rem; font-weight:700;">ID: ${b.playerId || '--'}</span>
+          <a href="javascript:void(0)" class="player-id-link" onclick="app.openPlayerHistoryModal('${b.playerId}')" title="Tap to view player profile & history">
+            <strong style="color:#fff;">${b.playerName || 'Player'}</strong><br>
+            <span style="font-family:monospace; color:#00f0ff; font-size:0.75rem; font-weight:700;">ID: ${b.playerId || '--'}</span>
+          </a>
           ${b.playerMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${b.playerMobile}</span>` : ''}
         </td>
         <td>
@@ -3032,6 +3088,347 @@ class SpinWheelApp {
     this.renderAdminActiveBetsTable();
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     this.showAdminCreditFeedback(`✅ Prediction entry cancelled! 💰${bet.amount} IHD Coins refunded to ${bet.playerName} (${bet.playerId}).`, true);
+    if (this.currentAphPlayerId === bet.playerId && !this.adminPlayerHistoryModal?.classList.contains('hidden')) {
+      this.openPlayerHistoryModal(this.currentAphPlayerId);
+    }
+  }
+
+  // ==========================================================
+  // MASTER ADMIN PLAYER PROFILE & FULL HISTORY MODAL SYSTEM
+  // ==========================================================
+  openPlayerHistoryModal(playerId) {
+    if (!playerId) return;
+    this.currentAphPlayerId = playerId;
+
+    // 1. Fetch player from DB or synthesize if needed
+    let player = this.customersDb ? this.customersDb[playerId] : null;
+    if (!player) {
+      // Check active bets or withdrawals for name/mobile
+      const anyBet = (this.activeBets || []).find(b => b.playerId === playerId);
+      const anyWd = (this.withdrawals || []).find(w => w.customerId === playerId);
+      player = {
+        id: playerId,
+        name: anyBet?.playerName || anyWd?.customerName || playerId,
+        mobile: anyBet?.playerMobile || anyWd?.customerMobile || '',
+        dob: '',
+        pin: '••••',
+        coins: 0,
+        totalBets: 0,
+        wins: 0,
+        joinedAt: 'Recent',
+        bankDetails: anyWd ? { accountName: anyWd.accountName, accountNumber: anyWd.accountNumber, ifscCode: anyWd.ifscCode } : null,
+        betHistory: []
+      };
+    }
+
+    // Header info
+    if (this.aphAvatarIcon) {
+      const initial = (player.name || player.id || 'P').trim().charAt(0).toUpperCase();
+      this.aphAvatarIcon.textContent = initial || '👤';
+    }
+    if (this.aphPlayerName) this.aphPlayerName.textContent = player.name || 'Player';
+    if (this.aphPlayerId) this.aphPlayerId.textContent = `ID: ${player.id}`;
+    if (this.aphPlayerMobile) this.aphPlayerMobile.textContent = player.mobile || 'Not set';
+    if (this.aphPlayerDob) this.aphPlayerDob.textContent = player.dob || 'Not set';
+    if (this.aphPlayerJoined) this.aphPlayerJoined.textContent = player.joinedAt || 'Recently';
+    if (this.aphPlayerPin) {
+      this.aphPlayerPin.dataset.realPin = player.pin || '----';
+      this.aphPlayerPin.textContent = '••••';
+    }
+    if (this.aphTogglePinBtn) this.aphTogglePinBtn.textContent = 'Show';
+
+    // Bank Details (Pull from player.bankDetails OR fallback to latest withdrawal request)
+    let bank = player.bankDetails;
+    if (!bank || !bank.accountNumber) {
+      const recentWd = (this.withdrawals || []).find(w => w.customerId === playerId && w.accountNumber);
+      if (recentWd) {
+        bank = {
+          accountName: recentWd.accountName,
+          accountNumber: recentWd.accountNumber,
+          ifscCode: recentWd.ifscCode
+        };
+      }
+    }
+
+    if (this.aphBankAccName) this.aphBankAccName.textContent = bank?.accountName || 'No bank account saved';
+    if (this.aphBankAccNum) this.aphBankAccNum.textContent = bank?.accountNumber ? bank.accountNumber : '--';
+    if (this.aphBankIfsc) this.aphBankIfsc.textContent = bank?.ifscCode ? bank.ifscCode : '--';
+
+    // Gather all bets for this player
+    const activeBetsForPlayer = (this.activeBets || []).filter(b => b.playerId === playerId);
+    const histBetsForPlayer = Array.isArray(player.betHistory) ? player.betHistory : [];
+    
+    // Merge without duplicates (by bet.id)
+    const betMap = new Map();
+    activeBetsForPlayer.forEach(b => betMap.set(b.id, { ...b, status: 'ACTIVE' }));
+    histBetsForPlayer.forEach(b => {
+      // If already marked as active in betMap, don't overwrite with older hist state unless settled
+      if (!betMap.has(b.id) || (b.status && b.status !== 'ACTIVE')) {
+        betMap.set(b.id, b);
+      }
+    });
+
+    const allBets = Array.from(betMap.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Gather withdrawals for this player
+    const playerWds = (this.withdrawals || []).filter(w => w.customerId === playerId);
+
+    // Calculate Summary Stats
+    const currentCoins = player.coins || 0;
+    const totalBetsCount = Math.max(player.totalBets || 0, allBets.length);
+    const totalWinsCount = player.wins || allBets.filter(b => b.status === 'WON').length;
+    const approvedWdSum = playerWds.filter(w => w.status === 'APPROVED').reduce((sum, w) => sum + (w.amount || 0), 0);
+
+    if (this.aphCoinsBalance) this.aphCoinsBalance.textContent = `💰 ${currentCoins.toLocaleString()} IHD`;
+    if (this.aphTotalBets) this.aphTotalBets.textContent = `${totalBetsCount} Bets`;
+    if (this.aphTotalWins) this.aphTotalWins.textContent = `${totalWinsCount} Wins (9x)`;
+    if (this.aphTotalWd) this.aphTotalWd.textContent = `${playerWds.length} Req (₹${approvedWdSum.toLocaleString()})`;
+
+    if (this.aphTabBadgeBets) this.aphTabBadgeBets.textContent = allBets.length;
+    if (this.aphTabBadgeWd) this.aphTabBadgeWd.textContent = playerWds.length;
+
+    // Render Tab 1: Bets Table
+    if (this.aphBetsTableBody) {
+      if (allBets.length === 0) {
+        this.aphBetsTableBody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+              No prediction bets placed by ${player.name || player.id} yet.
+            </td>
+          </tr>
+        `;
+      } else {
+        this.aphBetsTableBody.innerHTML = '';
+        allBets.forEach(b => {
+          const tr = document.createElement('tr');
+          let statusBadge = '';
+          if (b.status === 'ACTIVE') {
+            statusBadge = `
+              <span class="badge-status-active">🟢 Active in Pool</span><br>
+              <span style="font-size:0.68rem; color:#00f0ff;">Potential: 💰${(b.amount * 9).toLocaleString()} IHD</span>
+            `;
+          } else if (b.status === 'WON') {
+            statusBadge = `
+              <span class="badge-status-won">🎉 WON 9x (+💰${(b.payout || b.amount * 9).toLocaleString()} IHD)</span><br>
+              <span style="font-size:0.68rem; color:var(--text-muted);">Winning #${b.winningNumber || b.number}</span>
+            `;
+          } else if (b.status === 'LOST') {
+            statusBadge = `
+              <span class="badge-status-lost">❌ LOST (0 IHD)</span><br>
+              <span style="font-size:0.68rem; color:var(--text-muted);">Winning #${b.winningNumber || '--'}</span>
+            `;
+          } else if (b.status === 'REFUNDED') {
+            statusBadge = `<span class="badge-status-refunded">↩️ REFUNDED (+💰${b.amount} IHD)</span>`;
+          } else {
+            statusBadge = `<span class="badge-status-active">${b.status}</span>`;
+          }
+
+          tr.innerHTML = `
+            <td>
+              <strong style="color:#fff;">${b.displaySlot || (b.targetSlot ? `${b.targetSlot} • ${b.targetDate || ''}` : 'Next Round')}</strong><br>
+              <span style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${b.id || ''}</span>
+            </td>
+            <td>
+              <span class="bet-number-pill">#${b.number}</span>
+            </td>
+            <td>
+              <strong style="color:var(--primary-gold-bright);">💰 ${(b.amount || 0).toLocaleString()} IHD</strong>
+            </td>
+            <td>
+              ${statusBadge}
+            </td>
+            <td>
+              <span style="color:var(--text-secondary); font-size:0.72rem;">${b.placedTime || '--'}</span>
+            </td>
+          `;
+          this.aphBetsTableBody.appendChild(tr);
+        });
+      }
+    }
+
+    // Render Tab 2: Withdrawals Table
+    if (this.aphWdTableBody) {
+      if (playerWds.length === 0) {
+        this.aphWdTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+              No withdrawal requests submitted by this player yet.
+            </td>
+          </tr>
+        `;
+      } else {
+        this.aphWdTableBody.innerHTML = '';
+        playerWds.forEach(w => {
+          const tr = document.createElement('tr');
+          let stBadge = '';
+          if (w.status === 'APPROVED') {
+            stBadge = '<span class="status-pill status-approved">✅ Approved</span>';
+          } else if (w.status === 'REJECTED') {
+            stBadge = '<span class="status-pill status-rejected">❌ Rejected</span>';
+          } else {
+            stBadge = '<span class="status-pill status-pending">⏳ Pending</span>';
+          }
+
+          tr.innerHTML = `
+            <td>
+              <span style="font-family:monospace; color:#00f0ff; font-weight:700;">${w.id}</span>
+            </td>
+            <td>
+              <strong style="color:var(--primary-gold-bright); font-size:0.85rem;">💰 ${(w.amount || 0).toLocaleString()} IHD</strong>
+            </td>
+            <td>
+              <span style="color:#fff;">${w.accountName || '--'}</span><br>
+              <span style="font-family:monospace; color:var(--text-secondary); font-size:0.72rem;">A/C: ${w.accountNumber || '--'}</span><br>
+              <span style="font-family:monospace; color:#00f0ff; font-size:0.68rem;">IFSC: ${w.ifscCode || '--'}</span>
+            </td>
+            <td>
+              <span style="font-size:0.72rem; color:var(--text-secondary);">${w.requestedDate || ''}</span><br>
+              <span style="font-size:0.68rem; color:var(--text-muted);">${w.requestedTime || ''}</span>
+            </td>
+            <td>
+              ${stBadge}
+            </td>
+            <td>
+              ${w.rejectionReason ? `<span style="color:#ef4444; font-size:0.7rem;">${w.rejectionReason}</span>` : (w.status === 'APPROVED' ? `<span style="color:#2ecc71; font-size:0.7rem;">Completed</span>` : `<span style="color:var(--text-muted); font-size:0.7rem;">--</span>`)}
+            </td>
+          `;
+          this.aphWdTableBody.appendChild(tr);
+        });
+      }
+    }
+
+    // Default to active subtab
+    this.setPlayerHistoryTab(this.currentAphTab || 'bets');
+
+    if (this.adminPlayerHistoryModal) {
+      this.adminPlayerHistoryModal.classList.remove('hidden');
+    }
+  }
+
+  closePlayerHistoryModal() {
+    if (this.adminPlayerHistoryModal) {
+      this.adminPlayerHistoryModal.classList.add('hidden');
+    }
+  }
+
+  setPlayerHistoryTab(tabName) {
+    this.currentAphTab = tabName;
+    const btnBets = document.getElementById('aph-tab-btn-bets');
+    const btnWd = document.getElementById('aph-tab-btn-wd');
+    const btnCredit = document.getElementById('aph-tab-btn-credit');
+    const paneBets = document.getElementById('aph-pane-bets');
+    const paneWd = document.getElementById('aph-pane-wd');
+    const paneCredit = document.getElementById('aph-pane-credit');
+
+    [btnBets, btnWd, btnCredit].forEach(b => b?.classList.remove('active'));
+    [paneBets, paneWd, paneCredit].forEach(p => p?.classList.add('hidden'));
+
+    if (tabName === 'wd') {
+      btnWd?.classList.add('active');
+      paneWd?.classList.remove('hidden');
+    } else if (tabName === 'credit') {
+      btnCredit?.classList.add('active');
+      paneCredit?.classList.remove('hidden');
+    } else {
+      btnBets?.classList.add('active');
+      paneBets?.classList.remove('hidden');
+    }
+  }
+
+  toggleAphPin() {
+    if (!this.aphPlayerPin) return;
+    const realPin = this.aphPlayerPin.dataset.realPin || '----';
+    if (this.aphPlayerPin.textContent === '••••') {
+      this.aphPlayerPin.textContent = realPin;
+      if (this.aphTogglePinBtn) this.aphTogglePinBtn.textContent = 'Hide';
+    } else {
+      this.aphPlayerPin.textContent = '••••';
+      if (this.aphTogglePinBtn) this.aphTogglePinBtn.textContent = 'Show';
+    }
+  }
+
+  adminApplyAphCredit() {
+    if (!this.currentAphPlayerId) return;
+    const amt = parseInt(this.aphQuickCreditAmount?.value, 10);
+    if (isNaN(amt) || amt === 0) {
+      if (this.aphQuickCreditFeedback) {
+        this.aphQuickCreditFeedback.textContent = '❌ Please enter a valid number!';
+        this.aphQuickCreditFeedback.style.color = '#ef4444';
+      }
+      return;
+    }
+    this.adminAddPlayerCredit(this.currentAphPlayerId, amt);
+    this.openPlayerHistoryModal(this.currentAphPlayerId);
+    if (this.aphQuickCreditFeedback) {
+      this.aphQuickCreditFeedback.textContent = `✅ Updated balance by ${amt > 0 ? '+' : ''}${amt} IHD Coins!`;
+      this.aphQuickCreditFeedback.style.color = '#2ecc71';
+      setTimeout(() => { if (this.aphQuickCreditFeedback) this.aphQuickCreditFeedback.textContent = ''; }, 3500);
+    }
+  }
+
+  adminApplyAphDeduct() {
+    if (!this.currentAphPlayerId) return;
+    const amt = Math.abs(parseInt(this.aphQuickCreditAmount?.value, 10));
+    if (isNaN(amt) || amt === 0) return;
+    this.adminAddPlayerCredit(this.currentAphPlayerId, -amt);
+    this.openPlayerHistoryModal(this.currentAphPlayerId);
+    if (this.aphQuickCreditFeedback) {
+      this.aphQuickCreditFeedback.textContent = `✅ Deducted -${amt} IHD Coins!`;
+      this.aphQuickCreditFeedback.style.color = '#ef4444';
+      setTimeout(() => { if (this.aphQuickCreditFeedback) this.aphQuickCreditFeedback.textContent = ''; }, 3500);
+    }
+  }
+
+  adminAddAphCreditDirect(amt) {
+    if (!this.currentAphPlayerId) return;
+    this.adminAddPlayerCredit(this.currentAphPlayerId, amt);
+    this.openPlayerHistoryModal(this.currentAphPlayerId);
+    if (this.aphQuickCreditFeedback) {
+      this.aphQuickCreditFeedback.textContent = `✅ ${amt > 0 ? '+' : ''}${amt} IHD Coins updated!`;
+      this.aphQuickCreditFeedback.style.color = amt > 0 ? '#2ecc71' : '#ef4444';
+      setTimeout(() => { if (this.aphQuickCreditFeedback) this.aphQuickCreditFeedback.textContent = ''; }, 3500);
+    }
+  }
+
+  exportSinglePlayerJson() {
+    if (!this.currentAphPlayerId) return;
+    const playerId = this.currentAphPlayerId;
+    const player = this.customersDb ? this.customersDb[playerId] : null;
+    if (!player) return;
+
+    const activeBetsForPlayer = (this.activeBets || []).filter(b => b.playerId === playerId);
+    const histBets = Array.isArray(player.betHistory) ? player.betHistory : [];
+    const playerWds = (this.withdrawals || []).filter(w => w.customerId === playerId);
+
+    const exportData = {
+      app: 'SpinWheel Pro / Num Ledger Pro Single Player Export',
+      exportedAt: new Date().toISOString(),
+      playerProfile: {
+        id: player.id,
+        name: player.name,
+        mobile: player.mobile,
+        dob: player.dob,
+        currentCoins: player.coins || 0,
+        totalBetsCount: player.totalBets || 0,
+        totalWinsCount: player.wins || 0,
+        joinedAt: player.joinedAt,
+        bankDetails: player.bankDetails || null
+      },
+      activePredictions: activeBetsForPlayer,
+      betHistory: histBets,
+      withdrawals: playerWds
+    };
+
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `player_${playerId}_history_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   exportNumLedgerProJSON(type = 'FULL') {
@@ -3574,21 +3971,49 @@ class SpinWheelApp {
         const isDateMatch = (!bet.targetDate || bet.targetDate === todayFormatted || bet.targetDate === dateStr);
 
         if (isSlotMatch && isDateMatch) {
-          if (bet.number === winningNumber) {
-            const winAmount = bet.amount * 9; // 9X MULTIPLIER
-            if (this.customersDb && this.customersDb[bet.playerId]) {
-              this.customersDb[bet.playerId].coins = (this.customersDb[bet.playerId].coins || 0) + winAmount;
-              this.customersDb[bet.playerId].wins = (this.customersDb[bet.playerId].wins || 0) + 1;
+          const isWin = (bet.number === winningNumber);
+          const winAmount = isWin ? (bet.amount * 9) : 0;
+
+          if (this.customersDb && this.customersDb[bet.playerId]) {
+            const p = this.customersDb[bet.playerId];
+            if (isWin) {
+              p.coins = (p.coins || 0) + winAmount;
+              p.wins = (p.wins || 0) + 1;
             }
-            if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
+            if (!Array.isArray(p.betHistory)) p.betHistory = [];
+            const histEntry = p.betHistory.find(b => b.id === bet.id);
+            if (histEntry) {
+              histEntry.status = isWin ? 'WON' : 'LOST';
+              histEntry.winningNumber = winningNumber;
+              histEntry.payout = winAmount;
+              histEntry.settledAt = timeStr12;
+            } else {
+              p.betHistory.unshift({
+                ...bet,
+                status: isWin ? 'WON' : 'LOST',
+                winningNumber: winningNumber,
+                payout: winAmount,
+                settledAt: timeStr12
+              });
+            }
+          }
+
+          if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
+            if (isWin) {
               this.currentCustomer.coins = (this.currentCustomer.coins || 0) + winAmount;
               this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
               myTotalWon += winAmount;
               myWinCount++;
-            }
-          } else {
-            if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
+            } else {
               myLossCount++;
+            }
+            if (!Array.isArray(this.currentCustomer.betHistory)) this.currentCustomer.betHistory = [];
+            const custHistEntry = this.currentCustomer.betHistory.find(b => b.id === bet.id);
+            if (custHistEntry) {
+              custHistEntry.status = isWin ? 'WON' : 'LOST';
+              custHistEntry.winningNumber = winningNumber;
+              custHistEntry.payout = winAmount;
+              custHistEntry.settledAt = timeStr12;
             }
           }
         }
@@ -3629,6 +4054,9 @@ class SpinWheelApp {
       if (this.isDrawerOpen) {
         this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
         this.renderAdminActiveBetsTable();
+      }
+      if (this.currentAphPlayerId && !this.adminPlayerHistoryModal?.classList.contains('hidden')) {
+        this.openPlayerHistoryModal(this.currentAphPlayerId);
       }
     } else if (this.currentBet) {
       // Fallback for single bet evaluation

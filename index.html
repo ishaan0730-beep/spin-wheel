@@ -1100,6 +1100,188 @@
     </div>
   </div>
 
+  <!-- MASTER ADMIN PLAYER PROFILE & COMPLETE HISTORY MODAL -->
+  <div id="admin-player-history-modal" class="modal-wrapper hidden">
+    <div class="modal-overlay" id="admin-player-history-overlay"></div>
+    <div class="modal-card player-history-modal-card">
+      
+      <!-- Modal Header -->
+      <div class="modal-header player-history-header">
+        <div class="modal-header-title">
+          <div class="aph-avatar-badge" id="aph-avatar-icon">👤</div>
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+              <h3 id="aph-player-name" style="margin:0; font-size:1.15rem; font-weight:800; color:#fff;">Player Name</h3>
+              <span id="aph-player-id" class="player-badge-cyan">ID: Ishaan0730</span>
+              <span class="player-badge-status">🟢 Active Account</span>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:3px; display:flex; gap:0.8rem; flex-wrap:wrap; align-items:center;">
+              <span>📱 <span id="aph-player-mobile" style="color:#fff;">--</span></span>
+              <span>🎂 DOB: <span id="aph-player-dob" style="color:#fff;">--</span></span>
+              <span>📅 Joined: <span id="aph-player-joined" style="color:#fff;">--</span></span>
+              <span>🔑 PIN: <span id="aph-player-pin" style="color:#ffd700; font-weight:700; font-family:monospace;">••••</span> <button type="button" id="aph-toggle-pin-btn" class="btn-text-xs">Show</button></span>
+            </div>
+          </div>
+        </div>
+        <button id="admin-player-history-close-btn" class="icon-btn" aria-label="Close Modal">&times;</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body player-history-body">
+
+        <!-- Top 4-Box Key Stats Grid -->
+        <div class="aph-stats-grid">
+          <div class="aph-stat-card card-gold">
+            <span class="aph-stat-lbl">💰 IHD Balance</span>
+            <strong id="aph-coins-balance" class="aph-stat-val highlight-gold">0 IHD</strong>
+            <span style="font-size:0.68rem; color:var(--text-muted);">Available in Wallet</span>
+          </div>
+          <div class="aph-stat-card">
+            <span class="aph-stat-lbl">🎯 Total Bets</span>
+            <strong id="aph-total-bets" class="aph-stat-val" style="color:#00f0ff;">0 Bets</strong>
+            <span style="font-size:0.68rem; color:var(--text-muted);">All-time activity</span>
+          </div>
+          <div class="aph-stat-card card-green">
+            <span class="aph-stat-lbl">🏆 9x Wins Won</span>
+            <strong id="aph-total-wins" class="aph-stat-val" style="color:#2ecc71;">0 Wins</strong>
+            <span style="font-size:0.68rem; color:var(--text-muted);">9x Multiplier Hits</span>
+          </div>
+          <div class="aph-stat-card card-purple">
+            <span class="aph-stat-lbl">💸 Withdrawals</span>
+            <strong id="aph-total-wd" class="aph-stat-val" style="color:#a855f7;">0 Req</strong>
+            <span style="font-size:0.68rem; color:var(--text-muted);">Bank Payouts</span>
+          </div>
+        </div>
+
+        <!-- Saved Bank Account Details Banner -->
+        <div class="aph-bank-banner">
+          <div class="aph-bank-banner-title">
+            <span>🏦 Saved Bank Account Details (For Direct Payouts)</span>
+          </div>
+          <div class="aph-bank-details-grid">
+            <div class="aph-bank-item">
+              <span class="aph-bank-lbl">Account Holder Name</span>
+              <strong id="aph-bank-acc-name" class="aph-bank-val" style="color:#fff;">--</strong>
+            </div>
+            <div class="aph-bank-item">
+              <span class="aph-bank-lbl">Bank Account Number</span>
+              <strong id="aph-bank-acc-num" class="aph-bank-val" style="font-family:monospace; color:#00f0ff; letter-spacing:0.5px;">--</strong>
+            </div>
+            <div class="aph-bank-item">
+              <span class="aph-bank-lbl">IFSC Code</span>
+              <strong id="aph-bank-ifsc" class="aph-bank-val" style="font-family:monospace; color:#ffd700; letter-spacing:0.5px;">--</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inner Navigation Subtabs -->
+        <div class="aph-subtabs-nav">
+          <button type="button" id="aph-tab-btn-bets" class="aph-subtab-btn active" onclick="app.setPlayerHistoryTab('bets')">
+            <span>🎲 Predictions & Bets History</span>
+            <span id="aph-tab-badge-bets" class="aph-subtab-badge">0</span>
+          </button>
+          <button type="button" id="aph-tab-btn-wd" class="aph-subtab-btn" onclick="app.setPlayerHistoryTab('wd')">
+            <span>💸 Bank Withdrawal History</span>
+            <span id="aph-tab-badge-wd" class="aph-subtab-badge">0</span>
+          </button>
+          <button type="button" id="aph-tab-btn-credit" class="aph-subtab-btn" onclick="app.setPlayerHistoryTab('credit')">
+            <span>⚡ Credit Coins & Actions</span>
+          </button>
+        </div>
+
+        <!-- PANE 1: PREDICTIONS & BETS -->
+        <div id="aph-pane-bets" class="aph-tab-pane active">
+          <div class="aph-table-scroll">
+            <table class="schedule-table aph-table">
+              <thead>
+                <tr>
+                  <th>Target Slot & Date</th>
+                  <th>Number</th>
+                  <th>Bet Amount</th>
+                  <th>Outcome / Status</th>
+                  <th>Placed Time</th>
+                </tr>
+              </thead>
+              <tbody id="aph-bets-table-body">
+                <tr>
+                  <td colspan="5" style="text-align:center; color:var(--text-muted); padding:1rem;">No prediction bets placed yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PANE 2: WITHDRAWAL REQUESTS -->
+        <div id="aph-pane-wd" class="aph-tab-pane hidden">
+          <div class="aph-table-scroll">
+            <table class="schedule-table aph-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Amount</th>
+                  <th>Bank Account & IFSC</th>
+                  <th>Date & Time</th>
+                  <th>Status</th>
+                  <th>Remarks / Reason</th>
+                </tr>
+              </thead>
+              <tbody id="aph-wd-table-body">
+                <tr>
+                  <td colspan="6" style="text-align:center; color:var(--text-muted); padding:1rem;">No withdrawal requests found for this player.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PANE 3: QUICK CREDIT & ACTIONS -->
+        <div id="aph-pane-credit" class="aph-tab-pane hidden">
+          <div class="aph-credit-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+              <span style="font-weight:700; color:var(--primary-gold-bright);">💰 Add / Deduct IHD Coins for this Player:</span>
+            </div>
+            
+            <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+              <input type="number" id="aph-quick-credit-amount" class="admin-input" placeholder="Amount (e.g. 500 or -100)" value="100" style="max-width:180px;">
+              <button type="button" id="aph-quick-credit-btn" class="btn btn-gold" onclick="app.adminApplyAphCredit()">➕ Credit IHD Coins</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="app.adminApplyAphDeduct()">➖ Deduct Coins</button>
+            </div>
+
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:0.6rem;">
+              <span style="font-size:0.7rem; color:var(--text-muted); align-self:center;">Quick Presets:</span>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="app.adminAddAphCreditDirect(50)">+50</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="app.adminAddAphCreditDirect(100)">+100</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="app.adminAddAphCreditDirect(500)">+500</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="app.adminAddAphCreditDirect(1000)">+1k</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="app.adminAddAphCreditDirect(5000)">+5k</button>
+              <button type="button" class="btn btn-secondary btn-xs" style="color:#ef4444; border-color:rgba(239,68,68,0.4);" onclick="app.adminAddAphCreditDirect(-100)">-100</button>
+              <button type="button" class="btn btn-secondary btn-xs" style="color:#ef4444; border-color:rgba(239,68,68,0.4);" onclick="app.adminAddAphCreditDirect(-500)">-500</button>
+            </div>
+
+            <span id="aph-quick-credit-feedback" class="save-status-msg" style="display:block; margin-top:6px;"></span>
+
+            <div style="border-top:1px solid var(--border-subtle); margin-top:1rem; padding-top:0.8rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+              <div>
+                <strong style="font-size:0.82rem; color:#fff;">Single Player Data Export</strong>
+                <p style="font-size:0.72rem; color:var(--text-muted); margin:0;">Download this player's full activity report as JSON.</p>
+              </div>
+              <button type="button" id="aph-export-player-json-btn" class="btn btn-secondary btn-sm" style="color:#00f0ff; border-color:rgba(0,240,255,0.4);" onclick="app.exportSinglePlayerJson()">
+                📥 Export Player JSON
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer" style="padding:0.75rem 1.25rem; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="app.closePlayerHistoryModal()">Close History</button>
+      </div>
+
+    </div>
+  </div>
+
   <script src="mqtt.min.js"></script>
   <script src="https://unpkg.com/mqtt@5.16.0/dist/mqtt.min.js" onerror="console.log('Using local mqtt script')"></script>
   <script src="confetti.js"></script>
