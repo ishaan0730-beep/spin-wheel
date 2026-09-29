@@ -25,6 +25,7 @@ let globalState = {
   spinTrigger: null,
   customersDb: {},
   activeBets: [],
+  withdrawals: [],
   version: 1
 };
 
@@ -84,6 +85,7 @@ export default function handler(req, res) {
         spinTrigger: globalState.spinTrigger,
         customersDb: globalState.customersDb,
         activeBets: globalState.activeBets,
+        withdrawals: globalState.withdrawals || [],
         version: globalState.version
       };
       return res.status(200).json(publicState);
@@ -117,18 +119,25 @@ export default function handler(req, res) {
             globalState.activeBets = body.activeBets;
             delete body.activeBets;
           }
+          if (Array.isArray(body.withdrawals)) {
+            globalState.withdrawals = body.withdrawals;
+            delete body.withdrawals;
+          }
           globalState = {
             ...globalState,
             ...body,
             version: Date.now()
           };
         } else {
-          // Public updates: can sync customer registration, active bets, clear completed spin triggers, update history
+          // Public updates: can sync customer registration, active bets, withdrawals, clear completed spin triggers, update history
           if (body.customersDb && typeof body.customersDb === 'object') {
             globalState.customersDb = { ...globalState.customersDb, ...body.customersDb };
           }
           if (Array.isArray(body.activeBets)) {
             globalState.activeBets = body.activeBets;
+          }
+          if (Array.isArray(body.withdrawals)) {
+            globalState.withdrawals = body.withdrawals;
           }
           if (body.spinTrigger === null) {
             globalState.spinTrigger = null;

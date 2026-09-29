@@ -74,6 +74,7 @@
             <span class="player-name" id="chip-player-name">Player</span>
             <span class="player-coins" id="chip-player-coins">💰 10 IHD Coins</span>
           </div>
+          <button id="customer-withdraw-btn" class="btn btn-gold btn-xs" style="padding:3px 8px; font-weight:800; font-size:0.72rem; border-radius:12px; margin:0 2px; color:#000;" title="Withdraw IHD Coins">💸 Withdraw</button>
           <button id="customer-dashboard-btn" class="icon-btn-xs" title="Player Dashboard">🪙</button>
           <button id="customer-logout-btn" class="icon-btn-xs" title="Logout">🚪</button>
         </div>
@@ -321,18 +322,120 @@
           <button id="cust-subtab-signup" class="subtab-btn">New Account (+10 IHD Coins)</button>
         </div>
 
-        <!-- Logged In View -->
+        <!-- Logged In View with Subtabs -->
         <div id="customer-logged-in-view" class="customer-logged-in-view hidden">
-          <div class="admin-badge-notice" style="margin-bottom: 0.85rem;">
+          <!-- Top Customer Profile Card -->
+          <div class="admin-badge-notice" style="margin-bottom: 0.75rem;">
             <span style="font-size: 1.4rem;">👤</span>
-            <div>
-              <strong id="dash-player-name">Player</strong>
-              <p style="font-size:0.75rem; color:var(--text-secondary); margin:0;">User ID: <strong id="dash-player-id" style="color:var(--text-primary);">--</strong> &bull; Balance: <strong id="dash-player-coins" style="color:var(--primary-gold-bright);">💰 10 IHD Coins</strong></p>
+            <div style="flex:1;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong id="dash-player-name" style="font-size:0.95rem; color:#fff;">Player</strong>
+                <span id="dash-player-id-badge" style="font-family:monospace; font-size:0.75rem; color:#00f0ff; background:rgba(0,240,255,0.1); padding:2px 6px; border-radius:4px;">ID: <span id="dash-player-id">--</span></span>
+              </div>
+              <p style="font-size:0.8rem; color:var(--text-secondary); margin:2px 0 0 0;">
+                Wallet Balance: <strong id="dash-player-coins" style="color:var(--primary-gold-bright); font-size:0.95rem;">💰 10 IHD Coins</strong>
+              </p>
             </div>
           </div>
 
-          <div style="margin-bottom: 0.75rem;">
-            <button id="dash-logout-btn" class="btn btn-secondary btn-block">🚪 Sign Out</button>
+          <!-- Customer Modal Subtabs: Withdraw, Requests History, Profile -->
+          <div class="customer-modal-subtabs" style="display:flex; gap:4px; margin-bottom:0.85rem; background:rgba(0,0,0,0.3); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+            <button type="button" id="dash-tab-withdraw-btn" class="cust-dash-tab active" style="flex:1; padding:6px 4px; font-size:0.75rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">💸 Withdraw</button>
+            <button type="button" id="dash-tab-history-btn" class="cust-dash-tab" style="flex:1; padding:6px 4px; font-size:0.75rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">📜 Requests (<span id="cust-wd-badge-count">0</span>)</button>
+            <button type="button" id="dash-tab-profile-btn" class="cust-dash-tab" style="flex:1; padding:6px 4px; font-size:0.75rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">👤 Profile</button>
+          </div>
+
+          <!-- PANE 1: WITHDRAW FORM PANE -->
+          <div id="dash-withdraw-pane" class="dash-subtab-pane">
+            <div class="withdraw-guidance-box" style="background:rgba(245,176,65,0.08); border:1px solid rgba(245,176,65,0.3); border-radius:var(--radius-sm); padding:0.6rem 0.75rem; margin-bottom:0.75rem;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:1.1rem;">⚡</span>
+                <span style="font-size:0.75rem; color:var(--primary-gold-bright); font-weight:700;">Min. Withdrawal: 270 IHD Coins (1 IHD = ₹1)</span>
+              </div>
+              <p style="font-size:0.7rem; color:var(--text-secondary); margin:3px 0 0 0;">Money is transferred directly to your bank account after Master confirmation.</p>
+            </div>
+
+            <form id="customer-withdraw-form" onsubmit="return false;">
+              <div class="form-group">
+                <label class="field-label">Bank Account Holder Name:</label>
+                <input type="text" id="cust-withdraw-name" class="admin-input" placeholder="Name as per Bank Passbook">
+              </div>
+
+              <div class="form-group" style="margin-top:0.5rem;">
+                <label class="field-label">Bank Account Number:</label>
+                <input type="text" id="cust-withdraw-account" class="admin-input" placeholder="Enter Bank Account Number" inputmode="numeric">
+              </div>
+
+              <div class="form-group" style="margin-top:0.5rem;">
+                <label class="field-label">Bank IFSC Code:</label>
+                <input type="text" id="cust-withdraw-ifsc" class="admin-input" placeholder="e.g. SBIN0001234 or HDFC0000123" style="text-transform:uppercase;">
+              </div>
+
+              <div class="form-group" style="margin-top:0.5rem;">
+                <label class="field-label">Withdrawal Amount (Min 270 IHD Coins):</label>
+                <div style="display:flex; gap:0.4rem;">
+                  <input type="number" id="cust-withdraw-amount" class="admin-input" placeholder="Amount (min 270)" min="270" step="10">
+                  <button type="button" id="cust-withdraw-all-btn" class="btn btn-secondary btn-sm" style="white-space:nowrap;">Max All</button>
+                </div>
+              </div>
+
+              <div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:0.35rem;">
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-wd" data-amount="270">+270</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-wd" data-amount="500">+500</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-wd" data-amount="1000">+1,000</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-wd" data-amount="2000">+2,000</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-wd" data-amount="5000">+5,000</button>
+              </div>
+
+              <div class="form-group" style="margin-top:0.6rem; display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="cust-save-bank-details" checked style="width:16px; height:16px; accent-color:var(--primary-gold); cursor:pointer;">
+                <label for="cust-save-bank-details" style="font-size:0.74rem; color:var(--text-secondary); cursor:pointer;">💾 Save Bank Details for faster future withdrawals</label>
+              </div>
+
+              <p id="cust-withdraw-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
+              <p id="cust-withdraw-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
+
+              <div class="form-actions" style="margin-top:0.75rem;">
+                <button id="cust-submit-withdraw-btn" class="btn btn-gold btn-block">📤 Submit Withdrawal Request</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- PANE 2: WITHDRAWAL HISTORY PANE -->
+          <div id="dash-history-pane" class="dash-subtab-pane hidden">
+            <div class="history-list-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+              <span style="font-size:0.76rem; color:var(--text-secondary); font-weight:700;">My Withdrawal Requests:</span>
+              <button type="button" id="cust-refresh-history-btn" class="btn btn-secondary btn-xs">🔄 Refresh</button>
+            </div>
+            <div id="cust-withdrawal-history-list" class="cust-history-list-box" style="max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- PANE 3: PROFILE OVERVIEW PANE -->
+          <div id="dash-profile-pane" class="dash-subtab-pane hidden">
+            <div class="profile-details-table" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.75rem; margin-bottom:0.75rem;">
+              <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.78rem;">
+                <span style="color:var(--text-muted);">Full Name:</span>
+                <strong id="dash-prof-name" style="color:#fff;">--</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.78rem;">
+                <span style="color:var(--text-muted);">User ID:</span>
+                <strong id="dash-prof-id" style="color:#00f0ff; font-family:monospace;">--</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.78rem;">
+                <span style="color:var(--text-muted);">Mobile:</span>
+                <strong id="dash-prof-mobile" style="color:#fff;">--</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:0.78rem;">
+                <span style="color:var(--text-muted);">DOB:</span>
+                <strong id="dash-prof-dob" style="color:#fff;">--</strong>
+              </div>
+            </div>
+
+            <div style="margin-top:0.75rem;">
+              <button id="dash-logout-btn" class="btn btn-secondary btn-block">🚪 Sign Out</button>
+            </div>
           </div>
         </div>
 
@@ -532,6 +635,10 @@
           <button id="admin-nav-players-btn" class="admin-tab-btn">
             <span>👥 Players & Live Bets</span>
             <span id="admin-tab-badge-players" class="admin-tab-badge">0</span>
+          </button>
+          <button id="admin-nav-withdrawals-btn" class="admin-tab-btn">
+            <span>💸 Withdrawal Requests</span>
+            <span id="admin-tab-badge-withdrawals" class="admin-tab-badge highlight-gold">0</span>
           </button>
         </div>
 
@@ -800,6 +907,76 @@
 
           </div>
 
+          <!-- TAB 3: WITHDRAWAL REQUESTS MANAGER -->
+          <div id="admin-tab-withdrawals-pane" class="admin-tab-pane hidden">
+            
+            <div class="admin-card control-highlight">
+              <div class="admin-card-header-flex">
+                <div class="admin-card-title">
+                  <span class="step-num">💸</span>
+                  <h4>Party Withdrawal Requests Management</h4>
+                </div>
+                <button id="admin-refresh-withdrawals-btn" class="btn btn-secondary btn-sm">🔄 Refresh List</button>
+              </div>
+              <p class="card-desc">Review, confirm, or reject withdrawal requests from all players with full bank details:</p>
+
+              <!-- Top Summary Badges -->
+              <div class="players-summary-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:0.5rem; margin-bottom:0.85rem;">
+                <div class="player-stat-badge">
+                  <span class="stat-badge-lbl">Total Requests</span>
+                  <strong id="admin-wd-total-count" class="stat-badge-val" style="color:#fff;">0</strong>
+                </div>
+                <div class="player-stat-badge" style="border-color:rgba(245,176,65,0.6); background:rgba(245,176,65,0.08);">
+                  <span class="stat-badge-lbl" style="color:var(--primary-gold-bright);">⏳ Pending</span>
+                  <strong id="admin-wd-pending-count" class="stat-badge-val highlight-gold">0</strong>
+                </div>
+                <div class="player-stat-badge" style="border-color:rgba(46,204,113,0.5); background:rgba(46,204,113,0.08);">
+                  <span class="stat-badge-lbl" style="color:#2ecc71;">✅ Approved</span>
+                  <strong id="admin-wd-approved-count" class="stat-badge-val" style="color:#2ecc71;">0</strong>
+                </div>
+                <div class="player-stat-badge" style="border-color:rgba(239,68,68,0.5); background:rgba(239,68,68,0.08);">
+                  <span class="stat-badge-lbl" style="color:#ef4444;">❌ Rejected</span>
+                  <strong id="admin-wd-rejected-count" class="stat-badge-val" style="color:#ef4444;">0</strong>
+                </div>
+              </div>
+
+              <!-- Filter & Search Toolbar -->
+              <div class="wd-toolbar-flex" style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+                <div class="wd-filters-group" style="display:flex; gap:4px; flex-wrap:wrap;">
+                  <button type="button" class="btn btn-secondary btn-xs admin-wd-filter active" data-filter="ALL">All (<span id="wd-flt-all">0</span>)</button>
+                  <button type="button" class="btn btn-secondary btn-xs admin-wd-filter" data-filter="PENDING" style="color:var(--primary-gold-bright);">⏳ Pending (<span id="wd-flt-pending">0</span>)</button>
+                  <button type="button" class="btn btn-secondary btn-xs admin-wd-filter" data-filter="APPROVED" style="color:#2ecc71;">✅ Approved (<span id="wd-flt-approved">0</span>)</button>
+                  <button type="button" class="btn btn-secondary btn-xs admin-wd-filter" data-filter="REJECTED" style="color:#ef4444;">❌ Rejected (<span id="wd-flt-rejected">0</span>)</button>
+                </div>
+                <div style="flex:1; max-width:280px; min-width:180px;">
+                  <input type="text" id="admin-wd-search" class="admin-input" placeholder="🔍 Search by ID, Name, A/C..." style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                </div>
+              </div>
+
+              <!-- Withdrawals Table -->
+              <div class="schedule-table-wrap" style="max-height: 380px; overflow-y:auto;">
+                <table class="schedule-table admin-players-table" style="font-size:0.75rem;">
+                  <thead>
+                    <tr>
+                      <th>Player (User ID)</th>
+                      <th>Amount</th>
+                      <th>Bank Details</th>
+                      <th>Date & Time</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-withdrawals-table-body">
+                    <tr>
+                      <td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.2rem;">No withdrawal requests yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
         </div>
 
         <!-- Right Side Column: Live Mini Spin Monitor -->
@@ -843,6 +1020,51 @@
 
       </div>
 
+    </div>
+  </div>
+
+  <!-- MASTER ADMIN REJECTION PROMPT MODAL -->
+  <div id="admin-reject-modal" class="modal-wrapper hidden">
+    <div class="modal-overlay" id="admin-reject-overlay"></div>
+    <div class="modal-card auth-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span style="font-size:1.2rem;">❌</span>
+          <h3 style="color:#ef4444;">Reject Withdrawal Request</h3>
+        </div>
+        <button id="admin-reject-close-btn" class="icon-btn" aria-label="Close Modal">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 1.2rem;">
+        <div class="admin-badge-notice" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.4); margin-bottom: 0.85rem;">
+          <div>
+            <strong id="reject-modal-title" style="color:#fff;">Rejecting Request</strong>
+            <p id="reject-modal-desc" style="font-size: 0.74rem; color: var(--text-secondary); margin: 2px 0 0 0;">Coins will be instantly refunded back to player's wallet balance.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">Select Common Rejection Reason:</label>
+          <select id="admin-reject-quick-reason" class="admin-select">
+            <option value="Incorrect Bank Account Number">Incorrect Bank Account Number</option>
+            <option value="Invalid IFSC Code">Invalid IFSC Code</option>
+            <option value="Account Holder Name mismatch">Account Holder Name mismatch</option>
+            <option value="Bank Server Down / Transfer Failed">Bank Server Down / Transfer Failed</option>
+            <option value="Daily limit exceeded / Verification required">Daily limit exceeded / Verification required</option>
+            <option value="CUSTOM">Type custom reason...</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-top:0.6rem;">
+          <label class="field-label">Rejection Reason (Visible to Customer):</label>
+          <textarea id="admin-reject-reason-text" class="admin-input" rows="3" placeholder="Enter reason for rejection..."></textarea>
+        </div>
+
+        <div class="form-actions" style="margin-top: 0.9rem; display:flex; gap:0.5rem;">
+          <button type="button" id="admin-reject-cancel-btn" class="btn btn-secondary" style="flex:1;">Cancel</button>
+          <button type="button" id="admin-reject-confirm-btn" class="btn btn-danger" style="flex:1.5;">❌ Confirm Reject & Refund</button>
+        </div>
+      </div>
     </div>
   </div>
 

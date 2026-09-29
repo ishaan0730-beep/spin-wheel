@@ -36,7 +36,8 @@ const STATE_KEYS = {
   CUSTOMER_USER: 'lucky_spin_current_customer_v6',
   CUSTOMERS_DB: 'lucky_spin_customers_db_v6',
   CURRENT_BET: 'lucky_spin_current_bet_v6',
-  ACTIVE_BETS: 'lucky_spin_active_bets_v6'
+  ACTIVE_BETS: 'lucky_spin_active_bets_v6',
+  WITHDRAWALS: 'lucky_spin_withdrawals_v6'
 };
 
 // Vibrant Luxury Wheel Slice Color Palettes
@@ -363,10 +364,13 @@ class SpinWheelApp {
     this.customersDb = this.loadCustomersDB();
     this.currentBet = this.loadCurrentBet();
     this.activeBets = this.loadActiveBets();
+    this.withdrawals = this.loadLocalWithdrawals();
     this.selectedBetAmount = 10;
     this.selectedBetNumber = null;
     this.isSignUpMode = false;
     this.verifiedForgotUser = null;
+    this.adminWdFilter = 'ALL';
+    this.pendingRejectWdId = null;
 
     // DOM Elements - Customer Auth Modal
     this.authModal = document.getElementById('auth-modal');
@@ -388,6 +392,30 @@ class SpinWheelApp {
     this.dashPlayerId = document.getElementById('dash-player-id');
     this.dashPlayerCoins = document.getElementById('dash-player-coins');
     this.dashLogoutBtn = document.getElementById('dash-logout-btn');
+
+    // Customer Dashboard Subtabs & Withdrawal Elements
+    this.dashTabWithdrawBtn = document.getElementById('dash-tab-withdraw-btn');
+    this.dashTabHistoryBtn = document.getElementById('dash-tab-history-btn');
+    this.dashTabProfileBtn = document.getElementById('dash-tab-profile-btn');
+    this.dashWithdrawPane = document.getElementById('dash-withdraw-pane');
+    this.dashHistoryPane = document.getElementById('dash-history-pane');
+    this.dashProfilePane = document.getElementById('dash-profile-pane');
+    this.custWithdrawName = document.getElementById('cust-withdraw-name');
+    this.custWithdrawAccount = document.getElementById('cust-withdraw-account');
+    this.custWithdrawIfsc = document.getElementById('cust-withdraw-ifsc');
+    this.custWithdrawAmount = document.getElementById('cust-withdraw-amount');
+    this.custWithdrawAllBtn = document.getElementById('cust-withdraw-all-btn');
+    this.custSaveBankDetails = document.getElementById('cust-save-bank-details');
+    this.custWithdrawError = document.getElementById('cust-withdraw-error');
+    this.custWithdrawSuccess = document.getElementById('cust-withdraw-success');
+    this.custSubmitWithdrawBtn = document.getElementById('cust-submit-withdraw-btn');
+    this.custWithdrawalHistoryList = document.getElementById('cust-withdrawal-history-list');
+    this.custRefreshHistoryBtn = document.getElementById('cust-refresh-history-btn');
+    this.custWdBadgeCount = document.getElementById('cust-wd-badge-count');
+    this.dashProfName = document.getElementById('dash-prof-name');
+    this.dashProfId = document.getElementById('dash-prof-id');
+    this.dashProfMobile = document.getElementById('dash-prof-mobile');
+    this.dashProfDob = document.getElementById('dash-prof-dob');
 
     // Customer Sign In Form
     this.customerSigninForm = document.getElementById('customer-signin-form');
@@ -436,6 +464,7 @@ class SpinWheelApp {
     this.customerProfileChip = document.getElementById('customer-profile-chip');
     this.chipPlayerName = document.getElementById('chip-player-name');
     this.chipPlayerCoins = document.getElementById('chip-player-coins');
+    this.customerWithdrawBtn = document.getElementById('customer-withdraw-btn');
     this.customerDashboardBtn = document.getElementById('customer-dashboard-btn');
     this.customerLogoutBtn = document.getElementById('customer-logout-btn');
 
@@ -509,9 +538,37 @@ class SpinWheelApp {
     // Master Full-Page Nav Tabs & Side Live Monitor Elements
     this.adminNavSpinBtn = document.getElementById('admin-nav-spin-btn');
     this.adminNavPlayersBtn = document.getElementById('admin-nav-players-btn');
+    this.adminNavWithdrawalsBtn = document.getElementById('admin-nav-withdrawals-btn');
     this.adminTabSpinPane = document.getElementById('admin-tab-spin-pane');
     this.adminTabPlayersPane = document.getElementById('admin-tab-players-pane');
+    this.adminTabWithdrawalsPane = document.getElementById('admin-tab-withdrawals-pane');
     this.adminTabBadgePlayers = document.getElementById('admin-tab-badge-players');
+    this.adminTabBadgeWithdrawals = document.getElementById('admin-tab-badge-withdrawals');
+
+    // Admin Withdrawal Manager Elements
+    this.adminWdTotalCount = document.getElementById('admin-wd-total-count');
+    this.adminWdPendingCount = document.getElementById('admin-wd-pending-count');
+    this.adminWdApprovedCount = document.getElementById('admin-wd-approved-count');
+    this.adminWdRejectedCount = document.getElementById('admin-wd-rejected-count');
+    this.adminWithdrawalsTableBody = document.getElementById('admin-withdrawals-table-body');
+    this.adminRefreshWithdrawalsBtn = document.getElementById('admin-refresh-withdrawals-btn');
+    this.adminWdSearch = document.getElementById('admin-wd-search');
+    this.wdFltAll = document.getElementById('wd-flt-all');
+    this.wdFltPending = document.getElementById('wd-flt-pending');
+    this.wdFltApproved = document.getElementById('wd-flt-approved');
+    this.wdFltRejected = document.getElementById('wd-flt-rejected');
+
+    // Admin Rejection Modal Elements
+    this.adminRejectModal = document.getElementById('admin-reject-modal');
+    this.adminRejectOverlay = document.getElementById('admin-reject-overlay');
+    this.adminRejectCloseBtn = document.getElementById('admin-reject-close-btn');
+    this.adminRejectCancelBtn = document.getElementById('admin-reject-cancel-btn');
+    this.adminRejectConfirmBtn = document.getElementById('admin-reject-confirm-btn');
+    this.rejectModalTitle = document.getElementById('reject-modal-title');
+    this.rejectModalDesc = document.getElementById('reject-modal-desc');
+    this.adminRejectQuickReason = document.getElementById('admin-reject-quick-reason');
+    this.adminRejectReasonText = document.getElementById('admin-reject-reason-text');
+
     this.adminMiniCanvas = document.getElementById('admin-mini-wheel-canvas');
     this.adminMiniCtx = this.adminMiniCanvas ? this.adminMiniCanvas.getContext('2d') : null;
     this.adminMiniCountdown = document.getElementById('admin-mini-countdown');
@@ -748,6 +805,16 @@ class SpinWheelApp {
       }
     }
 
+    // 10. Withdrawals Requests Database
+    if (Array.isArray(state.withdrawals)) {
+      this.withdrawals = state.withdrawals;
+      this.saveWithdrawals(this.withdrawals);
+      this.renderCustomerWithdrawalHistory();
+      if (this.isDrawerOpen) {
+        this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+      }
+    }
+
     // Update UI components
     if (wheelNeedsRedraw && !this.isSpinning) {
       this.renderWheel();
@@ -781,6 +848,7 @@ class SpinWheelApp {
       masterPassword: this.masterPassword,
       customersDb: this.customersDb,
       activeBets: this.activeBets,
+      withdrawals: this.withdrawals,
       adminKey: adminAuth,
       version: this.version,
       ...additionalFields
@@ -801,6 +869,7 @@ class SpinWheelApp {
     localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
     this.saveCustomersDB(this.customersDb);
     this.saveActiveBets(this.activeBets);
+    this.saveWithdrawals(this.withdrawals);
 
     // 1. Broadcast immediately to all connected Mobile & PC devices via MQTT WebSocket & BroadcastChannel
     if (this.cloudSync) {
@@ -941,6 +1010,36 @@ class SpinWheelApp {
     try {
       localStorage.setItem(STATE_KEYS.ACTIVE_BETS, JSON.stringify(this.activeBets));
     } catch (e) {}
+  }
+
+  loadLocalWithdrawals() {
+    try {
+      const saved = localStorage.getItem(STATE_KEYS.WITHDRAWALS);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  }
+
+  saveWithdrawals(list) {
+    this.withdrawals = Array.isArray(list) ? list : [];
+    try {
+      localStorage.setItem(STATE_KEYS.WITHDRAWALS, JSON.stringify(this.withdrawals));
+    } catch (e) {}
+    this.updateWithdrawalsCountBadges();
+  }
+
+  updateWithdrawalsCountBadges() {
+    const list = Array.isArray(this.withdrawals) ? this.withdrawals : [];
+    const pendingCount = list.filter(w => w.status === 'PENDING').length;
+    if (this.adminTabBadgeWithdrawals) {
+      this.adminTabBadgeWithdrawals.textContent = pendingCount;
+    }
+    if (this.currentCustomer) {
+      const myWds = list.filter(w => w.customerId === this.currentCustomer.id);
+      if (this.custWdBadgeCount) {
+        this.custWdBadgeCount.textContent = myWds.length;
+      }
+    }
   }
 
   // ==========================================================
@@ -1301,10 +1400,22 @@ class SpinWheelApp {
     this.closeSecretAdminModal();
     this.authModal.classList.remove('hidden');
     this.updateCustomerAuthPane();
-    if (defaultMode === 'signup') {
-      this.setCustomerAuthSubtab('signup');
-    } else if (defaultMode === 'forgot') {
-      this.setCustomerAuthSubtab('forgot');
+    if (this.currentCustomer) {
+      if (defaultMode === 'history') {
+        this.setCustomerDashSubtab('history');
+      } else if (defaultMode === 'profile') {
+        this.setCustomerDashSubtab('profile');
+      } else {
+        this.setCustomerDashSubtab('withdraw');
+      }
+    } else {
+      if (defaultMode === 'signup') {
+        this.setCustomerAuthSubtab('signup');
+      } else if (defaultMode === 'forgot') {
+        this.setCustomerAuthSubtab('forgot');
+      } else {
+        this.setCustomerAuthSubtab('signin');
+      }
     }
   }
 
@@ -1323,6 +1434,8 @@ class SpinWheelApp {
     if (this.forgotStep1Error) this.forgotStep1Error.classList.add('hidden');
     if (this.forgotStep2Error) this.forgotStep2Error.classList.add('hidden');
     if (this.forgotStep2Success) this.forgotStep2Success.classList.add('hidden');
+    if (this.custWithdrawError) this.custWithdrawError.classList.add('hidden');
+    if (this.custWithdrawSuccess) this.custWithdrawSuccess.classList.add('hidden');
   }
 
   updateCustomerAuthPane() {
@@ -1335,6 +1448,7 @@ class SpinWheelApp {
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
       if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD Coins`;
+      this.setCustomerDashSubtab('withdraw');
     } else {
       this.customerLoggedInView?.classList.add('hidden');
       this.customerSubtabsBar?.classList.remove('hidden');
@@ -1538,8 +1652,42 @@ class SpinWheelApp {
 
     // Customer Dashboard & Logout buttons
     this.customerDashboardBtn?.addEventListener('click', () => this.openAuthModal('signin'));
+    this.customerWithdrawBtn?.addEventListener('click', () => {
+      if (this.currentCustomer) {
+        this.openAuthModal('withdraw');
+      } else {
+        this.openAuthModal('signin');
+      }
+    });
     this.customerLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
     this.dashLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
+
+    // Customer Dashboard Subtabs (Withdraw, Requests History, Profile)
+    this.dashTabWithdrawBtn?.addEventListener('click', () => this.setCustomerDashSubtab('withdraw'));
+    this.dashTabHistoryBtn?.addEventListener('click', () => this.setCustomerDashSubtab('history'));
+    this.dashTabProfileBtn?.addEventListener('click', () => this.setCustomerDashSubtab('profile'));
+    this.custRefreshHistoryBtn?.addEventListener('click', () => {
+      this.pullStateFromServer().then(() => this.renderCustomerWithdrawalHistory());
+    });
+
+    // Withdrawal Form Max All & Quick Amount Chips
+    this.custWithdrawAllBtn?.addEventListener('click', () => {
+      if (this.custWithdrawAmount && this.currentCustomer) {
+        this.custWithdrawAmount.value = this.currentCustomer.coins || 0;
+      }
+    });
+
+    document.querySelectorAll('.cust-quick-wd').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const amt = parseInt(btn.getAttribute('data-amount'), 10) || 270;
+        if (this.custWithdrawAmount) {
+          this.custWithdrawAmount.value = amt;
+        }
+      });
+    });
+
+    // Withdrawal Request Submit
+    this.custSubmitWithdrawBtn?.addEventListener('click', () => this.handleCustomerWithdrawalSubmit());
 
     // Live Password Strength Checklist updates
     this.custRegPin?.addEventListener('input', () => {
@@ -1808,6 +1956,227 @@ class SpinWheelApp {
     }
   }
 
+  setCustomerDashSubtab(tabName) {
+    if (!this.currentCustomer) return;
+
+    if (this.custWithdrawError) this.custWithdrawError.classList.add('hidden');
+    if (this.custWithdrawSuccess) this.custWithdrawSuccess.classList.add('hidden');
+
+    if (tabName === 'history') {
+      this.dashTabHistoryBtn?.classList.add('active');
+      this.dashTabWithdrawBtn?.classList.remove('active');
+      this.dashTabProfileBtn?.classList.remove('active');
+      this.dashHistoryPane?.classList.remove('hidden');
+      this.dashWithdrawPane?.classList.add('hidden');
+      this.dashProfilePane?.classList.add('hidden');
+      this.renderCustomerWithdrawalHistory();
+    } else if (tabName === 'profile') {
+      this.dashTabProfileBtn?.classList.add('active');
+      this.dashTabWithdrawBtn?.classList.remove('active');
+      this.dashTabHistoryBtn?.classList.remove('active');
+      this.dashProfilePane?.classList.remove('hidden');
+      this.dashWithdrawPane?.classList.add('hidden');
+      this.dashHistoryPane?.classList.add('hidden');
+
+      if (this.dashProfName) this.dashProfName.textContent = this.currentCustomer.name || '--';
+      if (this.dashProfId) this.dashProfId.textContent = this.currentCustomer.id || '--';
+      if (this.dashProfMobile) this.dashProfMobile.textContent = this.currentCustomer.mobile || '--';
+      if (this.dashProfDob) this.dashProfDob.textContent = this.currentCustomer.dob || '--';
+    } else {
+      // Default: withdraw
+      this.dashTabWithdrawBtn?.classList.add('active');
+      this.dashTabHistoryBtn?.classList.remove('active');
+      this.dashTabProfileBtn?.classList.remove('active');
+      this.dashWithdrawPane?.classList.remove('hidden');
+      this.dashHistoryPane?.classList.add('hidden');
+      this.dashProfilePane?.classList.add('hidden');
+      this.prefillBankDetails();
+    }
+  }
+
+  prefillBankDetails() {
+    if (!this.currentCustomer) return;
+    const b = this.currentCustomer.bankDetails || {};
+    if (this.custWithdrawName) {
+      this.custWithdrawName.value = b.accountName || this.currentCustomer.name || '';
+    }
+    if (this.custWithdrawAccount) {
+      this.custWithdrawAccount.value = b.accountNumber || '';
+    }
+    if (this.custWithdrawIfsc) {
+      this.custWithdrawIfsc.value = b.ifscCode || '';
+    }
+    if (this.custWithdrawAmount) {
+      this.custWithdrawAmount.value = '';
+    }
+    if (this.custSaveBankDetails) {
+      this.custSaveBankDetails.checked = true;
+    }
+  }
+
+  handleCustomerWithdrawalSubmit() {
+    if (!this.currentCustomer) {
+      this.showCustomerAuthError('Please sign in first to request a withdrawal.', this.custWithdrawError);
+      return;
+    }
+
+    const accountName = this.custWithdrawName?.value.trim();
+    const accountNumber = this.custWithdrawAccount?.value.trim();
+    const ifscCode = this.custWithdrawIfsc?.value.trim().toUpperCase();
+    const amountVal = parseInt(this.custWithdrawAmount?.value, 10);
+
+    if (!accountName || accountName.length < 2) {
+      this.showCustomerAuthError('Please enter valid Bank Account Holder Name.', this.custWithdrawError);
+      return;
+    }
+
+    if (!accountNumber || accountNumber.length < 6 || !/^\d+$/.test(accountNumber)) {
+      this.showCustomerAuthError('Please enter a valid Bank Account Number (digits only).', this.custWithdrawError);
+      return;
+    }
+
+    if (!ifscCode || ifscCode.length < 4) {
+      this.showCustomerAuthError('Please enter a valid Bank IFSC Code (e.g. SBIN0001234).', this.custWithdrawError);
+      return;
+    }
+
+    if (isNaN(amountVal) || amountVal < 270) {
+      this.showCustomerAuthError('Minimum withdrawal amount is 270 IHD Coins!', this.custWithdrawError);
+      return;
+    }
+
+    const currentBal = this.currentCustomer.coins || 0;
+    if (amountVal > currentBal) {
+      this.showCustomerAuthError(`Insufficient IHD Coins! You have 💰${currentBal.toLocaleString()} IHD Coins, requested 💰${amountVal.toLocaleString()} IHD Coins.`, this.custWithdrawError);
+      return;
+    }
+
+    // Deduct coins from customer balance immediately
+    this.currentCustomer.coins -= amountVal;
+
+    // Save bank details if checked
+    if (this.custSaveBankDetails && this.custSaveBankDetails.checked) {
+      this.currentCustomer.bankDetails = {
+        accountName: accountName,
+        accountNumber: accountNumber,
+        ifscCode: ifscCode
+      };
+    }
+
+    // Save customer session and DB
+    this.saveCustomerSession(this.currentCustomer);
+
+    // Create withdrawal request
+    const newWd = {
+      id: 'WD_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4).toUpperCase(),
+      customerId: this.currentCustomer.id,
+      customerName: this.currentCustomer.name || this.currentCustomer.id,
+      customerMobile: this.currentCustomer.mobile || '',
+      accountName: accountName,
+      accountNumber: accountNumber,
+      ifscCode: ifscCode,
+      amount: amountVal,
+      status: 'PENDING', // PENDING, APPROVED, REJECTED
+      rejectionReason: '',
+      requestedAt: Date.now(),
+      requestedTime: formatTime12(new Date()),
+      requestedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      processedAt: null,
+      processedTime: null
+    };
+
+    if (!Array.isArray(this.withdrawals)) this.withdrawals = [];
+    this.withdrawals = [newWd, ...this.withdrawals];
+    this.saveWithdrawals(this.withdrawals);
+
+    this.updateCustomerUI();
+    this.pushStateToServer({ customersDb: this.customersDb, withdrawals: this.withdrawals });
+
+    if (this.custWithdrawError) this.custWithdrawError.classList.add('hidden');
+    if (this.custWithdrawSuccess) {
+      this.custWithdrawSuccess.textContent = `✅ Withdrawal request of 💰${amountVal.toLocaleString()} IHD Coins submitted! Status is Pending approval by Master Admin.`;
+      this.custWithdrawSuccess.classList.remove('hidden');
+    }
+
+    this.audio.playTick();
+
+    // Auto-switch to history tab after 1.2s to show pending record
+    setTimeout(() => {
+      this.setCustomerDashSubtab('history');
+    }, 1200);
+  }
+
+  renderCustomerWithdrawalHistory() {
+    if (!this.custWithdrawalHistoryList) return;
+    if (!this.currentCustomer) {
+      this.custWithdrawalHistoryList.innerHTML = '<p style="color:var(--text-muted); font-size:0.75rem; text-align:center; padding:1rem;">Please sign in to view your withdrawal requests.</p>';
+      return;
+    }
+
+    const list = Array.isArray(this.withdrawals) ? this.withdrawals : [];
+    const myWds = list.filter(w => w.customerId === this.currentCustomer.id);
+
+    if (this.custWdBadgeCount) {
+      this.custWdBadgeCount.textContent = myWds.length;
+    }
+
+    if (myWds.length === 0) {
+      this.custWithdrawalHistoryList.innerHTML = `
+        <div style="text-align:center; padding:1.5rem 0.5rem; color:var(--text-muted); font-size:0.75rem;">
+          <span style="font-size:1.5rem; display:block; margin-bottom:4px;">💸</span>
+          No withdrawal requests yet.<br>
+          <button type="button" class="btn btn-gold btn-xs" style="margin-top:8px;" onclick="app.setCustomerDashSubtab('withdraw')">+ Make a Withdrawal</button>
+        </div>
+      `;
+      return;
+    }
+
+    this.custWithdrawalHistoryList.innerHTML = '';
+    myWds.forEach(w => {
+      const item = document.createElement('div');
+      item.className = 'cust-wd-item';
+
+      let statusBadgeHtml = '';
+      if (w.status === 'APPROVED') {
+        statusBadgeHtml = '<span class="status-pill status-approved">✅ Completed / Confirmed</span>';
+      } else if (w.status === 'REJECTED') {
+        statusBadgeHtml = '<span class="status-pill status-rejected">❌ Rejected</span>';
+      } else {
+        statusBadgeHtml = '<span class="status-pill status-pending">⏳ Pending Approval</span>';
+      }
+
+      const maskedAcct = w.accountNumber && w.accountNumber.length > 4 ? `••••${w.accountNumber.slice(-4)}` : (w.accountNumber || '--');
+
+      item.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div>
+            <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">💰 ${(w.amount || 0).toLocaleString()} IHD Coins</strong>
+            <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">
+              🏦 A/C: <span style="color:#fff; font-weight:700;">${maskedAcct}</span> (${w.accountName || '--'})
+            </div>
+            <div style="font-size:0.68rem; color:var(--text-muted); margin-top:1px;">
+              IFSC: <span style="color:#00f0ff;">${w.ifscCode || '--'}</span> • Ref: ${w.id}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            ${statusBadgeHtml}
+            <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">
+              ${w.requestedDate || ''} ${w.requestedTime || ''}
+            </div>
+          </div>
+        </div>
+        ${w.status === 'REJECTED' ? `
+          <div class="wd-rejection-reason-box">
+            <strong>❌ Master Rejection Reason:</strong> ${w.rejectionReason || 'Details mismatch / contact master'}<br>
+            <span style="color:#2ecc71; font-size:0.68rem; font-weight:700;">💰 ${(w.amount || 0).toLocaleString()} IHD Coins were automatically refunded back to your wallet.</span>
+          </div>
+        ` : ''}
+      `;
+
+      this.custWithdrawalHistoryList.appendChild(item);
+    });
+  }
+
   placeCustomerPrediction() {
     if (!this.currentCustomer) {
       this.openAuthModal('signin');
@@ -1923,6 +2292,7 @@ class SpinWheelApp {
     this.populateAdminControls();
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     this.renderAdminActiveBetsTable();
+    this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
     this.renderMiniWheel();
     this.adminDrawer.classList.remove('hidden');
   }
@@ -2089,6 +2459,8 @@ class SpinWheelApp {
   bindAdminPlayerEvents() {
     this.adminNavSpinBtn?.addEventListener('click', () => this.setAdminTab('spin'));
     this.adminNavPlayersBtn?.addEventListener('click', () => this.setAdminTab('players'));
+    this.adminNavWithdrawalsBtn?.addEventListener('click', () => this.setAdminTab('withdrawals'));
+
     this.adminMiniTestSpinBtn?.addEventListener('click', () => {
       this.dispatchSynchronizedSpin('Admin Mini Test Spin', true, null);
     });
@@ -2096,6 +2468,45 @@ class SpinWheelApp {
     this.adminRefreshPlayersBtn?.addEventListener('click', () => {
       this.pullStateFromServer().then(() => this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : ''));
       this.showAdminCreditFeedback('🔄 Player list refreshed!', true);
+    });
+
+    this.adminRefreshWithdrawalsBtn?.addEventListener('click', () => {
+      this.pullStateFromServer().then(() => this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : ''));
+      this.showAdminCreditFeedback('🔄 Withdrawal requests refreshed!', true);
+    });
+
+    // Withdrawal Filter Pills
+    document.querySelectorAll('.admin-wd-filter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.admin-wd-filter').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.adminWdFilter = btn.getAttribute('data-filter') || 'ALL';
+        this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+      });
+    });
+
+    // Withdrawal Search Input
+    this.adminWdSearch?.addEventListener('input', () => {
+      this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch.value);
+    });
+
+    // Admin Rejection Modal Events
+    this.adminRejectCloseBtn?.addEventListener('click', () => this.adminCloseRejectModal());
+    this.adminRejectCancelBtn?.addEventListener('click', () => this.adminCloseRejectModal());
+    this.adminRejectOverlay?.addEventListener('click', () => this.adminCloseRejectModal());
+
+    this.adminRejectQuickReason?.addEventListener('change', () => {
+      const sel = this.adminRejectQuickReason.value;
+      if (sel !== 'CUSTOM' && this.adminRejectReasonText) {
+        this.adminRejectReasonText.value = sel;
+      } else if (this.adminRejectReasonText) {
+        this.adminRejectReasonText.value = '';
+        this.adminRejectReasonText.focus();
+      }
+    });
+
+    this.adminRejectConfirmBtn?.addEventListener('click', () => {
+      this.adminConfirmReject();
     });
 
     this.quickCredit50?.addEventListener('click', () => this.setQuickCreditAmount(50));
@@ -2127,17 +2538,224 @@ class SpinWheelApp {
     if (tabName === 'players') {
       this.adminNavPlayersBtn?.classList.add('active');
       this.adminNavSpinBtn?.classList.remove('active');
+      this.adminNavWithdrawalsBtn?.classList.remove('active');
       this.adminTabPlayersPane?.classList.remove('hidden');
       this.adminTabSpinPane?.classList.add('hidden');
+      this.adminTabWithdrawalsPane?.classList.add('hidden');
       this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
       this.renderAdminActiveBetsTable();
+    } else if (tabName === 'withdrawals') {
+      this.adminNavWithdrawalsBtn?.classList.add('active');
+      this.adminNavSpinBtn?.classList.remove('active');
+      this.adminNavPlayersBtn?.classList.remove('active');
+      this.adminTabWithdrawalsPane?.classList.remove('hidden');
+      this.adminTabSpinPane?.classList.add('hidden');
+      this.adminTabPlayersPane?.classList.add('hidden');
+      this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
     } else {
       this.adminNavSpinBtn?.classList.add('active');
       this.adminNavPlayersBtn?.classList.remove('active');
+      this.adminNavWithdrawalsBtn?.classList.remove('active');
       this.adminTabSpinPane?.classList.remove('hidden');
       this.adminTabPlayersPane?.classList.add('hidden');
+      this.adminTabWithdrawalsPane?.classList.add('hidden');
       this.populateAdminControls();
     }
+  }
+
+  renderAdminWithdrawalsList(filterStatus = 'ALL', searchQuery = '') {
+    if (!this.adminWithdrawalsTableBody) return;
+
+    const list = Array.isArray(this.withdrawals) ? this.withdrawals : [];
+    const totalCount = list.length;
+    const pendingCount = list.filter(w => w.status === 'PENDING').length;
+    const approvedCount = list.filter(w => w.status === 'APPROVED').length;
+    const rejectedCount = list.filter(w => w.status === 'REJECTED').length;
+
+    // Update counters
+    if (this.adminWdTotalCount) this.adminWdTotalCount.textContent = totalCount;
+    if (this.adminWdPendingCount) this.adminWdPendingCount.textContent = pendingCount;
+    if (this.adminWdApprovedCount) this.adminWdApprovedCount.textContent = approvedCount;
+    if (this.adminWdRejectedCount) this.adminWdRejectedCount.textContent = rejectedCount;
+
+    if (this.wdFltAll) this.wdFltAll.textContent = totalCount;
+    if (this.wdFltPending) this.wdFltPending.textContent = pendingCount;
+    if (this.wdFltApproved) this.wdFltApproved.textContent = approvedCount;
+    if (this.wdFltRejected) this.wdFltRejected.textContent = rejectedCount;
+
+    if (this.adminTabBadgeWithdrawals) {
+      this.adminTabBadgeWithdrawals.textContent = pendingCount;
+    }
+
+    const q = (searchQuery || '').toLowerCase().trim();
+    const filtered = list.filter(w => {
+      if (filterStatus !== 'ALL' && w.status !== filterStatus) return false;
+      if (!q) return true;
+      return (
+        (w.customerId && w.customerId.toLowerCase().includes(q)) ||
+        (w.customerName && w.customerName.toLowerCase().includes(q)) ||
+        (w.accountName && w.accountName.toLowerCase().includes(q)) ||
+        (w.accountNumber && w.accountNumber.toLowerCase().includes(q)) ||
+        (w.ifscCode && w.ifscCode.toLowerCase().includes(q)) ||
+        (w.id && w.id.toLowerCase().includes(q))
+      );
+    });
+
+    if (filtered.length === 0) {
+      this.adminWithdrawalsTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+            ${totalCount === 0 ? 'No withdrawal requests yet.' : 'No withdrawal requests match current filter.'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    this.adminWithdrawalsTableBody.innerHTML = '';
+    filtered.forEach(w => {
+      const tr = document.createElement('tr');
+
+      let statusBadge = '';
+      if (w.status === 'APPROVED') {
+        statusBadge = '<span class="status-pill status-approved">✅ Approved</span>';
+      } else if (w.status === 'REJECTED') {
+        statusBadge = '<span class="status-pill status-rejected">❌ Rejected</span>';
+      } else {
+        statusBadge = '<span class="status-pill status-pending">⏳ Pending</span>';
+      }
+
+      let actionsHtml = '';
+      if (w.status === 'PENDING') {
+        actionsHtml = `
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button class="btn btn-gold btn-xs" style="background:#2ecc71; border-color:#27ae60; color:#000; font-weight:800; padding:3px 7px;" title="Confirm & Approve" onclick="app.adminApproveWithdrawal('${w.id}')">✓ Confirm</button>
+            <button class="btn btn-danger btn-xs" style="padding:3px 7px;" title="Reject with Reason" onclick="app.adminOpenRejectModal('${w.id}')">✕ Reject</button>
+          </div>
+        `;
+      } else if (w.status === 'APPROVED') {
+        actionsHtml = `<span style="color:#2ecc71; font-size:0.7rem; font-weight:700;">Completed (${w.processedTime || ''})</span>`;
+      } else {
+        actionsHtml = `<span style="color:#ef4444; font-size:0.68rem; font-weight:700;">Rejected & Refunded</span>`;
+      }
+
+      tr.innerHTML = `
+        <td>
+          <strong style="color:#fff;">${w.customerName || 'Player'}</strong><br>
+          <span style="font-family:monospace; color:#00f0ff; font-weight:700; font-size:0.75rem;">ID: ${w.customerId}</span>
+          ${w.customerMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${w.customerMobile}</span>` : ''}
+        </td>
+        <td>
+          <strong style="color:var(--primary-gold-bright); font-size:0.9rem;">💰 ${(w.amount || 0).toLocaleString()} IHD</strong>
+        </td>
+        <td>
+          <div style="line-height:1.3;">
+            <span style="color:#fff; font-weight:700;">${w.accountName || '--'}</span><br>
+            <span style="color:var(--text-secondary); font-family:monospace;">A/C: ${w.accountNumber || '--'}</span><br>
+            <span style="color:#00f0ff; font-size:0.68rem; font-weight:700;">IFSC: ${w.ifscCode || '--'}</span>
+          </div>
+        </td>
+        <td>
+          <span style="font-size:0.72rem; color:var(--text-secondary);">${w.requestedDate || ''}</span><br>
+          <span style="font-size:0.68rem; color:var(--text-muted);">${w.requestedTime || ''}</span>
+        </td>
+        <td>
+          ${statusBadge}
+          ${w.status === 'REJECTED' && w.rejectionReason ? `<br><span style="font-size:0.68rem; color:#ef4444; display:block; max-width:140px; margin-top:2px;">Reason: ${w.rejectionReason}</span>` : ''}
+        </td>
+        <td>
+          ${actionsHtml}
+        </td>
+      `;
+
+      this.adminWithdrawalsTableBody.appendChild(tr);
+    });
+  }
+
+  adminApproveWithdrawal(id) {
+    const req = this.withdrawals.find(w => w.id === id);
+    if (!req) return;
+
+    if (!confirm(`Are you sure you want to CONFIRM and COMPLETE withdrawal of 💰${req.amount} IHD Coins for ${req.customerName} (${req.customerId})?\nBank A/C: ${req.accountNumber} (${req.ifscCode})`)) {
+      return;
+    }
+
+    req.status = 'APPROVED';
+    req.processedAt = Date.now();
+    req.processedTime = formatTime12(new Date());
+
+    this.saveWithdrawals(this.withdrawals);
+    this.pushStateToServer({ withdrawals: this.withdrawals });
+    this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+    this.showAdminCreditFeedback(`✅ Withdrawal ${req.id} confirmed & completed!`, true);
+  }
+
+  adminOpenRejectModal(id) {
+    const req = this.withdrawals.find(w => w.id === id);
+    if (!req) return;
+
+    this.pendingRejectWdId = id;
+
+    if (this.rejectModalTitle) {
+      this.rejectModalTitle.textContent = `Reject Request: 💰${req.amount} IHD (${req.customerName})`;
+    }
+    if (this.rejectModalDesc) {
+      this.rejectModalDesc.innerHTML = `Player ID: <strong>${req.customerId}</strong> | A/C: <strong>${req.accountNumber}</strong><br><span style="color:#2ecc71;">💰${req.amount} IHD Coins will be refunded automatically to player's wallet balance.</span>`;
+    }
+    if (this.adminRejectQuickReason) {
+      this.adminRejectQuickReason.selectedIndex = 0;
+    }
+    if (this.adminRejectReasonText) {
+      this.adminRejectReasonText.value = this.adminRejectQuickReason ? this.adminRejectQuickReason.value : 'Incorrect Bank Account Number';
+    }
+
+    if (this.adminRejectModal) {
+      this.adminRejectModal.classList.remove('hidden');
+    }
+  }
+
+  adminCloseRejectModal() {
+    this.pendingRejectWdId = null;
+    if (this.adminRejectModal) {
+      this.adminRejectModal.classList.add('hidden');
+    }
+  }
+
+  adminConfirmReject() {
+    if (!this.pendingRejectWdId) return;
+
+    const req = this.withdrawals.find(w => w.id === this.pendingRejectWdId);
+    if (!req) {
+      this.adminCloseRejectModal();
+      return;
+    }
+
+    const reason = this.adminRejectReasonText?.value.trim() || 'Details mismatch / Bank rejection';
+
+    req.status = 'REJECTED';
+    req.rejectionReason = reason;
+    req.processedAt = Date.now();
+    req.processedTime = formatTime12(new Date());
+
+    // AUTOMATIC COIN REFUND BACK TO PLAYER'S WALLET
+    if (this.customersDb && this.customersDb[req.customerId]) {
+      this.customersDb[req.customerId].coins = (this.customersDb[req.customerId].coins || 0) + req.amount;
+      this.saveCustomersDB(this.customersDb);
+    }
+
+    if (this.currentCustomer && this.currentCustomer.id === req.customerId) {
+      this.currentCustomer.coins = (this.currentCustomer.coins || 0) + req.amount;
+      this.saveCustomerSession(this.currentCustomer);
+      this.updateCustomerUI();
+    }
+
+    this.saveWithdrawals(this.withdrawals);
+    this.pushStateToServer({ customersDb: this.customersDb, withdrawals: this.withdrawals });
+
+    this.adminCloseRejectModal();
+    this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.showAdminCreditFeedback(`❌ Withdrawal ${req.id} rejected. 💰${req.amount} IHD Coins refunded to ${req.customerId}.`, false);
   }
 
   showAdminCreditFeedback(msg, isSuccess = true) {

@@ -1991,3 +1991,99 @@ body {
   padding: 0.6rem;
 }
 
+/* Customer Dashboard Subtabs & Withdrawal Components */
+.cust-dash-tab {
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.cust-dash-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.cust-dash-tab.active {
+  background: linear-gradient(135deg, #ffd700, #ff9800) !important;
+  color: #000 !important;
+  box-shadow: 0 0 10px rgba(245, 176, 65, 0.4);
+}
+
+.dash-subtab-pane {
+  animation: fadeIn 0.25s ease;
+}
+
+/* Customer Withdrawal History Items */
+.cust-wd-item {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.cust-wd-item:hover {
+  border-color: rgba(245, 176, 65, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.cust-wd-item.pending {
+  border-left: 3px solid #f5b041;
+}
+
+.cust-wd-item.approved {
+  border-left: 3px solid #2ecc71;
+}
+
+.cust-wd-item.rejected {
+  border-left: 3px solid #ef4444;
+}
+
+/* Status Badges */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.status-pill.pending {
+  background: rgba(245, 176, 65, 0.15);
+  border: 1px solid rgba(245, 176, 65, 0.5);
+  color: #ffd700;
+}
+
+.status-pill.approved {
+  background: rgba(46, 204, 113, 0.15);
+  border: 1px solid rgba(46, 204, 113, 0.5);
+  color: #2ecc71;
+}
+
+.status-pill.rejected {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+.wd-rejection-reason-box {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px dashed rgba(239, 68, 68, 0.35);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  color: #ff9999;
+}
+
+.admin-wd-filter.active {
+  background: rgba(245, 176, 65, 0.2) !important;
+  border-color: var(--primary-gold) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+

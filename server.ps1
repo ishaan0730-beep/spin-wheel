@@ -70,6 +70,9 @@ public class NativeHttpServer {
                     ""manualRoundTitle"": null,
                     ""masterPassword"": ""00773300"",
                     ""spinTrigger"": null,
+                    ""customersDb"": {},
+                    ""activeBets"": [],
+                    ""withdrawals"": [],
                     ""version"": 1
                 }";
                 File.WriteAllText(stateFile, defaultJson, Encoding.UTF8);
