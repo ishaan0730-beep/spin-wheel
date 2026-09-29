@@ -35,7 +35,8 @@ const STATE_KEYS = {
   MANUAL_ROUND_TITLE: 'lucky_spin_manual_round_title_v6',
   CUSTOMER_USER: 'lucky_spin_current_customer_v6',
   CUSTOMERS_DB: 'lucky_spin_customers_db_v6',
-  CURRENT_BET: 'lucky_spin_current_bet_v6'
+  CURRENT_BET: 'lucky_spin_current_bet_v6',
+  ACTIVE_BETS: 'lucky_spin_active_bets_v6'
 };
 
 // Vibrant Luxury Wheel Slice Color Palettes
@@ -361,6 +362,7 @@ class SpinWheelApp {
     this.currentCustomer = this.loadCustomerSession();
     this.customersDb = this.loadCustomersDB();
     this.currentBet = this.loadCurrentBet();
+    this.activeBets = this.loadActiveBets();
     this.selectedBetAmount = 10;
     this.selectedBetNumber = null;
     this.isSignUpMode = false;
@@ -440,6 +442,8 @@ class SpinWheelApp {
     // Customer Prediction Widget Elements
     this.customerPredictionSection = document.getElementById('customer-prediction-section');
     this.playerWalletDisplay = document.getElementById('player-wallet-display');
+    this.predTargetSlotText = document.getElementById('pred-target-slot-text');
+    this.playerTargetSlotSelect = document.getElementById('player-target-slot-select');
     this.predictionNumberChips = document.getElementById('prediction-number-chips');
     this.customBetInput = document.getElementById('custom-bet-input');
     this.placePredictionBtn = document.getElementById('place-prediction-btn');
@@ -447,6 +451,8 @@ class SpinWheelApp {
     this.betSelectedNum = document.getElementById('bet-selected-num');
     this.betSelectedCoins = document.getElementById('bet-selected-coins');
     this.betPotentialWin = document.getElementById('bet-potential-win');
+    this.betTargetSlotInfo = document.getElementById('bet-target-slot-info');
+    this.betTargetDateInfo = document.getElementById('bet-target-date-info');
     this.predictionFeedbackMsg = document.getElementById('prediction-feedback-msg');
 
     // Admin Master Auth Elements
@@ -519,6 +525,9 @@ class SpinWheelApp {
     this.quickCredit1000 = document.getElementById('quick-credit-1000');
     this.quickCredit5000 = document.getElementById('quick-credit-5000');
 
+    this.adminActiveBetsSummary = document.getElementById('admin-active-bets-summary');
+    this.adminActiveBetsTableBody = document.getElementById('admin-active-bets-table-body');
+
     // Section 6 Controls (Master Key & History)
     this.newMasterKeyInput = document.getElementById('new-master-key-input');
     this.saveMasterKeyBtn = document.getElementById('save-master-key-btn');
@@ -536,6 +545,7 @@ class SpinWheelApp {
     this.updateSoundUI();
     this.renderWheel();
     this.renderPredictionChips();
+    this.updateTargetSlotDisplay();
     this.updateCustomerUI();
     this.renderLast3Results();
     this.populateAdminControls();
@@ -735,6 +745,15 @@ class SpinWheelApp {
       }
     }
 
+    // 9. Active Bets & Predictions
+    if (Array.isArray(state.activeBets)) {
+      this.activeBets = state.activeBets;
+      this.saveActiveBets(this.activeBets);
+      if (this.isDrawerOpen) {
+        this.renderAdminActiveBetsTable();
+      }
+    }
+
     // Update UI components
     if (wheelNeedsRedraw && !this.isSpinning) {
       this.renderWheel();
@@ -767,6 +786,7 @@ class SpinWheelApp {
       customTimerTarget: this.customTimerTarget,
       masterPassword: this.masterPassword,
       customersDb: this.customersDb,
+      activeBets: this.activeBets,
       adminKey: adminAuth,
       version: this.version,
       ...additionalFields
@@ -786,6 +806,7 @@ class SpinWheelApp {
     localStorage.setItem(STATE_KEYS.CUSTOM_SECS, this.customSecs);
     localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
     this.saveCustomersDB(this.customersDb);
+    this.saveActiveBets(this.activeBets);
 
     // 1. Broadcast immediately to all connected Mobile & PC devices via MQTT WebSocket & BroadcastChannel
     if (this.cloudSync) {
@@ -924,6 +945,21 @@ class SpinWheelApp {
     } else {
       localStorage.removeItem(STATE_KEYS.CURRENT_BET);
     }
+  }
+
+  loadActiveBets() {
+    try {
+      const saved = localStorage.getItem(STATE_KEYS.ACTIVE_BETS);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  }
+
+  saveActiveBets(bets) {
+    this.activeBets = Array.isArray(bets) ? bets : [];
+    try {
+      localStorage.setItem(STATE_KEYS.ACTIVE_BETS, JSON.stringify(this.activeBets));
+    } catch (e) {}
   }
 
   // ==========================================================
@@ -1515,6 +1551,60 @@ class SpinWheelApp {
   // ==========================================================
   // CUSTOMER UI & PREDICTION LOGIC
   // ==========================================================
+  getTargetSlotDetails(slotChoice = 'NEXT') {
+    const now = new Date();
+    const currentTotalSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+    if (!slotChoice || slotChoice === 'NEXT') {
+      const nextInfo = getNextSlotInfo(now);
+      const isTomorrow = nextInfo.targetDate.getDate() !== now.getDate();
+      const dayPrefix = isTomorrow ? 'Tomorrow' : 'Today';
+      const dateFormatted = nextInfo.targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dateFull = nextInfo.targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return {
+        slotLabel: nextInfo.label,
+        dayPrefix: dayPrefix,
+        dateFormatted: dateFormatted,
+        dateFull: dateFull,
+        targetDate: nextInfo.targetDate,
+        displayStr: `${dayPrefix}, ${dateFormatted} • ${nextInfo.label} Round`
+      };
+    }
+
+    // Specific slot selected
+    const slotObj = DAILY_SLOTS.find(s => s.label === slotChoice) || DAILY_SLOTS[0];
+    const slotTotalSecs = slotObj.hour * 3600 + slotObj.min * 60;
+    const targetDate = new Date(now);
+    let isTomorrow = false;
+
+    if (slotTotalSecs <= currentTotalSecs) {
+      targetDate.setDate(targetDate.getDate() + 1);
+      isTomorrow = true;
+    }
+    targetDate.setHours(slotObj.hour, slotObj.min, 0, 0);
+
+    const dayPrefix = isTomorrow ? 'Tomorrow' : 'Today';
+    const dateFormatted = targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const dateFull = targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    return {
+      slotLabel: slotObj.label,
+      dayPrefix: dayPrefix,
+      dateFormatted: dateFormatted,
+      dateFull: dateFull,
+      targetDate: targetDate,
+      displayStr: `${dayPrefix}, ${dateFormatted} • ${slotObj.label} Round`
+    };
+  }
+
+  updateTargetSlotDisplay() {
+    const choice = this.playerTargetSlotSelect ? this.playerTargetSlotSelect.value : 'NEXT';
+    const details = this.getTargetSlotDetails(choice);
+    if (this.predTargetSlotText) {
+      this.predTargetSlotText.textContent = details.displayStr;
+    }
+  }
+
   updateCustomerUI() {
     if (this.currentCustomer) {
       this.customerLoginBtn?.classList.add('hidden');
@@ -1531,12 +1621,16 @@ class SpinWheelApp {
       if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = '💰 Logged Out (0 IHD Coins)';
     }
 
+    this.updateTargetSlotDisplay();
+
     // Update active prediction bet notice
     if (this.currentBet) {
       this.activeBetNotice?.classList.remove('hidden');
       if (this.betSelectedNum) this.betSelectedNum.textContent = `#${this.currentBet.number}`;
       if (this.betSelectedCoins) this.betSelectedCoins.textContent = `${this.currentBet.amount}`;
       if (this.betPotentialWin) this.betPotentialWin.textContent = `${this.currentBet.potentialWin || this.currentBet.amount * 9}`;
+      if (this.betTargetSlotInfo) this.betTargetSlotInfo.textContent = this.currentBet.targetSlot || this.currentBet.round || '--';
+      if (this.betTargetDateInfo) this.betTargetDateInfo.textContent = this.currentBet.targetDate || 'Today';
     } else {
       this.activeBetNotice?.classList.add('hidden');
     }
@@ -1566,6 +1660,12 @@ class SpinWheelApp {
   }
 
   bindCustomerEvents() {
+    // Target slot selection dropdown change
+    this.playerTargetSlotSelect?.addEventListener('change', () => {
+      this.updateTargetSlotDisplay();
+      this.audio.playTick();
+    });
+
     // Customer Subtabs
     this.custSubtabSignin?.addEventListener('click', () => this.setCustomerAuthSubtab('signin'));
     this.custSubtabSignup?.addEventListener('click', () => this.setCustomerAuthSubtab('signup'));
@@ -1848,7 +1948,7 @@ class SpinWheelApp {
 
   placeCustomerPrediction() {
     if (!this.currentCustomer) {
-      this.openAuthModal('customer');
+      this.openAuthModal('signin');
       if (this.predictionFeedbackMsg) {
         this.predictionFeedbackMsg.style.color = '#f5b041';
         this.predictionFeedbackMsg.textContent = '👉 Please Sign In or Register to place a prediction!';
@@ -1895,21 +1995,43 @@ class SpinWheelApp {
     this.currentCustomer.totalBets = (this.currentCustomer.totalBets || 0) + 1;
     this.saveCustomerSession(this.currentCustomer);
 
-    const nextSlot = getNextSlotInfo(new Date());
-    this.currentBet = {
+    const slotChoice = this.playerTargetSlotSelect ? this.playerTargetSlotSelect.value : 'NEXT';
+    const slotDetails = this.getTargetSlotDetails(slotChoice);
+
+    const betObj = {
+      id: 'bet_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      playerId: this.currentCustomer.id,
+      playerName: this.currentCustomer.name || this.currentCustomer.id,
+      playerMobile: this.currentCustomer.mobile || '',
       number: this.selectedBetNumber,
       amount: amount,
       potentialWin: amount * 9, // 9X MULTIPLIER
-      round: nextSlot.label,
+      targetSlot: slotDetails.slotLabel,
+      targetDate: slotDetails.dateFormatted,
+      targetDateFull: slotDetails.dateFull,
+      displaySlot: slotDetails.displayStr,
+      placedTime: formatTime12(new Date()),
       timestamp: Date.now()
     };
+
+    this.currentBet = betObj;
     this.saveCurrentBet(this.currentBet);
+
+    // Update global active bets list
+    if (!Array.isArray(this.activeBets)) this.activeBets = [];
+    this.activeBets = [
+      betObj,
+      ...this.activeBets.filter(b => !(b.playerId === betObj.playerId && b.targetSlot === betObj.targetSlot && b.targetDateFull === betObj.targetDateFull))
+    ];
+    this.saveActiveBets(this.activeBets);
+
     this.updateCustomerUI();
+    this.pushStateToServer({ customersDb: this.customersDb, activeBets: this.activeBets });
 
     if (this.predictionFeedbackMsg) {
       this.predictionFeedbackMsg.style.color = '#2ecc71';
-      this.predictionFeedbackMsg.textContent = `✅ Locked ${amount} IHD Coins on #${this.selectedBetNumber} for ${nextSlot.label} round (Potential 9x Win: ${amount * 9} IHD Coins)!`;
-      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4000);
+      this.predictionFeedbackMsg.textContent = `✅ Locked ${amount} IHD Coins on #${this.selectedBetNumber} for ${slotDetails.displayStr} (Potential 9x Win: 💰${amount * 9} IHD Coins)!`;
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 5000);
     }
     this.audio.playTick();
   }
@@ -1938,6 +2060,7 @@ class SpinWheelApp {
     }
     this.populateAdminControls();
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.renderAdminActiveBetsTable();
     this.adminDrawer.classList.remove('hidden');
   }
 
@@ -2312,6 +2435,58 @@ class SpinWheelApp {
       this.adminPlayersTableBody.appendChild(tr);
     });
   }
+
+  renderAdminActiveBetsTable() {
+    if (!this.adminActiveBetsTableBody) return;
+
+    const bets = Array.isArray(this.activeBets) ? this.activeBets : [];
+    const totalCount = bets.length;
+    const totalCoins = bets.reduce((sum, b) => sum + (b.amount || 0), 0);
+
+    if (this.adminActiveBetsSummary) {
+      this.adminActiveBetsSummary.textContent = `${totalCount} Active Bet${totalCount === 1 ? '' : 's'} (💰 ${totalCoins.toLocaleString()} IHD Coins Pool)`;
+    }
+
+    if (bets.length === 0) {
+      this.adminActiveBetsTableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align:center; color:var(--text-muted); padding:1rem;">
+            No active player predictions right now.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    this.adminActiveBetsTableBody.innerHTML = '';
+    bets.forEach(b => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <strong style="color:#fff;">${b.playerName || 'Player'}</strong><br>
+          <span style="font-family:monospace; color:#00f0ff; font-size:0.7rem;">ID: ${b.playerId || '--'}</span>
+          ${b.playerMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${b.playerMobile}</span>` : ''}
+        </td>
+        <td>
+          <span style="display:inline-block; background:#ffd700; color:#000; font-weight:800; font-size:0.88rem; padding:3px 9px; border-radius:12px; box-shadow:0 0 8px rgba(255,215,0,0.5);">
+            #${b.number}
+          </span>
+        </td>
+        <td>
+          <strong style="color:var(--primary-gold-bright); font-size:0.84rem;">💰 ${b.amount} IHD</strong><br>
+          <span style="font-size:0.7rem; color:#2ecc71; font-weight:600;">Win (9x): 💰 ${b.potentialWin || b.amount * 9}</span>
+        </td>
+        <td>
+          <span style="color:#00f0ff; font-weight:700; font-size:0.8rem;">🕒 ${b.targetSlot || 'Next Round'}</span><br>
+          <span style="font-size:0.7rem; color:var(--text-secondary);">📅 ${b.targetDate || 'Today'}</span>
+        </td>
+        <td>
+          <span style="font-size:0.72rem; color:var(--text-secondary);">${b.placedTime || 'Just now'}</span>
+        </td>
+      `;
+      this.adminActiveBetsTableBody.appendChild(tr);
+    });
+  }
   renderWheel() {
     const ctx = this.ctx;
     const numSlices = this.slices.length;
@@ -2578,11 +2753,66 @@ class SpinWheelApp {
       this.winTimeEl.textContent = `Won at ${timeStr12} &bull; Round ${roundStr12}`;
     }
 
-    // Evaluate Customer Prediction Bet & 9x Payout
-    if (this.currentBet) {
+    // Evaluate Customer Prediction Bets & 9x Multiplier Payouts for this round
+    if (!isTestSpin && Array.isArray(this.activeBets) && this.activeBets.length > 0) {
+      const todayFormatted = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      
+      this.activeBets.forEach(bet => {
+        // Check if this bet targets this round slot
+        const isSlotMatch = (bet.targetSlot === roundStr12 || !bet.targetSlot || bet.targetSlot === 'NEXT');
+        const isDateMatch = (!bet.targetDate || bet.targetDate === todayFormatted || bet.targetDate === dateStr);
+
+        if (isSlotMatch && isDateMatch) {
+          if (bet.number === winningNumber) {
+            const winAmount = bet.amount * 9; // 9X MULTIPLIER
+            if (this.customersDb && this.customersDb[bet.playerId]) {
+              this.customersDb[bet.playerId].coins = (this.customersDb[bet.playerId].coins || 0) + winAmount;
+              this.customersDb[bet.playerId].wins = (this.customersDb[bet.playerId].wins || 0) + 1;
+            }
+            if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
+              this.currentCustomer.coins = (this.currentCustomer.coins || 0) + winAmount;
+              this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+              this.saveCustomerSession(this.currentCustomer);
+              if (this.predictionFeedbackMsg) {
+                this.predictionFeedbackMsg.style.color = '#ffd700';
+                this.predictionFeedbackMsg.innerHTML = `🎉 <strong>PREDICTION WIN!</strong> You predicted #${winningNumber} for ${roundStr12} and won 💰${winAmount.toLocaleString()} IHD Coins (9x Multiplier auto-credited)!`;
+              }
+            }
+          } else {
+            if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
+              if (this.predictionFeedbackMsg) {
+                this.predictionFeedbackMsg.style.color = '#94a3b8';
+                this.predictionFeedbackMsg.textContent = `Round ${roundStr12} winning number was #${winningNumber}. Better luck on next round!`;
+                setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 6000);
+              }
+            }
+          }
+        }
+      });
+
+      // Filter out settled bets from activeBets
+      this.activeBets = this.activeBets.filter(bet => {
+        const isSlotMatch = (bet.targetSlot === roundStr12 || !bet.targetSlot || bet.targetSlot === 'NEXT');
+        const isDateMatch = (!bet.targetDate || bet.targetDate === todayFormatted || bet.targetDate === dateStr);
+        return !(isSlotMatch && isDateMatch);
+      });
+
+      this.saveActiveBets(this.activeBets);
+      this.saveCustomersDB(this.customersDb);
+      if (this.currentBet && (this.currentBet.targetSlot === roundStr12 || !this.currentBet.targetSlot)) {
+        this.currentBet = null;
+        this.saveCurrentBet(null);
+      }
+      this.updateCustomerUI();
+      if (this.isDrawerOpen) {
+        this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+        this.renderAdminActiveBetsTable();
+      }
+    } else if (this.currentBet) {
+      // Fallback for single bet evaluation
       const bet = this.currentBet;
       if (bet.number === winningNumber) {
-        const winAmount = bet.amount * 9; // 9X MULTIPLIER
+        const winAmount = bet.amount * 9;
         if (this.currentCustomer) {
           this.currentCustomer.coins = (this.currentCustomer.coins || 0) + winAmount;
           this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
@@ -2623,7 +2853,12 @@ class SpinWheelApp {
 
     // Always clear spinTrigger on complete so it never fires again and sync history
     if (isInitiator) {
-      this.pushStateToServer({ spinTrigger: null, history: this.history });
+      this.pushStateToServer({
+        spinTrigger: null,
+        history: this.history,
+        customersDb: this.customersDb,
+        activeBets: this.activeBets
+      });
     }
   }
 

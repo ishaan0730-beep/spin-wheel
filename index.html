@@ -160,6 +160,26 @@
           <span id="player-wallet-display" style="font-size: 0.82rem; font-weight:700; color:var(--primary-gold-bright);">💰 10 IHD Coins</span>
         </div>
 
+        <!-- Target Betting Round Time & Date Slot Row -->
+        <div class="prediction-slot-header-row" style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.4); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.45rem 0.75rem; margin-bottom:0.75rem;">
+          <div style="display:flex; align-items:center; gap:0.45rem;">
+            <span style="font-size:1.1rem;">🕒</span>
+            <div>
+              <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; display:block;">Target Slot & Date:</span>
+              <strong id="pred-target-slot-text" style="font-size:0.82rem; color:#00f0ff;">Today &bull; 04:00 PM Round</strong>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <select id="player-target-slot-select" class="admin-select" style="padding:0.35rem 0.5rem; font-size:0.74rem; background:rgba(20,27,45,0.9); border-color:rgba(245,176,65,0.4);">
+              <option value="NEXT">⚡ Next Upcoming Slot</option>
+              <option value="12:00 PM">12:00 PM Slot</option>
+              <option value="04:00 PM">04:00 PM Slot</option>
+              <option value="08:00 PM">08:00 PM Slot</option>
+              <option value="11:00 PM">11:00 PM Slot</option>
+            </select>
+          </div>
+        </div>
+
         <div class="prediction-grid-chips" id="prediction-number-chips">
           <!-- Dynamically populated with 10 wheel slots -->
         </div>
@@ -187,8 +207,16 @@
         </div>
 
         <div id="active-bet-notice" class="active-bet-notice hidden">
-          <span>🎯 Your Bet: <strong id="bet-selected-num">--</strong> for <strong id="bet-selected-coins">10</strong> IHD Coins</span>
-          <span style="font-size:0.75rem; opacity:0.95;">Win (9x): <strong id="bet-potential-win">90</strong> IHD Coins</span>
+          <div style="display:flex; flex-direction:column; gap:3px; width:100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span>🎯 <strong>Your Bet:</strong> <strong id="bet-selected-num" style="color:#ffd700; font-size:0.95rem;">--</strong> (<strong id="bet-selected-coins">10</strong> IHD Coins)</span>
+              <span style="font-size:0.78rem; color:#2ecc71;">🏆 <strong>Win (9x):</strong> <strong id="bet-potential-win">90</strong> IHD Coins</span>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-secondary); display:flex; justify-content:space-between; border-top:1px dashed rgba(46,204,113,0.3); padding-top:3px; margin-top:2px;">
+              <span>🕒 <strong>Round Slot:</strong> <strong id="bet-target-slot-info" style="color:#fff;">--:--</strong></span>
+              <span>📅 <strong>Date:</strong> <strong id="bet-target-date-info" style="color:#fff;">--</strong></span>
+            </div>
+          </div>
         </div>
 
         <p id="prediction-feedback-msg" class="save-status-msg" style="display:block; margin-top:4px; font-size:0.76rem;"></p>
@@ -753,7 +781,7 @@
           </div>
 
           <!-- Interactive Players Table -->
-          <div class="schedule-table-wrap" style="max-height: 280px; overflow-y:auto;">
+          <div class="schedule-table-wrap" style="max-height: 250px; overflow-y:auto;">
             <table class="schedule-table" style="font-size:0.76rem;">
               <thead>
                 <tr>
@@ -769,6 +797,36 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Live Player Active Bets & Time/Date Slot Tracker -->
+          <div class="admin-live-bets-box" style="margin-top:1.1rem; border-top:1px solid rgba(245,176,65,0.25); padding-top:0.85rem;">
+            <div class="admin-card-header-flex" style="margin-bottom:0.5rem;">
+              <div style="display:flex; align-items:center; gap:0.4rem;">
+                <span style="font-size:1.1rem;">🎯</span>
+                <strong style="color:var(--primary-gold-bright); font-size:0.88rem;">Live Player Predictions & Active Bets</strong>
+              </div>
+              <span id="admin-active-bets-summary" style="font-size:0.72rem; color:#00f0ff; font-weight:700;">0 Active Bets (0 IHD Coins Pool)</span>
+            </div>
+
+            <div class="schedule-table-wrap" style="max-height: 240px; overflow-y:auto;">
+              <table class="schedule-table" style="font-size:0.74rem;">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Prediction</th>
+                    <th>Bet Amount</th>
+                    <th>Target Slot & Date</th>
+                    <th>Placed Time</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-active-bets-table-body">
+                  <tr>
+                    <td colspan="5" style="text-align:center; color:var(--text-muted); padding:0.8rem;">No active player predictions right now.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

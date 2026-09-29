@@ -24,6 +24,7 @@ let globalState = {
   masterPassword: "00773300",
   spinTrigger: null,
   customersDb: {},
+  activeBets: [],
   version: 1
 };
 
@@ -81,6 +82,8 @@ export default function handler(req, res) {
         customSecs: globalState.customSecs,
         customTimerTarget: globalState.customTimerTarget,
         spinTrigger: globalState.spinTrigger,
+        customersDb: globalState.customersDb,
+        activeBets: globalState.activeBets,
         version: globalState.version
       };
       return res.status(200).json(publicState);
@@ -110,15 +113,22 @@ export default function handler(req, res) {
             globalState.customersDb = { ...globalState.customersDb, ...body.customersDb };
             delete body.customersDb;
           }
+          if (Array.isArray(body.activeBets)) {
+            globalState.activeBets = body.activeBets;
+            delete body.activeBets;
+          }
           globalState = {
             ...globalState,
             ...body,
             version: Date.now()
           };
         } else {
-          // Public updates: can sync customer registration / session updates, clear completed spin triggers, update history
+          // Public updates: can sync customer registration, active bets, clear completed spin triggers, update history
           if (body.customersDb && typeof body.customersDb === 'object') {
             globalState.customersDb = { ...globalState.customersDb, ...body.customersDb };
+          }
+          if (Array.isArray(body.activeBets)) {
+            globalState.activeBets = body.activeBets;
           }
           if (body.spinTrigger === null) {
             globalState.spinTrigger = null;
