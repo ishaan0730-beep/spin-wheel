@@ -504,351 +504,427 @@
     </div>
   </div>
 
-  <!-- MASTER ADMIN CONTROL DRAWER -->
-  <div id="admin-drawer" class="admin-drawer hidden">
+  <!-- MASTER ADMIN CONTROL FULL-PAGE DASHBOARD -->
+  <div id="admin-drawer" class="admin-drawer admin-fullpage hidden">
     <div class="admin-overlay" id="admin-overlay"></div>
-    <div class="admin-panel">
+    <div class="admin-panel admin-panel-fullscreen">
+      
+      <!-- Top Header with Title, Tabs, Connection status & Actions -->
       <div class="admin-header">
-        <div class="admin-header-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"></path>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
-          </svg>
-          <h3>Master Control Center</h3>
+        <div class="admin-header-left">
+          <div class="admin-header-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"></path>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+            </svg>
+            <div>
+              <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--primary-gold-bright);">Master Control Center</h3>
+              <span style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">Full System Management & Live Monitor</span>
+            </div>
+          </div>
         </div>
+
+        <!-- Master Tabs Nav Bar -->
+        <div class="admin-nav-tabs">
+          <button id="admin-nav-spin-btn" class="admin-tab-btn active">
+            <span>⚙️ Spin & Round Settings</span>
+          </button>
+          <button id="admin-nav-players-btn" class="admin-tab-btn">
+            <span>👥 Players & Live Bets</span>
+            <span id="admin-tab-badge-players" class="admin-tab-badge">0</span>
+          </button>
+        </div>
+
         <div class="admin-header-right">
           <button id="admin-logout-btn" class="btn btn-secondary btn-sm" title="Log Out">Logout</button>
           <button id="admin-close-btn" class="icon-btn" aria-label="Close Admin Panel">&times;</button>
         </div>
       </div>
 
-      <div class="admin-body">
+      <!-- Admin Main Content Layout (Main Controls + Side Live Mini Spin Monitor) -->
+      <div class="admin-dashboard-container">
         
-        <!-- SECTION 1: MANUAL COUNTDOWN TIMER & ROUND CONTROLLER -->
-        <div class="admin-card control-highlight">
-          <div class="admin-card-title">
-            <span class="step-num">1</span>
-            <h4>Manual Countdown Timer & Round Controller</h4>
-          </div>
-          <p class="card-desc">Set custom countdown timer duration or override the round time:</p>
+        <!-- Left / Center Column: Tab Contents -->
+        <div class="admin-main-column">
           
-          <!-- Mode Toggle -->
-          <div class="timer-mode-row">
-            <label class="radio-label">
-              <input type="radio" name="timerMode" id="timer-mode-real" value="REAL" checked>
-              <span>🕒 Real Clock (Top of Hour)</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" name="timerMode" id="timer-mode-manual" value="MANUAL">
-              <span>⏱️ Custom Countdown</span>
-            </label>
-          </div>
-
-          <!-- Custom Timer Controls -->
-          <div id="custom-timer-panel" class="custom-timer-panel" style="margin-top: 0.75rem;">
-            <div class="timer-inputs-flex">
-              <div class="timer-input-box">
-                <label>Minutes:</label>
-                <input type="number" id="custom-timer-mins" class="admin-input" min="0" max="180" value="1">
-              </div>
-              <div class="timer-input-box">
-                <label>Seconds:</label>
-                <input type="number" id="custom-timer-secs" class="admin-input" min="0" max="59" value="0">
-              </div>
-              <button id="set-custom-timer-btn" class="btn btn-primary">Start Timer</button>
-            </div>
-
-            <!-- Quick Presets -->
-            <div class="quick-timer-presets" style="margin-top: 0.6rem;">
-              <span class="preset-label">Quick Set:</span>
-              <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(30)">⚡ 30s</button>
-              <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(60)">1 Min</button>
-              <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(120)">2 Min</button>
-              <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(300)">5 Min</button>
-              <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(600)">10 Min</button>
-            </div>
-          </div>
-
-          <!-- SPECIFIC ROUND TIMING & WINNING NUMBER SETUP (e.g. 04:00 PM -> 21) -->
-          <div class="round-winner-preset-box" style="margin-top: 0.9rem;">
-            <div class="preset-box-title">
-              <span>🎯 Set Round Timing & Predetermined Winner:</span>
-            </div>
-            <p class="card-desc" style="margin-bottom: 0.5rem; font-size: 0.76rem;">Pick a round time (e.g. 04:00 PM) and choose what number will win at that time (e.g. 21):</p>
+          <!-- TAB 1: SPIN & ROUND SETTINGS -->
+          <div id="admin-tab-spin-pane" class="admin-tab-pane active">
             
-            <div class="timing-winner-grid">
-              <div class="grid-field">
-                <label class="field-label">Round Time:</label>
-                <select id="quick-round-hour-select" class="admin-select">
-                  <option value="12:00 PM">12:00 PM</option>
-                  <option value="04:00 PM" selected>04:00 PM</option>
-                  <option value="08:00 PM">08:00 PM</option>
-                  <option value="11:00 PM">11:00 PM</option>
-                  <option value="CUSTOM">Custom Title / Text...</option>
-                </select>
+            <!-- SECTION 1: MANUAL COUNTDOWN TIMER & ROUND CONTROLLER -->
+            <div class="admin-card control-highlight">
+              <div class="admin-card-title">
+                <span class="step-num">1</span>
+                <h4>Manual Countdown Timer & Round Controller</h4>
+              </div>
+              <p class="card-desc">Set custom countdown timer duration or override the round time:</p>
+              
+              <!-- Mode Toggle -->
+              <div class="timer-mode-row">
+                <label class="radio-label">
+                  <input type="radio" name="timerMode" id="timer-mode-real" value="REAL" checked>
+                  <span>🕒 Real Clock (Top of Hour)</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="timerMode" id="timer-mode-manual" value="MANUAL">
+                  <span>⏱️ Custom Countdown</span>
+                </label>
               </div>
 
-              <div class="grid-field">
-                <label class="field-label">Winning Number:</label>
-                <select id="manual-round-winner-select" class="admin-select">
-                  <!-- Dynamically populated with the 10 permanent wheel slices -->
-                </select>
-                <input type="number" id="manual-round-winner-input" class="admin-input hidden" min="1" max="100" placeholder="Type 1-100" style="margin-top: 4px;">
-              </div>
-            </div>
+              <!-- Custom Timer Controls -->
+              <div id="custom-timer-panel" class="custom-timer-panel" style="margin-top: 0.75rem;">
+                <div class="timer-inputs-flex">
+                  <div class="timer-input-box">
+                    <label>Minutes:</label>
+                    <input type="number" id="custom-timer-mins" class="admin-input" min="0" max="180" value="1">
+                  </div>
+                  <div class="timer-input-box">
+                    <label>Seconds:</label>
+                    <input type="number" id="custom-timer-secs" class="admin-input" min="0" max="59" value="0">
+                  </div>
+                  <button id="set-custom-timer-btn" class="btn btn-primary">Start Timer</button>
+                </div>
 
-            <!-- Custom Round Title Input (Shown if custom chosen or for manual edits) -->
-            <div id="custom-title-row" class="custom-title-row hidden" style="margin-top: 0.5rem;">
-              <label class="field-label">Custom Round Title / Time:</label>
-              <input type="text" id="manual-round-title-input" class="admin-input" placeholder="e.g. 04:00 PM or Special Live Round 1" value="04:00 PM">
-            </div>
-
-            <div class="timing-actions-row" style="margin-top: 0.65rem;">
-              <button id="apply-time-winner-btn" class="btn btn-gold btn-block">🔒 Set Round Time & Lock Winner (e.g. 04:00 PM ➔ 21)</button>
-              <button id="test-time-winner-btn" class="btn btn-primary btn-block" style="margin-top: 0.45rem;">⚡ Test This Winner Right Now (No History Save)</button>
-            </div>
-
-            <div id="active-timing-badge" class="active-timing-badge hidden">
-              <span>🎯 Active: Round <strong id="badge-timing-text">04:00 PM</strong> &bull; Locked Winner: <strong id="badge-timing-winner" class="highlight-gold">21</strong></span>
-              <button id="clear-timing-btn" class="btn-text">Reset</button>
-            </div>
-
-            <span id="timer-status-feedback" class="save-status-msg" style="display:block; margin-top:4px;"></span>
-          </div>
-        </div>
-
-        <!-- SECTION 2: DECIDE UPCOMING WINNER -->
-        <div class="admin-card">
-          <div class="admin-card-title">
-            <span class="step-num">2</span>
-            <h4>Change Upcoming Winner</h4>
-          </div>
-          <p class="card-desc">Choose which number will win on the next scheduled spin:</p>
-          
-          <div class="forced-selector-row">
-            <select id="forced-winner-select" class="admin-select">
-              <option value="AUTO">🎲 Automatic / Random Choice</option>
-            </select>
-            <button id="apply-forced-btn" class="btn btn-primary">Lock Winner</button>
-          </div>
-
-          <div class="quick-test-row" style="margin-top: 0.6rem;">
-            <button id="quick-test-spin-btn" class="btn btn-gold btn-block">⚡ Test Upcoming Winner Right Now (No History Save)</button>
-          </div>
-
-          <div id="active-forced-indicator" class="active-forced-tag hidden">
-            <span>Locked Upcoming Winner: </span>
-            <strong id="forced-target-number">None</strong>
-            <button id="clear-forced-btn" class="btn-text">Clear</button>
-          </div>
-
-          <!-- UPCOMING 3 ROUNDS QUEUE -->
-          <div class="upcoming-queue-box">
-            <div class="queue-title">
-              <span>📅 Preset Next 3 Upcoming Rounds:</span>
-              <button id="save-queue-btn" class="btn btn-secondary btn-sm">Save Queue</button>
-            </div>
-            <div class="queue-grid">
-              <div class="queue-item">
-                <span class="queue-label">Next (1st)</span>
-                <select id="queue-round-1" class="admin-select queue-select">
-                  <option value="AUTO">Auto</option>
-                </select>
-              </div>
-              <div class="queue-item">
-                <span class="queue-label">2nd Next</span>
-                <select id="queue-round-2" class="admin-select queue-select">
-                  <option value="AUTO">Auto</option>
-                </select>
-              </div>
-              <div class="queue-item">
-                <span class="queue-label">3rd Next</span>
-                <select id="queue-round-3" class="admin-select queue-select">
-                  <option value="AUTO">Auto</option>
-                </select>
-              </div>
-            </div>
-            <span id="queue-save-msg" class="save-status-msg" style="display:block; margin-top:4px;"></span>
-          </div>
-        </div>
-
-        <!-- SECTION 3: CHANGE 10 WHEEL NUMBERS MANUALLY (1-100) -->
-        <div class="admin-card">
-          <div class="admin-card-header-flex">
-            <div class="admin-card-title">
-              <span class="step-num">3</span>
-              <h4>Manual 10 Slices Editor (1-100)</h4>
-            </div>
-            <button id="randomize-slices-btn" class="btn btn-secondary btn-sm">🎲 Randomize 1-100</button>
-          </div>
-          <p class="card-desc">Type custom values (1 to 100) for each of the 10 slots with live preview:</p>
-          <div class="slots-editor-grid" id="slots-editor-grid">
-            <!-- 10 editable input slots -->
-          </div>
-          <div class="admin-actions-row">
-            <button id="save-slices-btn" class="btn btn-primary">Save Wheel Numbers</button>
-            <span id="slices-save-msg" class="save-status-msg"></span>
-          </div>
-        </div>
-
-        <!-- SECTION 4: 4-SLOT PREDETERMINED SCHEDULE (12PM, 4PM, 8PM, 11PM) -->
-        <div class="admin-card">
-          <div class="admin-card-header-flex">
-            <div class="admin-card-title">
-              <span class="step-num">4</span>
-              <h4>4-Slot Predetermined Schedule</h4>
-            </div>
-            <button id="auto-fill-schedule-btn" class="btn btn-secondary btn-sm">Auto Fill 4 Slots</button>
-          </div>
-          <p class="card-desc">Preset fixed winning numbers for the 4 daily rounds (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM):</p>
-          <div class="schedule-table-wrap">
-            <table class="schedule-table">
-              <thead>
-                <tr>
-                  <th>Slot Time</th>
-                  <th>Preset Winner</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="schedule-table-body">
-                <!-- 4 rows rendered: 12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- SECTION 5: REGISTERED PLAYERS & IHD COIN CREDIT CONTROLLER -->
-        <div class="admin-card control-highlight">
-          <div class="admin-card-header-flex">
-            <div class="admin-card-title">
-              <span class="step-num">5</span>
-              <h4>👥 Registered Players & IHD Coin Manager</h4>
-            </div>
-            <button id="admin-refresh-players-btn" class="btn btn-secondary btn-sm">🔄 Refresh List</button>
-          </div>
-          <p class="card-desc">View all registered players, inspect balances, and credit/deduct IHD Coins directly:</p>
-
-          <!-- Top Summary Badges -->
-          <div class="players-summary-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-bottom:0.75rem;">
-            <div class="player-stat-badge">
-              <span class="stat-badge-lbl">Total Registered Players</span>
-              <strong id="admin-total-players-count" class="stat-badge-val" style="color:#00f0ff;">0</strong>
-            </div>
-            <div class="player-stat-badge">
-              <span class="stat-badge-lbl">Total IHD Coins in Play</span>
-              <strong id="admin-total-coins-count" class="stat-badge-val highlight-gold">0 IHD Coins</strong>
-            </div>
-          </div>
-
-          <!-- Add / Credit IHD Coins to Player Card -->
-          <div class="admin-credit-box" style="background:rgba(0,0,0,0.35); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.75rem; margin-bottom:0.85rem;">
-            <div class="preset-box-title" style="margin-bottom:0.5rem;">
-              <span>💰 Credit IHD Coins to Player:</span>
-            </div>
-            
-            <div class="credit-fields-flex" style="display:flex; flex-direction:column; gap:0.5rem;">
-              <div>
-                <label class="field-label">Select Player / User ID:</label>
-                <select id="admin-credit-player-select" class="admin-select">
-                  <option value="">-- Choose a Registered Player --</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="field-label">IHD Coins to Add / Credit:</label>
-                <div style="display:flex; gap:0.4rem;">
-                  <input type="number" id="admin-credit-amount-input" class="admin-input" placeholder="Amount (e.g. 100)" value="100" min="1" step="10">
-                  <button id="admin-apply-credit-btn" class="btn btn-gold" style="white-space:nowrap;">➕ Credit IHD Coins</button>
+                <!-- Quick Presets -->
+                <div class="quick-timer-presets" style="margin-top: 0.6rem;">
+                  <span class="preset-label">Quick Set:</span>
+                  <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(30)">⚡ 30s</button>
+                  <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(60)">1 Min</button>
+                  <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(120)">2 Min</button>
+                  <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(300)">5 Min</button>
+                  <button class="btn btn-secondary btn-sm" onclick="app.setQuickTimer(600)">10 Min</button>
                 </div>
               </div>
 
-              <div class="quick-credit-preset-row" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
-                <span style="font-size:0.7rem; color:var(--text-muted); align-self:center; margin-right:4px;">Quick Add:</span>
-                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-50">+50</button>
-                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-100">+100</button>
-                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-500">+500</button>
-                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-1000">+1,000</button>
-                <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-5000">+5,000</button>
+              <!-- SPECIFIC ROUND TIMING & WINNING NUMBER SETUP (e.g. 04:00 PM -> 21) -->
+              <div class="round-winner-preset-box" style="margin-top: 0.9rem;">
+                <div class="preset-box-title">
+                  <span>🎯 Set Round Timing & Predetermined Winner:</span>
+                </div>
+                <p class="card-desc" style="margin-bottom: 0.5rem; font-size: 0.76rem;">Pick a round time (e.g. 04:00 PM) and choose what number will win at that time (e.g. 21):</p>
+                
+                <div class="timing-winner-grid">
+                  <div class="grid-field">
+                    <label class="field-label">Round Time:</label>
+                    <select id="quick-round-hour-select" class="admin-select">
+                      <option value="12:00 PM">12:00 PM</option>
+                      <option value="04:00 PM" selected>04:00 PM</option>
+                      <option value="08:00 PM">08:00 PM</option>
+                      <option value="11:00 PM">11:00 PM</option>
+                      <option value="CUSTOM">Custom Title / Text...</option>
+                    </select>
+                  </div>
+
+                  <div class="grid-field">
+                    <label class="field-label">Winning Number:</label>
+                    <select id="manual-round-winner-select" class="admin-select">
+                      <!-- Dynamically populated with the 10 permanent wheel slices -->
+                    </select>
+                    <input type="number" id="manual-round-winner-input" class="admin-input hidden" min="1" max="100" placeholder="Type 1-100" style="margin-top: 4px;">
+                  </div>
+                </div>
+
+                <!-- Custom Round Title Input (Shown if custom chosen or for manual edits) -->
+                <div id="custom-title-row" class="custom-title-row hidden" style="margin-top: 0.5rem;">
+                  <label class="field-label">Custom Round Title / Time:</label>
+                  <input type="text" id="manual-round-title-input" class="admin-input" placeholder="e.g. 04:00 PM or Special Live Round 1" value="04:00 PM">
+                </div>
+
+                <div class="timing-actions-row" style="margin-top: 0.65rem;">
+                  <button id="apply-time-winner-btn" class="btn btn-gold btn-block">🔒 Set Round Time & Lock Winner (e.g. 04:00 PM ➔ 21)</button>
+                  <button id="test-time-winner-btn" class="btn btn-primary btn-block" style="margin-top: 0.45rem;">⚡ Test This Winner Right Now (No History Save)</button>
+                </div>
+
+                <div id="active-timing-badge" class="active-timing-badge hidden">
+                  <span>🎯 Active: Round <strong id="badge-timing-text">04:00 PM</strong> &bull; Locked Winner: <strong id="badge-timing-winner" class="highlight-gold">21</strong></span>
+                  <button id="clear-timing-btn" class="btn-text">Reset</button>
+                </div>
+
+                <span id="timer-status-feedback" class="save-status-msg" style="display:block; margin-top:4px;"></span>
+              </div>
+            </div>
+
+            <!-- SECTION 2: DECIDE UPCOMING WINNER -->
+            <div class="admin-card">
+              <div class="admin-card-title">
+                <span class="step-num">2</span>
+                <h4>Change Upcoming Winner</h4>
+              </div>
+              <p class="card-desc">Choose which number will win on the next scheduled spin:</p>
+              
+              <div class="forced-selector-row">
+                <select id="forced-winner-select" class="admin-select">
+                  <option value="AUTO">🎲 Automatic / Random Choice</option>
+                </select>
+                <button id="apply-forced-btn" class="btn btn-primary">Lock Winner</button>
               </div>
 
-              <span id="admin-credit-feedback" class="save-status-msg" style="display:block;"></span>
-            </div>
-          </div>
-
-          <!-- Search Filter -->
-          <div style="margin-bottom:0.6rem;">
-            <input type="text" id="admin-player-search" class="admin-input" placeholder="🔍 Search players by User ID, Name, or Mobile...">
-          </div>
-
-          <!-- Interactive Players Table -->
-          <div class="schedule-table-wrap" style="max-height: 250px; overflow-y:auto;">
-            <table class="schedule-table" style="font-size:0.76rem;">
-              <thead>
-                <tr>
-                  <th>Player (User ID)</th>
-                  <th>Mobile / DOB</th>
-                  <th>IHD Balance</th>
-                  <th>Quick Action</th>
-                </tr>
-              </thead>
-              <tbody id="admin-players-table-body">
-                <tr>
-                  <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1rem;">No registered players yet.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Live Player Active Bets & Time/Date Slot Tracker -->
-          <div class="admin-live-bets-box" style="margin-top:1.1rem; border-top:1px solid rgba(245,176,65,0.25); padding-top:0.85rem;">
-            <div class="admin-card-header-flex" style="margin-bottom:0.5rem;">
-              <div style="display:flex; align-items:center; gap:0.4rem;">
-                <span style="font-size:1.1rem;">🎯</span>
-                <strong style="color:var(--primary-gold-bright); font-size:0.88rem;">Live Player Predictions & Active Bets</strong>
+              <div class="quick-test-row" style="margin-top: 0.6rem;">
+                <button id="quick-test-spin-btn" class="btn btn-gold btn-block">⚡ Test Upcoming Winner Right Now (No History Save)</button>
               </div>
-              <span id="admin-active-bets-summary" style="font-size:0.72rem; color:#00f0ff; font-weight:700;">0 Active Bets (0 IHD Coins Pool)</span>
+
+              <div id="active-forced-indicator" class="active-forced-tag hidden">
+                <span>Locked Upcoming Winner: </span>
+                <strong id="forced-target-number">None</strong>
+                <button id="clear-forced-btn" class="btn-text">Clear</button>
+              </div>
+
+              <!-- UPCOMING 3 ROUNDS QUEUE -->
+              <div class="upcoming-queue-box">
+                <div class="queue-title">
+                  <span>📅 Preset Next 3 Upcoming Rounds:</span>
+                  <button id="save-queue-btn" class="btn btn-secondary btn-sm">Save Queue</button>
+                </div>
+                <div class="queue-grid">
+                  <div class="queue-item">
+                    <span class="queue-label">Next (1st)</span>
+                    <select id="queue-round-1" class="admin-select queue-select">
+                      <option value="AUTO">Auto</option>
+                    </select>
+                  </div>
+                  <div class="queue-item">
+                    <span class="queue-label">2nd Next</span>
+                    <select id="queue-round-2" class="admin-select queue-select">
+                      <option value="AUTO">Auto</option>
+                    </select>
+                  </div>
+                  <div class="queue-item">
+                    <span class="queue-label">3rd Next</span>
+                    <select id="queue-round-3" class="admin-select queue-select">
+                      <option value="AUTO">Auto</option>
+                    </select>
+                  </div>
+                </div>
+                <span id="queue-save-msg" class="save-status-msg" style="display:block; margin-top:4px;"></span>
+              </div>
             </div>
 
-            <div class="schedule-table-wrap" style="max-height: 240px; overflow-y:auto;">
-              <table class="schedule-table" style="font-size:0.74rem;">
-                <thead>
-                  <tr>
-                    <th>Player</th>
-                    <th>Prediction</th>
-                    <th>Bet Amount</th>
-                    <th>Target Slot & Date</th>
-                    <th>Placed Time</th>
-                  </tr>
-                </thead>
-                <tbody id="admin-active-bets-table-body">
-                  <tr>
-                    <td colspan="5" style="text-align:center; color:var(--text-muted); padding:0.8rem;">No active player predictions right now.</td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- SECTION 3: CHANGE 10 WHEEL NUMBERS MANUALLY (1-100) -->
+            <div class="admin-card">
+              <div class="admin-card-header-flex">
+                <div class="admin-card-title">
+                  <span class="step-num">3</span>
+                  <h4>Manual 10 Slices Editor (1-100)</h4>
+                </div>
+                <button id="randomize-slices-btn" class="btn btn-secondary btn-sm">🎲 Randomize 1-100</button>
+              </div>
+              <p class="card-desc">Type custom values (1 to 100) for each of the 10 slots with live preview:</p>
+              <div class="slots-editor-grid" id="slots-editor-grid">
+                <!-- 10 editable input slots -->
+              </div>
+              <div class="admin-actions-row">
+                <button id="save-slices-btn" class="btn btn-primary">Save Wheel Numbers</button>
+                <span id="slices-save-msg" class="save-status-msg"></span>
+              </div>
             </div>
+
+            <!-- SECTION 4: 4-SLOT PREDETERMINED SCHEDULE (12PM, 4PM, 8PM, 11PM) -->
+            <div class="admin-card">
+              <div class="admin-card-header-flex">
+                <div class="admin-card-title">
+                  <span class="step-num">4</span>
+                  <h4>4-Slot Predetermined Schedule</h4>
+                </div>
+                <button id="auto-fill-schedule-btn" class="btn btn-secondary btn-sm">Auto Fill 4 Slots</button>
+              </div>
+              <p class="card-desc">Preset fixed winning numbers for the 4 daily rounds (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM):</p>
+              <div class="schedule-table-wrap">
+                <table class="schedule-table">
+                  <thead>
+                    <tr>
+                      <th>Slot Time</th>
+                      <th>Preset Winner</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="schedule-table-body">
+                    <!-- 4 rows rendered: 12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- SECTION 6: CHANGE MASTER PASSWORD & HISTORY CLEAR -->
+            <div class="admin-card">
+              <div class="admin-card-title">
+                <span class="step-num">6</span>
+                <h4>Change Master Password & Data</h4>
+              </div>
+              <p class="card-desc">Update your Master Authentication password:</p>
+              <div class="master-key-change-row">
+                <input type="password" id="new-master-key-input" class="admin-input" placeholder="New Password (e.g. 00773300)">
+                <button id="save-master-key-btn" class="btn btn-secondary">Update Key</button>
+              </div>
+              <span id="key-change-msg" class="save-status-msg" style="margin-top: 4px; display: block;"></span>
+
+              <div class="test-buttons-grid" style="margin-top: 1rem;">
+                <button id="reset-history-btn" class="btn btn-danger btn-block">🗑️ Clear Spin History</button>
+              </div>
+            </div>
+
           </div>
+
+          <!-- TAB 2: PLAYERS & LIVE BETS -->
+          <div id="admin-tab-players-pane" class="admin-tab-pane hidden">
+            
+            <!-- SECTION 5: REGISTERED PLAYERS & IHD COIN CREDIT CONTROLLER -->
+            <div class="admin-card control-highlight">
+              <div class="admin-card-header-flex">
+                <div class="admin-card-title">
+                  <span class="step-num">5</span>
+                  <h4>👥 Registered Players & IHD Coin Manager</h4>
+                </div>
+                <button id="admin-refresh-players-btn" class="btn btn-secondary btn-sm">🔄 Refresh List</button>
+              </div>
+              <p class="card-desc">View all registered players, inspect balances, and credit/deduct IHD Coins directly:</p>
+
+              <!-- Top Summary Badges -->
+              <div class="players-summary-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:0.85rem;">
+                <div class="player-stat-badge">
+                  <span class="stat-badge-lbl">Total Registered Players</span>
+                  <strong id="admin-total-players-count" class="stat-badge-val" style="color:#00f0ff;">0</strong>
+                </div>
+                <div class="player-stat-badge">
+                  <span class="stat-badge-lbl">Total IHD Coins in Play</span>
+                  <strong id="admin-total-coins-count" class="stat-badge-val highlight-gold">0 IHD Coins</strong>
+                </div>
+              </div>
+
+              <!-- Add / Credit IHD Coins to Player Card -->
+              <div class="admin-credit-box" style="background:rgba(0,0,0,0.35); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.85rem; margin-bottom:0.85rem;">
+                <div class="preset-box-title" style="margin-bottom:0.5rem;">
+                  <span>💰 Credit / Add IHD Coins to Player:</span>
+                </div>
+                
+                <div class="credit-fields-flex" style="display:flex; flex-direction:column; gap:0.5rem;">
+                  <div>
+                    <label class="field-label">Select Player / User ID:</label>
+                    <select id="admin-credit-player-select" class="admin-select">
+                      <option value="">-- Choose a Registered Player --</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="field-label">IHD Coins to Add / Credit:</label>
+                    <div style="display:flex; gap:0.4rem;">
+                      <input type="number" id="admin-credit-amount-input" class="admin-input" placeholder="Amount (e.g. 100)" value="100" min="1" step="10">
+                      <button id="admin-apply-credit-btn" class="btn btn-gold" style="white-space:nowrap;">➕ Credit IHD Coins</button>
+                    </div>
+                  </div>
+
+                  <div class="quick-credit-preset-row" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:3px;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); align-self:center; margin-right:4px;">Quick Add:</span>
+                    <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-50">+50</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-100">+100</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-500">+500</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-1000">+1,000</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="quick-credit-5000">+5,000</button>
+                  </div>
+
+                  <span id="admin-credit-feedback" class="save-status-msg" style="display:block;"></span>
+                </div>
+              </div>
+
+              <!-- Search Filter -->
+              <div style="margin-bottom:0.6rem;">
+                <input type="text" id="admin-player-search" class="admin-input" placeholder="🔍 Search players by User ID, Name, or Mobile...">
+              </div>
+
+              <!-- Interactive Players Table -->
+              <div class="schedule-table-wrap" style="max-height: 280px; overflow-y:auto;">
+                <table class="schedule-table" style="font-size:0.76rem;">
+                  <thead>
+                    <tr>
+                      <th>Player (User ID)</th>
+                      <th>Mobile / DOB</th>
+                      <th>IHD Balance</th>
+                      <th>Quick Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-players-table-body">
+                    <tr>
+                      <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1rem;">No registered players yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Live Player Active Bets & Time/Date Slot Tracker -->
+              <div class="admin-live-bets-box" style="margin-top:1.25rem; border-top:1px solid rgba(245,176,65,0.25); padding-top:1rem;">
+                <div class="admin-card-header-flex" style="margin-bottom:0.5rem;">
+                  <div style="display:flex; align-items:center; gap:0.4rem;">
+                    <span style="font-size:1.1rem;">🎯</span>
+                    <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">Live Player Predictions & Active Bets</strong>
+                  </div>
+                  <span id="admin-active-bets-summary" style="font-size:0.74rem; color:#00f0ff; font-weight:700;">0 Active Bets (0 IHD Coins Pool)</span>
+                </div>
+
+                <div class="schedule-table-wrap" style="max-height: 280px; overflow-y:auto;">
+                  <table class="schedule-table" style="font-size:0.74rem;">
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>Prediction</th>
+                        <th>Bet Amount</th>
+                        <th>Target Slot & Date</th>
+                        <th>Placed Time</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admin-active-bets-table-body">
+                      <tr>
+                        <td colspan="5" style="text-align:center; color:var(--text-muted); padding:0.8rem;">No active player predictions right now.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
 
-        <!-- SECTION 6: CHANGE MASTER PASSWORD & HISTORY CLEAR -->
-        <div class="admin-card">
-          <div class="admin-card-title">
-            <span class="step-num">6</span>
-            <h4>Change Master Password</h4>
-          </div>
-          <p class="card-desc">Update your Master Authentication password:</p>
-          <div class="master-key-change-row">
-            <input type="password" id="new-master-key-input" class="admin-input" placeholder="New Password (e.g. 00773300)">
-            <button id="save-master-key-btn" class="btn btn-secondary">Update Key</button>
-          </div>
-          <span id="key-change-msg" class="save-status-msg" style="margin-top: 4px; display: block;"></span>
+        <!-- Right Side Column: Live Mini Spin Monitor -->
+        <div class="admin-side-monitor">
+          <div class="admin-monitor-card">
+            <div class="monitor-header-row" style="display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:1px solid var(--border-subtle); padding-bottom:0.45rem;">
+              <span class="live-dot-tag" style="font-size:0.72rem;"><span class="pulse-dot"></span> Live Wheel Monitor</span>
+              <span id="admin-monitor-slot-badge" class="schedule-hour-badge" style="font-size:0.72rem; padding:2px 8px;">11:00 PM</span>
+            </div>
 
-          <div class="test-buttons-grid" style="margin-top: 1rem;">
-            <button id="reset-history-btn" class="btn btn-danger btn-block">🗑️ Clear Spin History</button>
+            <!-- Mini Live Wheel Canvas & Needle Pointer -->
+            <div class="admin-mini-wheel-wrap">
+              <div class="mini-pointer-arrow"></div>
+              <canvas id="admin-mini-wheel-canvas" width="220" height="220"></canvas>
+            </div>
+
+            <!-- Mini Countdown & Target Status -->
+            <div class="admin-monitor-info-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; width:100%;">
+              <div style="background:rgba(0,0,0,0.4); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.45rem; text-align:center;">
+                <span style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; display:block;">Countdown</span>
+                <strong id="admin-mini-countdown" style="font-size:1.05rem; font-family:'Space Grotesk',monospace; color:var(--primary-gold-bright);">00:00:00</strong>
+              </div>
+              <div style="background:rgba(0,0,0,0.4); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.45rem; text-align:center;">
+                <span style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; display:block;">Next Winner</span>
+                <strong id="admin-mini-target-badge" style="font-size:0.85rem; color:#00f0ff;">Auto</strong>
+              </div>
+            </div>
+
+            <!-- Quick Action Test Spin Button -->
+            <button id="admin-mini-test-spin-btn" class="btn btn-gold btn-block btn-sm" style="font-size:0.75rem; padding:0.45rem;">
+              ⚡ Quick Test Spin Now
+            </button>
+
+            <!-- Latest Result Badge -->
+            <div class="admin-mini-latest-result" style="width:100%; background:rgba(0,0,0,0.3); border-radius:var(--radius-sm); padding:0.4rem 0.6rem; display:flex; justify-content:space-between; align-items:center; border:1px dashed rgba(245,176,65,0.3);">
+              <span style="font-size:0.68rem; color:var(--text-secondary);">🏆 Latest Winner:</span>
+              <strong id="admin-mini-latest-win" style="color:#ffd700; font-size:0.95rem;">--</strong>
+            </div>
           </div>
         </div>
 
       </div>
+
     </div>
   </div>
 

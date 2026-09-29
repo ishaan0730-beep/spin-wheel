@@ -528,6 +528,20 @@ class SpinWheelApp {
     this.adminActiveBetsSummary = document.getElementById('admin-active-bets-summary');
     this.adminActiveBetsTableBody = document.getElementById('admin-active-bets-table-body');
 
+    // Master Full-Page Nav Tabs & Side Live Monitor Elements
+    this.adminNavSpinBtn = document.getElementById('admin-nav-spin-btn');
+    this.adminNavPlayersBtn = document.getElementById('admin-nav-players-btn');
+    this.adminTabSpinPane = document.getElementById('admin-tab-spin-pane');
+    this.adminTabPlayersPane = document.getElementById('admin-tab-players-pane');
+    this.adminTabBadgePlayers = document.getElementById('admin-tab-badge-players');
+    this.adminMiniCanvas = document.getElementById('admin-mini-wheel-canvas');
+    this.adminMiniCtx = this.adminMiniCanvas ? this.adminMiniCanvas.getContext('2d') : null;
+    this.adminMiniCountdown = document.getElementById('admin-mini-countdown');
+    this.adminMiniSlotBadge = document.getElementById('admin-monitor-slot-badge');
+    this.adminMiniTargetBadge = document.getElementById('admin-mini-target-badge');
+    this.adminMiniLatestWin = document.getElementById('admin-mini-latest-win');
+    this.adminMiniTestSpinBtn = document.getElementById('admin-mini-test-spin-btn');
+
     // Section 6 Controls (Master Key & History)
     this.newMasterKeyInput = document.getElementById('new-master-key-input');
     this.saveMasterKeyBtn = document.getElementById('save-master-key-btn');
@@ -566,6 +580,15 @@ class SpinWheelApp {
     this.canvas.height = size * dpr;
     this.ctx.scale(dpr, dpr);
     this.wheelRadius = size / 2;
+
+    if (this.adminMiniCanvas) {
+      const miniSize = 220;
+      this.adminMiniCanvas.width = miniSize * dpr;
+      this.adminMiniCanvas.height = miniSize * dpr;
+      if (this.adminMiniCtx) {
+        this.adminMiniCtx.scale(dpr, dpr);
+      }
+    }
   }
 
   loadHandledSpinIds() {
@@ -2061,6 +2084,7 @@ class SpinWheelApp {
     this.populateAdminControls();
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     this.renderAdminActiveBetsTable();
+    this.renderMiniWheel();
     this.adminDrawer.classList.remove('hidden');
   }
 
@@ -2281,6 +2305,12 @@ class SpinWheelApp {
   }
 
   bindAdminPlayerEvents() {
+    this.adminNavSpinBtn?.addEventListener('click', () => this.setAdminTab('spin'));
+    this.adminNavPlayersBtn?.addEventListener('click', () => this.setAdminTab('players'));
+    this.adminMiniTestSpinBtn?.addEventListener('click', () => {
+      this.dispatchSynchronizedSpin('Admin Mini Test Spin', true, null);
+    });
+
     this.adminRefreshPlayersBtn?.addEventListener('click', () => {
       this.pullStateFromServer().then(() => this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : ''));
       this.showAdminCreditFeedback('🔄 Player list refreshed!', true);
@@ -2309,6 +2339,23 @@ class SpinWheelApp {
       }
       this.adminAddPlayerCredit(selectedId, amount);
     });
+  }
+
+  setAdminTab(tabName) {
+    if (tabName === 'players') {
+      this.adminNavPlayersBtn?.classList.add('active');
+      this.adminNavSpinBtn?.classList.remove('active');
+      this.adminTabPlayersPane?.classList.remove('hidden');
+      this.adminTabSpinPane?.classList.add('hidden');
+      this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+      this.renderAdminActiveBetsTable();
+    } else {
+      this.adminNavSpinBtn?.classList.add('active');
+      this.adminNavPlayersBtn?.classList.remove('active');
+      this.adminTabSpinPane?.classList.remove('hidden');
+      this.adminTabPlayersPane?.classList.add('hidden');
+      this.populateAdminControls();
+    }
   }
 
   showAdminCreditFeedback(msg, isSuccess = true) {
@@ -2368,6 +2415,9 @@ class SpinWheelApp {
 
     if (this.adminTotalPlayersCount) {
       this.adminTotalPlayersCount.textContent = totalCount;
+    }
+    if (this.adminTabBadgePlayers) {
+      this.adminTabBadgePlayers.textContent = totalCount;
     }
     if (this.adminTotalCoinsCount) {
       this.adminTotalCoinsCount.textContent = `💰 ${totalCoins.toLocaleString()} IHD Coins`;
@@ -2565,6 +2615,86 @@ class SpinWheelApp {
     ctx.shadowBlur = 18;
     ctx.stroke();
     ctx.shadowBlur = 0;
+
+    ctx.restore();
+
+    // Synchronize Mini Live Wheel in Master Control Panel
+    this.renderMiniWheel();
+  }
+
+  renderMiniWheel() {
+    if (!this.adminMiniCtx || !this.adminMiniCanvas) return;
+    const ctx = this.adminMiniCtx;
+    const numSlices = this.slices.length;
+    const sliceAngle = (2 * Math.PI) / numSlices;
+    const center = 110;
+    const radius = 104;
+
+    ctx.clearRect(0, 0, 220, 220);
+
+    ctx.save();
+    ctx.translate(center, center);
+    ctx.rotate(this.currentAngle);
+
+    for (let i = 0; i < numSlices; i++) {
+      const startAngle = i * sliceAngle;
+      const endAngle = startAngle + sliceAngle;
+      const palette = SLICE_PALETTES[i % SLICE_PALETTES.length];
+
+      // Sector Arc
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius, startAngle, endAngle);
+      ctx.closePath();
+
+      // Gradient Fill
+      const grad = ctx.createRadialGradient(0, 0, 12, 0, 0, radius);
+      grad.addColorStop(0, '#111827');
+      grad.addColorStop(0.38, palette.bg);
+      grad.addColorStop(1, '#090d16');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Border Bevel
+      ctx.strokeStyle = palette.border;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Outer Peg
+      const pegX = (radius - 6) * Math.cos(startAngle);
+      const pegY = (radius - 6) * Math.sin(startAngle);
+      ctx.beginPath();
+      ctx.arc(pegX, pegY, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffd700';
+      ctx.fill();
+
+      // Draw Number Text
+      const midAngle = startAngle + sliceAngle / 2;
+      ctx.save();
+      ctx.rotate(midAngle);
+      ctx.translate(radius - 18, 0);
+
+      if (midAngle > Math.PI / 2 && midAngle < (3 * Math.PI) / 2) {
+        ctx.rotate(Math.PI);
+      }
+
+      ctx.fillStyle = palette.text;
+      ctx.font = '800 12px "Space Grotesk", sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.95)';
+      ctx.shadowBlur = 4;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${this.slices[i]}`, 0, 0);
+      
+      ctx.restore();
+    }
+
+    // Outer Rim Border
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 3;
+    ctx.stroke();
 
     ctx.restore();
   }
@@ -2938,6 +3068,32 @@ class SpinWheelApp {
           localStorage.setItem(STATE_KEYS.LAST_SPUN_SLOT, slotKey);
           this.dispatchSynchronizedSpin(`Slot ${nextSlot.label}`, false);
         }
+      }
+
+      // Synchronize Side Mini Live Monitor in Master Admin
+      if (this.adminMiniCountdown) {
+        this.adminMiniCountdown.textContent = this.countdownEl.textContent;
+      }
+      if (this.adminMiniSlotBadge) {
+        this.adminMiniSlotBadge.textContent = nextSlot.label;
+      }
+      if (this.adminMiniTargetBadge) {
+        if (this.forcedNext !== null) {
+          this.adminMiniTargetBadge.textContent = `Locked #${this.forcedNext}`;
+          this.adminMiniTargetBadge.style.color = '#ffd700';
+        } else {
+          const currentSched = this.dailySchedule[nextSlot.label];
+          if (currentSched && currentSched !== 'AUTO') {
+            this.adminMiniTargetBadge.textContent = `Sched #${currentSched}`;
+            this.adminMiniTargetBadge.style.color = '#ffd700';
+          } else {
+            this.adminMiniTargetBadge.textContent = 'Auto (Random)';
+            this.adminMiniTargetBadge.style.color = '#00f0ff';
+          }
+        }
+      }
+      if (this.adminMiniLatestWin && this.history && this.history[0]) {
+        this.adminMiniLatestWin.textContent = `#${this.history[0].number}`;
       }
     };
 
