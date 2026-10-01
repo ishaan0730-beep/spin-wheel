@@ -271,8 +271,9 @@ public class NativeHttpServer {
                                                 }
                                                 var list = new List<Dictionary<string, object>>(depMap.Values);
                                                 list.Sort(delegate(Dictionary<string, object> a, Dictionary<string, object> b) {
-                                                    long tA = (a.ContainsKey("requestedAt") && a["requestedAt"] != null) ? Convert.ToInt64(a["requestedAt"]) : 0;
-                                                    long tB = (b.ContainsKey("requestedAt") && b["requestedAt"] != null) ? Convert.ToInt64(b["requestedAt"]) : 0;
+                                                    long tA = 0; long tB = 0;
+                                                    try { if (a != null && a.ContainsKey("requestedAt") && a["requestedAt"] != null) tA = Convert.ToInt64(a["requestedAt"]); } catch {}
+                                                    try { if (b != null && b.ContainsKey("requestedAt") && b["requestedAt"] != null) tB = Convert.ToInt64(b["requestedAt"]); } catch {}
                                                     return tB.CompareTo(tA);
                                                 });
                                                 currentObj["deposits"] = list.ToArray();
@@ -303,8 +304,9 @@ public class NativeHttpServer {
                                                 }
                                                 var list = new List<Dictionary<string, object>>(wdMap.Values);
                                                 list.Sort(delegate(Dictionary<string, object> a, Dictionary<string, object> b) {
-                                                    long tA = (a.ContainsKey("requestedAt") && a["requestedAt"] != null) ? Convert.ToInt64(a["requestedAt"]) : 0;
-                                                    long tB = (b.ContainsKey("requestedAt") && b["requestedAt"] != null) ? Convert.ToInt64(b["requestedAt"]) : 0;
+                                                    long tA = 0; long tB = 0;
+                                                    try { if (a != null && a.ContainsKey("requestedAt") && a["requestedAt"] != null) tA = Convert.ToInt64(a["requestedAt"]); } catch {}
+                                                    try { if (b != null && b.ContainsKey("requestedAt") && b["requestedAt"] != null) tB = Convert.ToInt64(b["requestedAt"]); } catch {}
                                                     return tB.CompareTo(tA);
                                                 });
                                                 currentObj["withdrawals"] = list.ToArray();
@@ -335,8 +337,9 @@ public class NativeHttpServer {
                                                 }
                                                 var list = new List<Dictionary<string, object>>(betMap.Values);
                                                 list.Sort(delegate(Dictionary<string, object> a, Dictionary<string, object> b) {
-                                                    long tA = (a.ContainsKey("timestamp") && a["timestamp"] != null) ? Convert.ToInt64(a["timestamp"]) : 0;
-                                                    long tB = (b.ContainsKey("timestamp") && b["timestamp"] != null) ? Convert.ToInt64(b["timestamp"]) : 0;
+                                                    long tA = 0; long tB = 0;
+                                                    try { if (a != null && a.ContainsKey("timestamp") && a["timestamp"] != null) tA = Convert.ToInt64(a["timestamp"]); } catch {}
+                                                    try { if (b != null && b.ContainsKey("timestamp") && b["timestamp"] != null) tB = Convert.ToInt64(b["timestamp"]); } catch {}
                                                     return tB.CompareTo(tA);
                                                 });
                                                 currentObj["activeBets"] = list.ToArray();

@@ -4219,7 +4219,11 @@ class SpinWheelApp {
     this.populateAdminControls();
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     this.renderAdminActiveBetsTable();
-    this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+    this.renderAdminDepositsList(this.adminDepFilter || 'ALL', this.adminDepSearch ? this.adminDepSearch.value : '');
+    this.renderAdminWithdrawalsList(this.adminWdFilter || 'ALL', this.adminWdSearch ? this.adminWdSearch.value : '');
+    this.updateDepositsCountBadges();
+    this.updateWithdrawalsCountBadges();
+    this.populateMasterConfigInputs();
     this.renderAdminSpinHistoryTable(this.adminSpinHistSearch ? this.adminSpinHistSearch.value : '', this.adminSpinHistFilter ? this.adminSpinHistFilter.value : 'ALL');
     this.renderMiniWheel();
     this.adminDrawer.classList.remove('hidden');
@@ -4796,12 +4800,24 @@ class SpinWheelApp {
   renderAdminDepositsList(filterStatus = 'ALL', searchQuery = '') {
     if (!this.adminDepositsTableBody) return;
 
+    const activeFilter = (filterStatus && filterStatus !== 'ALL' && ['PENDING', 'APPROVED', 'REJECTED'].includes(filterStatus)) ? filterStatus : 'ALL';
+    this.adminDepFilter = activeFilter;
+
+    // Update active class on filter pill buttons
+    document.querySelectorAll('.admin-dep-filter').forEach(b => {
+      if ((b.getAttribute('data-filter') || 'ALL') === activeFilter) {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
+      }
+    });
+
     const list = Array.isArray(this.deposits) ? this.deposits : [];
     const totalCount = list.length;
-    const pendingCount = list.filter(d => d.status === 'PENDING').length;
-    const approvedCount = list.filter(d => d.status === 'APPROVED').length;
-    const rejectedCount = list.filter(d => d.status === 'REJECTED').length;
-    const approvedAmount = list.filter(d => d.status === 'APPROVED').reduce((sum, d) => sum + (d.amount || 0), 0);
+    const pendingCount = list.filter(d => d && d.status === 'PENDING').length;
+    const approvedCount = list.filter(d => d && d.status === 'APPROVED').length;
+    const rejectedCount = list.filter(d => d && d.status === 'REJECTED').length;
+    const approvedAmount = list.filter(d => d && d.status === 'APPROVED').reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
 
     // Update stat cards & badges
     if (this.adminDepTotalCount) this.adminDepTotalCount.textContent = totalCount;
@@ -4821,14 +4837,15 @@ class SpinWheelApp {
 
     const q = (searchQuery || '').toLowerCase().trim();
     const filtered = list.filter(d => {
-      if (filterStatus !== 'ALL' && d.status !== filterStatus) return false;
+      if (!d) return false;
+      if (activeFilter !== 'ALL' && d.status !== activeFilter) return false;
       if (!q) return true;
       return (
-        (d.customerId && d.customerId.toLowerCase().includes(q)) ||
-        (d.customerName && d.customerName.toLowerCase().includes(q)) ||
-        (d.customerMobile && d.customerMobile.toLowerCase().includes(q)) ||
-        (d.utr && d.utr.toLowerCase().includes(q)) ||
-        (d.id && d.id.toLowerCase().includes(q))
+        (d.customerId && String(d.customerId).toLowerCase().includes(q)) ||
+        (d.customerName && String(d.customerName).toLowerCase().includes(q)) ||
+        (d.customerMobile && String(d.customerMobile).toLowerCase().includes(q)) ||
+        (d.utr && String(d.utr).toLowerCase().includes(q)) ||
+        (d.id && String(d.id).toLowerCase().includes(q))
       );
     });
 
@@ -4853,7 +4870,7 @@ class SpinWheelApp {
       } else if (d.status === 'REJECTED') {
         statusBadge = '<span class="status-pill status-rejected">❌ Rejected</span>';
       } else {
-        statusBadge = '<span class="status-pill status-pending">⏳ Pending</span>';
+        statusBadge = '<span class="status-pill status-pending" style="animation: badgePulsate 1.5s infinite ease-in-out;">⏳ Pending</span>';
       }
 
       let actionsHtml = '';
@@ -4879,7 +4896,7 @@ class SpinWheelApp {
           ${d.customerMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${d.customerMobile}</span>` : ''}
         </td>
         <td>
-          <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">₹${(d.amount || 0).toLocaleString()}</strong><br>
+          <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">₹${(Number(d.amount) || 0).toLocaleString()}</strong><br>
           <span style="font-size:0.7rem; color:#2ecc71; font-weight:700;">💰 ${d.amount} Coins</span>
         </td>
         <td>
@@ -5070,11 +5087,23 @@ class SpinWheelApp {
   renderAdminWithdrawalsList(filterStatus = 'ALL', searchQuery = '') {
     if (!this.adminWithdrawalsTableBody) return;
 
+    const activeFilter = (filterStatus && filterStatus !== 'ALL' && ['PENDING', 'APPROVED', 'REJECTED'].includes(filterStatus)) ? filterStatus : 'ALL';
+    this.adminWdFilter = activeFilter;
+
+    // Update active class on filter pill buttons
+    document.querySelectorAll('.admin-wd-filter').forEach(b => {
+      if ((b.getAttribute('data-filter') || 'ALL') === activeFilter) {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
+      }
+    });
+
     const list = Array.isArray(this.withdrawals) ? this.withdrawals : [];
     const totalCount = list.length;
-    const pendingCount = list.filter(w => w.status === 'PENDING').length;
-    const approvedCount = list.filter(w => w.status === 'APPROVED').length;
-    const rejectedCount = list.filter(w => w.status === 'REJECTED').length;
+    const pendingCount = list.filter(w => w && w.status === 'PENDING').length;
+    const approvedCount = list.filter(w => w && w.status === 'APPROVED').length;
+    const rejectedCount = list.filter(w => w && w.status === 'REJECTED').length;
 
     // Update counters
     if (this.adminWdTotalCount) this.adminWdTotalCount.textContent = totalCount;
@@ -5093,15 +5122,16 @@ class SpinWheelApp {
 
     const q = (searchQuery || '').toLowerCase().trim();
     const filtered = list.filter(w => {
-      if (filterStatus !== 'ALL' && w.status !== filterStatus) return false;
+      if (!w) return false;
+      if (activeFilter !== 'ALL' && w.status !== activeFilter) return false;
       if (!q) return true;
       return (
-        (w.customerId && w.customerId.toLowerCase().includes(q)) ||
-        (w.customerName && w.customerName.toLowerCase().includes(q)) ||
-        (w.accountName && w.accountName.toLowerCase().includes(q)) ||
-        (w.accountNumber && w.accountNumber.toLowerCase().includes(q)) ||
-        (w.ifscCode && w.ifscCode.toLowerCase().includes(q)) ||
-        (w.id && w.id.toLowerCase().includes(q))
+        (w.customerId && String(w.customerId).toLowerCase().includes(q)) ||
+        (w.customerName && String(w.customerName).toLowerCase().includes(q)) ||
+        (w.accountName && String(w.accountName).toLowerCase().includes(q)) ||
+        (w.accountNumber && String(w.accountNumber).toLowerCase().includes(q)) ||
+        (w.ifscCode && String(w.ifscCode).toLowerCase().includes(q)) ||
+        (w.id && String(w.id).toLowerCase().includes(q))
       );
     });
 
@@ -5126,7 +5156,7 @@ class SpinWheelApp {
       } else if (w.status === 'REJECTED') {
         statusBadge = '<span class="status-pill status-rejected">❌ Rejected</span>';
       } else {
-        statusBadge = '<span class="status-pill status-pending">⏳ Pending</span>';
+        statusBadge = '<span class="status-pill status-pending" style="animation: badgePulsate 1.5s infinite ease-in-out;">⏳ Pending</span>';
       }
 
       let actionsHtml = '';
@@ -5152,7 +5182,7 @@ class SpinWheelApp {
           ${w.customerMobile ? `<br><span style="font-size:0.68rem; color:var(--text-muted);">📱 ${w.customerMobile}</span>` : ''}
         </td>
         <td>
-          <strong style="color:var(--primary-gold-bright); font-size:0.9rem;">💰 ${(w.amount || 0).toLocaleString()} IHD</strong>
+          <strong style="color:var(--primary-gold-bright); font-size:0.9rem;">💰 ${(Number(w.amount) || 0).toLocaleString()} IHD</strong>
         </td>
         <td>
           <div style="line-height:1.3;">

@@ -316,45 +316,6 @@ export default function handler(req, res) {
               .slice(0, 150);
             delete body.history;
           }
-          if (body.customersDb && typeof body.customersDb === 'object') {
-            const merged = { ...(globalState.customersDb || {}) };
-            Object.keys(body.customersDb).forEach(id => {
-              merged[id] = { ...(merged[id] || {}), ...body.customersDb[id] };
-            });
-            globalState.customersDb = merged;
-            delete body.customersDb;
-          }
-          if (Array.isArray(body.activeBets)) {
-            const delSet = new Set((globalState.deletedBetIds || []).map(String));
-            const existingMap = new Map((globalState.activeBets || []).map(b => [String(b.id), b]));
-            body.activeBets.forEach(b => {
-              if (b && b.id && !delSet.has(String(b.id))) {
-                existingMap.set(String(b.id), b);
-              }
-            });
-            globalState.activeBets = Array.from(existingMap.values());
-            delete body.activeBets;
-          }
-          if (Array.isArray(body.withdrawals)) {
-            const existingMap = new Map((globalState.withdrawals || []).map(w => [w.id, w]));
-            body.withdrawals.forEach(w => {
-              if (w && w.id) {
-                existingMap.set(w.id, { ...(existingMap.get(w.id) || {}), ...w });
-              }
-            });
-            globalState.withdrawals = Array.from(existingMap.values());
-            delete body.withdrawals;
-          }
-          if (Array.isArray(body.deposits)) {
-            const existingMap = new Map((globalState.deposits || []).map(d => [d.id, d]));
-            body.deposits.forEach(d => {
-              if (d && d.id) {
-                existingMap.set(d.id, { ...(existingMap.get(d.id) || {}), ...d });
-              }
-            });
-            globalState.deposits = Array.from(existingMap.values());
-            delete body.deposits;
-          }
           if (body.depositConfig && typeof body.depositConfig === 'object') {
             globalState.depositConfig = { ...(globalState.depositConfig || {}), ...body.depositConfig };
             delete body.depositConfig;
