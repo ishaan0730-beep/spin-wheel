@@ -2463,7 +2463,7 @@ class SpinWheelApp {
       this.toggleSecretPassBtn.addEventListener('click', () => {
         const isPass = this.secretPasswordInput.type === 'password';
         this.secretPasswordInput.type = isPass ? 'text' : 'password';
-        this.toggleSecretPassBtn.textContent = isPass ? 'ðŸ”’' : 'ðŸ‘ï¸';
+        this.toggleSecretPassBtn.textContent = isPass ? String.fromCodePoint(0x1F512) : String.fromCodePoint(0x1F441);
       });
     }
 
