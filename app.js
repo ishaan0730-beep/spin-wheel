@@ -807,6 +807,7 @@ class SpinWheelApp {
     this.renderPredictionChips();
     this.updateTargetSlotDisplay();
     this.updateCustomerUI();
+    this.settleElapsedSlots();
     this.renderLast3Results();
     this.renderAllSpinHistoryModalList();
     this.renderAdminSpinHistoryTable();
@@ -818,6 +819,7 @@ class SpinWheelApp {
 
     // 2. Pull initial local server state & continuous live polling
     await this.pullStateFromServer();
+    this.settleElapsedSlots();
     this.startServerPolling();
   }
 
@@ -5466,9 +5468,10 @@ class SpinWheelApp {
   // ==========================================================
   // TARGET NUMBER DETERMINATION & SINGLE ROTATION PHYSICS
   // ==========================================================
-  determineTargetNumber() {
+  determineTargetNumber(targetSlotLabel = null) {
     const currentSlot = getCurrentActiveSlot(new Date());
     const nextSlot = getNextSlotInfo(new Date());
+    const slotToCheck = targetSlotLabel || currentSlot.label || nextSlot.label;
 
     // 1. Highest Priority: Forced Next Winner (if manually set)
     if (this.forcedNext !== null && this.forcedNext !== undefined) {
@@ -5480,8 +5483,8 @@ class SpinWheelApp {
       }
     }
 
-    // 2. 4-Slot Predetermined Schedule for current/next slot
-    const scheduledVal = this.dailySchedule[currentSlot.label] || this.dailySchedule[nextSlot.label];
+    // 2. 4-Slot Predetermined Schedule for this specific round slot
+    const scheduledVal = this.dailySchedule ? this.dailySchedule[slotToCheck] : null;
     if (scheduledVal && scheduledVal !== 'AUTO') {
       const schedNum = parseInt(scheduledVal, 10);
       if (this.slices.includes(schedNum)) {
@@ -5489,17 +5492,17 @@ class SpinWheelApp {
       }
     }
 
-    // 3. Fallback: Pick random number from fixed 10 slices (10, 20, 30... 100)
+    // 3. Fallback: If no number predicted (AUTO), pick random number from fixed 10 slices (10, 20, 30... 100)
     const randIdx = Math.floor(Math.random() * this.slices.length);
     return this.slices[randIdx];
   }
 
-  dispatchSynchronizedSpin(triggerSource = 'Live Slot Round', isTestSpin = false, overrideTargetNumber = null) {
+  dispatchSynchronizedSpin(triggerSource = 'Live Slot Round', isTestSpin = false, overrideTargetNumber = null, targetSlotLabel = null) {
     if (this.isSpinning || Date.now() < this.spinLockoutUntil) return;
 
     let targetNumber = overrideTargetNumber;
     if (targetNumber === null || isNaN(targetNumber) || targetNumber < 1) {
-      targetNumber = this.determineTargetNumber();
+      targetNumber = this.determineTargetNumber(targetSlotLabel);
     }
 
     const triggerId = Date.now();
@@ -5998,6 +6001,165 @@ class SpinWheelApp {
     });
   }
 
+  // ==========================================================
+  // REAL-TIME AUTO-SETTLEMENT ENGINE FOR ELAPSED SLOTS
+  // ==========================================================
+  settleElapsedSlots() {
+    const now = new Date();
+    const slices = Array.isArray(this.slices) && this.slices.length > 0 ? this.slices : [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    let historyChanged = false;
+
+    // Check past 3 days (day -2, day -1, today) to catch up any elapsed daily slots
+    const daysToCheck = [2, 1, 0];
+
+    daysToCheck.forEach(dayOffset => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - dayOffset);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      DAILY_SLOTS.forEach(slot => {
+        const slotTime = new Date(d);
+        slotTime.setHours(slot.hour, slot.min, 0, 0);
+
+        // Only process rounds whose scheduled clock time has arrived or passed
+        if (slotTime.getTime() <= now.getTime()) {
+          const slotLabel = slot.label;
+          const exists = (this.history || []).some(h => {
+            if (!h) return false;
+            return (h.date === dateStr && (h.round === slotLabel || h.time?.includes(slotLabel)));
+          });
+
+          if (!exists) {
+            // 1. If admin predetermined this slot's winner, use that exact number!
+            let winningNum = null;
+            if (dayOffset === 0 && this.dailySchedule && this.dailySchedule[slotLabel] && this.dailySchedule[slotLabel] !== 'AUTO') {
+              const sched = parseInt(this.dailySchedule[slotLabel], 10);
+              if (slices.includes(sched)) winningNum = sched;
+            }
+
+            // 2. If AUTO (no number was predicted/set), generate deterministic pseudo-random number from slices
+            if (winningNum === null) {
+              let hash = 0;
+              const str = `${dateStr}_${slotLabel}_lucky_salt_v6`;
+              for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+              }
+              const idx = Math.abs(hash) % slices.length;
+              winningNum = slices[idx];
+            }
+
+            const entry = {
+              id: slotTime.getTime(),
+              number: winningNum,
+              time: slotLabel,
+              date: dateStr,
+              round: slotLabel,
+              source: 'Scheduled Round',
+              timestamp: slotTime.getTime()
+            };
+
+            if (!Array.isArray(this.history)) this.history = [];
+            this.history.unshift(entry);
+            historyChanged = true;
+
+            // Settle any player prediction bets targeting this round slot
+            this.settleBetsForAutoSlot(slotLabel, dateStr, winningNum);
+          }
+        }
+      });
+    });
+
+    if (historyChanged) {
+      const histMap = new Map();
+      (this.history || []).forEach(item => {
+        if (!item) return;
+        const key = `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
+        if (!histMap.has(key)) histMap.set(key, item);
+      });
+      this.history = Array.from(histMap.values())
+        .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
+        .slice(0, 150);
+
+      localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
+      this.renderLast3Results();
+      this.renderAllSpinHistoryModalList();
+      this.renderAdminSpinHistoryTable();
+      this.pushStateToServer({
+        history: this.history,
+        customersDb: this.customersDb,
+        activeBets: this.activeBets
+      });
+    }
+  }
+
+  settleBetsForAutoSlot(slotLabel, dateStr, winningNum) {
+    if (!Array.isArray(this.activeBets) || this.activeBets.length === 0) return;
+
+    let anySettled = false;
+    this.activeBets.forEach(bet => {
+      const isSlotMatch = (bet.targetSlot === slotLabel || !bet.targetSlot || bet.targetSlot === 'NEXT');
+      const isDateMatch = (!bet.targetDate || bet.targetDate === dateStr);
+
+      if (isSlotMatch && isDateMatch) {
+        anySettled = true;
+        const isWin = (bet.number === winningNum);
+        const winAmount = isWin ? (bet.amount * 9) : 0;
+
+        if (this.customersDb && this.customersDb[bet.playerId]) {
+          const p = this.customersDb[bet.playerId];
+          if (isWin) {
+            p.coins = (p.coins || 0) + winAmount;
+            p.wins = (p.wins || 0) + 1;
+          }
+          if (!Array.isArray(p.betHistory)) p.betHistory = [];
+          const histEntry = p.betHistory.find(b => b.id === bet.id);
+          if (histEntry) {
+            histEntry.status = isWin ? 'WON' : 'LOST';
+            histEntry.winningNumber = winningNum;
+            histEntry.payout = winAmount;
+            histEntry.settledAt = slotLabel;
+          } else {
+            p.betHistory.unshift({
+              ...bet,
+              status: isWin ? 'WON' : 'LOST',
+              winningNumber: winningNum,
+              payout: winAmount,
+              settledAt: slotLabel
+            });
+          }
+        }
+
+        if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
+          if (isWin) {
+            this.currentCustomer.coins = (this.currentCustomer.coins || 0) + winAmount;
+            this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+          }
+          if (!Array.isArray(this.currentCustomer.betHistory)) this.currentCustomer.betHistory = [];
+          const custHist = this.currentCustomer.betHistory.find(b => b.id === bet.id);
+          if (custHist) {
+            custHist.status = isWin ? 'WON' : 'LOST';
+            custHist.winningNumber = winningNum;
+            custHist.payout = winAmount;
+            custHist.settledAt = slotLabel;
+          }
+        }
+      }
+    });
+
+    if (anySettled) {
+      this.activeBets = this.activeBets.filter(bet => {
+        const isSlotMatch = (bet.targetSlot === slotLabel || !bet.targetSlot || bet.targetSlot === 'NEXT');
+        const isDateMatch = (!bet.targetDate || bet.targetDate === dateStr);
+        return !(isSlotMatch && isDateMatch);
+      });
+      this.saveActiveBets(this.activeBets);
+      this.saveCustomersDB(this.customersDb);
+      if (this.currentCustomer) this.saveCustomerSession(this.currentCustomer);
+      this.updateCustomerUI();
+    }
+  }
+
   clearSpinHistory() {
     if (confirm('Are you sure you want to CLEAR all spin history across all devices?')) {
       this.history = [];
@@ -6014,9 +6176,17 @@ class SpinWheelApp {
   // AUTOMATIC 4-SLOT ADVANCEMENT & COUNTDOWN TIMER ENGINE
   // ==========================================================
   startTimerEngine() {
+    let lastSettleCheck = 0;
+
     const tick = () => {
       const now = new Date();
       const nextSlot = getNextSlotInfo(now);
+
+      // Settle any elapsed slot rounds automatically every 30 seconds
+      if (Date.now() - lastSettleCheck > 30000) {
+        lastSettleCheck = Date.now();
+        this.settleElapsedSlots();
+      }
 
       // Automatic slot display header (always shows next upcoming slot: 12PM, 4PM, 8PM, 11PM)
       this.currentHourEl.textContent = nextSlot.label;
@@ -6049,11 +6219,11 @@ class SpinWheelApp {
           this.countdownEl.textContent = `00:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Auto-spin ONCE at the exact scheduled second
+        // Auto-spin ONCE at the exact scheduled second (00:00:00)
         const lastSpunSlot = localStorage.getItem(STATE_KEYS.LAST_SPUN_SLOT);
         if (totalSec === 0 && !this.isSpinning && lastSpunSlot !== slotKey && Date.now() >= this.spinLockoutUntil) {
           localStorage.setItem(STATE_KEYS.LAST_SPUN_SLOT, slotKey);
-          this.dispatchSynchronizedSpin(`Slot ${nextSlot.label}`, false);
+          this.dispatchSynchronizedSpin(`Slot ${nextSlot.label}`, false, null, nextSlot.label);
         }
       }
 

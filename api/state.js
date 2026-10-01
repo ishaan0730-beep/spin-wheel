@@ -3,11 +3,7 @@
 
 let globalState = {
   slices: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
-  history: [
-    { id: 1789769291721, number: 80, time: "11:00 PM", date: "Sep 24", round: "11:00 PM", source: "Live Slot Round" },
-    { id: 1789768890761, number: 70, time: "08:00 PM", date: "Sep 24", round: "08:00 PM", source: "Live Slot Round" },
-    { id: 1789768058759, number: 40, time: "04:00 PM", date: "Sep 24", round: "04:00 PM", source: "Live Slot Round" }
-  ],
+  history: [],
   forcedNext: null,
   upcomingQueue: ["AUTO", "AUTO", "AUTO"],
   dailySchedule: {
@@ -88,7 +84,87 @@ async function sendTelegramAlert(text) {
   }
 }
 
+const DAILY_SLOTS = [
+  { label: '12:00 PM', hour: 12, min: 0 },
+  { label: '04:00 PM', hour: 16, min: 0 },
+  { label: '08:00 PM', hour: 20, min: 0 },
+  { label: '11:00 PM', hour: 23, min: 0 }
+];
+
+function settleServerElapsedSlots() {
+  const now = new Date();
+  const slices = globalState.slices || [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+  let changed = false;
+
+  [2, 1, 0].forEach(dayOffset => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - dayOffset);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    DAILY_SLOTS.forEach(slot => {
+      const slotTime = new Date(d);
+      slotTime.setHours(slot.hour, slot.min, 0, 0);
+
+      if (slotTime.getTime() <= now.getTime()) {
+        const slotLabel = slot.label;
+        const exists = (globalState.history || []).some(h => {
+          if (!h) return false;
+          return (h.date === dateStr && (h.round === slotLabel || h.time?.includes(slotLabel)));
+        });
+
+        if (!exists) {
+          let winningNum = null;
+          if (dayOffset === 0 && globalState.dailySchedule && globalState.dailySchedule[slotLabel] && globalState.dailySchedule[slotLabel] !== 'AUTO') {
+            const sched = parseInt(globalState.dailySchedule[slotLabel], 10);
+            if (slices.includes(sched)) winningNum = sched;
+          }
+
+          if (winningNum === null) {
+            let hash = 0;
+            const str = `${dateStr}_${slotLabel}_lucky_salt_v6`;
+            for (let i = 0; i < str.length; i++) {
+              hash = ((hash << 5) - hash) + str.charCodeAt(i);
+              hash |= 0;
+            }
+            const idx = Math.abs(hash) % slices.length;
+            winningNum = slices[idx];
+          }
+
+          const entry = {
+            id: slotTime.getTime(),
+            number: winningNum,
+            time: slotLabel,
+            date: dateStr,
+            round: slotLabel,
+            source: 'Scheduled Round',
+            timestamp: slotTime.getTime()
+          };
+
+          if (!Array.isArray(globalState.history)) globalState.history = [];
+          globalState.history.unshift(entry);
+          changed = true;
+        }
+      }
+    });
+  });
+
+  if (changed) {
+    const histMap = new Map();
+    (globalState.history || []).forEach(item => {
+      if (!item) return;
+      const key = `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
+      if (!histMap.has(key)) histMap.set(key, item);
+    });
+    globalState.history = Array.from(histMap.values())
+      .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
+      .slice(0, 150);
+  }
+}
+
 export default function handler(req, res) {
+  // Settle any elapsed slot rounds automatically so history is always current
+  settleServerElapsedSlots();
+
   // Enable full CORS for cross-device access
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
