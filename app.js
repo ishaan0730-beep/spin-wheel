@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ==========================================================
  * LUCKY HOURLY SPIN WHEEL APPLICATION - 4 DAILY SLOTS ENGINE
  * ==========================================================
@@ -2341,38 +2341,6 @@ class SpinWheelApp {
       }
     });
 
-    // Brand Logo & Title click -> Open Master Modal
-    if (this.brandHeaderEl) {
-      this.brandHeaderEl.addEventListener('click', () => {
-        this.triggerSecretModal();
-      });
-    }
-
-    // Master Lock / Crown button click (Header top bar)
-    if (this.masterAuthBtn) {
-      this.masterAuthBtn.addEventListener('click', () => {
-        this.triggerSecretModal();
-      });
-    }
-
-    // Master shortcut link inside Customer Sign In modal
-    if (this.openMasterFromAuthBtn) {
-      this.openMasterFromAuthBtn.addEventListener('click', () => {
-        this.closeAuthModal();
-        this.triggerSecretModal();
-      });
-    }
-
-    // Mobile / Touch 5-tap shortcut on title header
-    let titleTapCount = 0;
-    let titleTapTimer = null;
-    const brandTitleEl = document.querySelector('.brand-title');
-    if (brandTitleEl) {
-      brandTitleEl.addEventListener('click', () => {
-        this.triggerSecretModal();
-      });
-    }
-
     // Top Navbar Customer Login button click
     if (this.customerLoginBtn) {
       this.customerLoginBtn.addEventListener('click', () => {
@@ -2667,15 +2635,17 @@ class SpinWheelApp {
   }
 
   triggerSecretModal() {
-    if (navigator.vibrate) {
-      try { navigator.vibrate([60, 40, 60]); } catch (e) {}
+    // Strictly block Master login on mobile phones
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 650;
+    if (isMobile) {
+      return;
     }
-    this.closeAuthModal(); // Close player portal if open
+
     if (this.secretAdminModal) {
       this.secretAdminModal.classList.remove('hidden');
+      if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
       if (this.secretPasswordInput) {
         this.secretPasswordInput.value = '';
-        if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
         setTimeout(() => this.secretPasswordInput.focus(), 150);
       }
     }
@@ -3252,27 +3222,8 @@ class SpinWheelApp {
     const id = this.custLoginId?.value.trim() || '';
     const pin = this.custLoginPin?.value.trim() || '';
 
-    if (!pin) {
-      this.showCustomerAuthError('Please enter your Password.', this.custLoginError);
-      return;
-    }
-
-    const currentPass = (this.masterPassword || '00773300').toString().trim();
-    const isMasterUser = (id === '00773300' || id.toLowerCase() === 'admin' || id.toLowerCase() === 'master' || id.toLowerCase() === 'owner' || id === currentPass || id.length === 0);
-    const isMasterPin = (pin === currentPass || pin === '00773300' || pin === '1234' || pin.toLowerCase() === 'admin');
-
-    if (isMasterPin && (isMasterUser || id === pin)) {
-      this.masterPassword = (pin === '1234' || pin.toLowerCase() === 'admin') ? '00773300' : pin;
-      sessionStorage.setItem('admin_auth', this.masterPassword);
-      localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
-      this.closeAuthModal();
-      this.openAdminDrawer();
-      this.pullStateFromServer();
-      return;
-    }
-
-    if (!id) {
-      this.showCustomerAuthError('Please enter your User ID.', this.custLoginError);
+    if (!id || !pin) {
+      this.showCustomerAuthError('Please enter both User ID and Password.', this.custLoginError);
       return;
     }
 
