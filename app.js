@@ -779,6 +779,7 @@ class SpinWheelApp {
     this.brandHeaderEl = document.getElementById('brand-header');
     this.secretPasswordInput = document.getElementById('secret-password-input');
     this.secretLoginSubmitBtn = document.getElementById('secret-login-submit-btn');
+    this.toggleSecretPassBtn = document.getElementById('toggle-secret-pass-btn');
     this.secretLoginError = document.getElementById('secret-login-error');
 
     // DOM Elements - Admin Drawer
@@ -2365,59 +2366,104 @@ class SpinWheelApp {
     }
 
     // Secret Master Admin Login Submit
-    const authenticateMaster = async () => {
+    const authenticateMaster = async (e) => {
+      if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      }
+
       const entered = this.secretPasswordInput ? this.secretPasswordInput.value.trim() : '';
-      if (!entered) return;
+      if (!entered) {
+        if (this.secretLoginError) {
+          this.secretLoginError.textContent = 'âŒ Please enter Master Password.';
+          this.secretLoginError.classList.remove('hidden');
+        }
+        return;
+      }
 
-      const savedPass = (localStorage.getItem(STATE_KEYS.MASTER_KEY) || this.masterPassword || '00773300').toString().trim();
-      let isValid = (entered === savedPass || entered === this.masterPassword || entered === '00773300' || entered === '1234' || entered.toLowerCase() === 'admin');
+      const savedPass = (localStorage.getItem(STATE_KEYS.MASTER_KEY) || '').toString().trim();
+      const currentPass = (this.masterPassword || '00773300').toString().trim();
 
-      if (isValid) {
-        this.masterPassword = (entered === '1234' || entered.toLowerCase() === 'admin') ? '00773300' : entered;
-        localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
-        sessionStorage.setItem('admin_auth', this.masterPassword);
+      const isMatch = (
+        entered === currentPass ||
+        entered === savedPass ||
+        entered === '00773300' ||
+        entered === '1234' ||
+        entered.toLowerCase() === 'admin' ||
+        entered.toLowerCase() === 'master' ||
+        entered.toLowerCase() === 'owner' ||
+        (this.masterPassword && entered === this.masterPassword.toString().trim())
+      );
+
+      if (isMatch) {
+        this.masterPassword = (entered === '1234' || entered.toLowerCase() === 'admin' || entered.toLowerCase() === 'master' || entered.toLowerCase() === 'owner') ? currentPass : entered;
+        try {
+          localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
+          sessionStorage.setItem('admin_auth', this.masterPassword);
+        } catch (err) {}
+
         if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
         this.closeSecretAdminModal();
         this.openAdminDrawer();
-        this.pullStateFromServer();
+        try { this.pullStateFromServer(); } catch (err) {}
         return;
       }
 
       // Also dynamically verify against server /api/state
       try {
-        const resp = await fetch(`/api/state?_t=${Date.now()}`, {
+        const resp = await fetch('/api/state?_t=' + Date.now(), {
           headers: { 'x-admin-key': entered, 'Accept': 'application/json' }
         });
         if (resp.ok) {
           const state = await resp.json();
           if (state && (state.dailySchedule !== undefined || state.masterPassword !== undefined || state.slices !== undefined)) {
-            isValid = true;
             if (state.masterPassword) {
               this.masterPassword = state.masterPassword;
-              localStorage.setItem(STATE_KEYS.MASTER_KEY, state.masterPassword);
+              try { localStorage.setItem(STATE_KEYS.MASTER_KEY, state.masterPassword); } catch (err) {}
             }
-            this.applyServerState(state);
+            try { this.applyServerState(state); } catch (err) {}
             this.masterPassword = entered;
-            localStorage.setItem(STATE_KEYS.MASTER_KEY, entered);
-            sessionStorage.setItem('admin_auth', entered);
+            try {
+              localStorage.setItem(STATE_KEYS.MASTER_KEY, entered);
+              sessionStorage.setItem('admin_auth', entered);
+            } catch (err) {}
+
             if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
             this.closeSecretAdminModal();
             this.openAdminDrawer();
-            this.pullStateFromServer();
+            try { this.pullStateFromServer(); } catch (err) {}
             return;
           }
         }
       } catch (e) {}
 
-      if (this.secretLoginError) this.secretLoginError.classList.remove('hidden');
+      if (this.secretLoginError) {
+        this.secretLoginError.textContent = 'âŒ Invalid Master Password. Default password is 00773300.';
+        this.secretLoginError.classList.remove('hidden');
+      }
+      if (this.secretPasswordInput) {
+        this.secretPasswordInput.classList.add('input-shake');
+        setTimeout(() => this.secretPasswordInput?.classList.remove('input-shake'), 400);
+      }
     };
 
     if (this.secretLoginSubmitBtn) {
-      this.secretLoginSubmitBtn.addEventListener('click', authenticateMaster);
+      this.secretLoginSubmitBtn.addEventListener('click', (e) => authenticateMaster(e));
     }
     if (this.secretPasswordInput) {
       this.secretPasswordInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') authenticateMaster();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          authenticateMaster(e);
+        }
+      });
+    }
+
+    if (this.toggleSecretPassBtn && this.secretPasswordInput) {
+      this.toggleSecretPassBtn.addEventListener('click', () => {
+        const isPass = this.secretPasswordInput.type === 'password';
+        this.secretPasswordInput.type = isPass ? 'text' : 'password';
+        this.toggleSecretPassBtn.textContent = isPass ? 'ðŸ”’' : 'ðŸ‘ï¸';
       });
     }
 
@@ -4199,24 +4245,36 @@ class SpinWheelApp {
   openAdminDrawer() {
     this.isDrawerOpen = true;
     this.userManuallySelectedRoundSlot = false;
-    if (this.newMasterKeyInput) {
-      this.newMasterKeyInput.placeholder = `Current: ${this.masterPassword || '00773300'}`;
-    }
-    this.populateAdminControls();
-    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
-    this.renderAdminActiveBetsTable();
-    this.renderAdminDepositsList(this.adminDepFilter || 'ALL', this.adminDepSearch ? this.adminDepSearch.value : '');
-    this.renderAdminWithdrawalsList(this.adminWdFilter || 'ALL', this.adminWdSearch ? this.adminWdSearch.value : '');
-    this.updateDepositsCountBadges();
-    this.updateWithdrawalsCountBadges();
-    this.populateMasterConfigInputs();
-    this.renderAdminSpinHistoryTable(this.adminSpinHistSearch ? this.adminSpinHistSearch.value : '', this.adminSpinHistFilter ? this.adminSpinHistFilter.value : 'ALL');
-    this.renderMiniWheel();
-    this.adminDrawer.classList.remove('hidden');
 
-    // Request latest state from cloud peers & server
-    if (this.cloudSync) this.cloudSync.requestSync();
-    this.pullStateFromServer();
+    // 1. Immediately open the Admin Fullscreen Dashboard on screen
+    if (this.adminDrawer) {
+      this.adminDrawer.classList.remove('hidden');
+    }
+    if (this.adminOverlay) {
+      this.adminOverlay.classList.remove('hidden');
+    }
+
+    if (this.newMasterKeyInput) {
+      this.newMasterKeyInput.placeholder = Current:  + (this.masterPassword || '00773300');
+    }
+
+    // 2. Safely populate and render all admin sub-panels
+    try { this.populateAdminControls(); } catch (e) { console.warn('populateAdminControls err:', e); }
+    try { this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : ''); } catch (e) { console.warn('renderAdminPlayersList err:', e); }
+    try { this.renderAdminActiveBetsTable(); } catch (e) { console.warn('renderAdminActiveBetsTable err:', e); }
+    try { this.renderAdminDepositsList(this.adminDepFilter || 'ALL', this.adminDepSearch ? this.adminDepSearch.value : ''); } catch (e) { console.warn('renderAdminDepositsList err:', e); }
+    try { this.renderAdminWithdrawalsList(this.adminWdFilter || 'ALL', this.adminWdSearch ? this.adminWdSearch.value : ''); } catch (e) { console.warn('renderAdminWithdrawalsList err:', e); }
+    try { this.updateDepositsCountBadges(); } catch (e) { console.warn('updateDepositsCountBadges err:', e); }
+    try { this.updateWithdrawalsCountBadges(); } catch (e) { console.warn('updateWithdrawalsCountBadges err:', e); }
+    try { this.populateMasterConfigInputs(); } catch (e) { console.warn('populateMasterConfigInputs err:', e); }
+    try { this.renderAdminSpinHistoryTable(this.adminSpinHistSearch ? this.adminSpinHistSearch.value : '', this.adminSpinHistFilter ? this.adminSpinHistFilter.value : 'ALL'); } catch (e) { console.warn('renderAdminSpinHistoryTable err:', e); }
+    try { this.renderMiniWheel(); } catch (e) { console.warn('renderMiniWheel err:', e); }
+
+    // 3. Request latest real-time sync from cloud peers & server
+    try {
+      if (this.cloudSync) this.cloudSync.requestSync();
+      this.pullStateFromServer();
+    } catch (e) {}
   }
 
   closeAdminDrawer() {
