@@ -64,6 +64,30 @@ function checkAdminAuth(req, body) {
   );
 }
 
+async function sendTelegramAlert(text) {
+  try {
+    const cfg = globalState.notificationConfig;
+    if (!cfg || !cfg.telegramBotToken || !cfg.telegramChatId) return false;
+    const token = cfg.telegramBotToken.trim();
+    const chatId = cfg.telegramChatId.trim();
+    if (!token || !chatId) return false;
+
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: text,
+        parse_mode: 'Markdown'
+      })
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 export default function handler(req, res) {
   // Enable full CORS for cross-device access
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -108,6 +132,12 @@ export default function handler(req, res) {
           qrImageUrl: globalState.depositConfig?.qrImageUrl || '',
           minDeposit: globalState.depositConfig?.minDeposit || 100,
           instructions: globalState.depositConfig?.instructions || ''
+        },
+        notificationConfig: {
+          telegramBotToken: globalState.notificationConfig?.telegramBotToken || '',
+          telegramChatId: globalState.notificationConfig?.telegramChatId || '',
+          telegramEnabled: globalState.notificationConfig?.telegramEnabled || false,
+          whatsappNumber: globalState.notificationConfig?.whatsappNumber || ''
         },
         version: globalState.version
       };
@@ -202,7 +232,9 @@ export default function handler(req, res) {
             version: Date.now()
           };
         } else {
-          // Public updates: sync customer registration, merge active bets, merge withdrawals, merge deposits, clear spin triggers, merge history
+          if (body.newPlayer && body.newPlayer.id && !globalState.customersDb[body.newPlayer.id]) {
+            sendTelegramAlert(`👤 *NEW PLAYER REGISTRATION!*\n\n👑 *Name:* ${body.newPlayer.name}\n🆔 *User ID:* \`${body.newPlayer.id}\`\n📱 *Mobile:* \`${body.newPlayer.mobile || 'N/A'}\`\n🎂 *DOB:* ${body.newPlayer.dob || 'N/A'}\n💰 *Welcome Bonus:* 10 IHD Coins\n\n👉 Account created & active!`);
+          }
           if (body.customersDb && typeof body.customersDb === 'object') {
             const merged = { ...(globalState.customersDb || {}) };
             Object.keys(body.customersDb).forEach(id => {
@@ -224,6 +256,9 @@ export default function handler(req, res) {
             const existingMap = new Map((globalState.withdrawals || []).map(w => [w.id, w]));
             body.withdrawals.forEach(w => {
               if (w && w.id) {
+                if (w.status === 'PENDING' && !existingMap.has(w.id)) {
+                  sendTelegramAlert(`💸 *NEW WITHDRAWAL REQUEST!*\n\n👤 *Player:* ${w.customerName} (ID: \`${w.customerId}\`)\n📱 *Mobile:* ${w.customerMobile || 'N/A'}\n💰 *Amount:* 💰${(w.amount || 0).toLocaleString()} IHD (₹${(w.amount || 0).toLocaleString()})\n🏦 *Bank A/C:* \`${w.accountNumber}\` (${w.ifscCode})\n👤 *A/C Name:* ${w.accountName}\n🕒 *Time:* ${w.requestedTime || ''}\n\n👉 Open Master Panel to Confirm & Transfer!`);
+                }
                 existingMap.set(w.id, { ...(existingMap.get(w.id) || {}), ...w });
               }
             });
@@ -233,6 +268,9 @@ export default function handler(req, res) {
             const existingMap = new Map((globalState.deposits || []).map(d => [d.id, d]));
             body.deposits.forEach(d => {
               if (d && d.id) {
+                if (d.status === 'PENDING' && !existingMap.has(d.id)) {
+                  sendTelegramAlert(`🚨 *NEW DEPOSIT REQUEST!*\n\n👤 *Player:* ${d.customerName} (ID: \`${d.customerId}\`)\n📱 *Mobile:* ${d.customerMobile || 'N/A'}\n💰 *Amount:* ₹${(d.amount || 0).toLocaleString()} (${(d.amount || 0).toLocaleString()} Coins)\n🔢 *UTR / Ref:* \`${d.utr || 'N/A'}\`\n🕒 *Time:* ${d.requestedTime || ''} (${d.requestedDate || ''})\n\n👉 Open Master Panel to review & approve coins!`);
+                }
                 existingMap.set(d.id, { ...(existingMap.get(d.id) || {}), ...d });
               }
             });

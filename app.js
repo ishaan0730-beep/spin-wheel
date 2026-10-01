@@ -1549,12 +1549,11 @@ class SpinWheelApp {
   async sendTelegramNotification(text) {
     try {
       const cfg = this.notificationConfig || {};
-      if (!cfg.telegramEnabled || !cfg.telegramBotToken || !cfg.telegramChatId) {
+      const token = (cfg.telegramBotToken || '').trim();
+      const chatId = (cfg.telegramChatId || '').trim();
+      if (!token || !chatId) {
         return false;
       }
-      const token = cfg.telegramBotToken.trim();
-      const chatId = cfg.telegramChatId.trim();
-      if (!token || !chatId) return false;
 
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
       const res = await fetch(url, {
@@ -1806,6 +1805,7 @@ class SpinWheelApp {
     // Specific Round Timing Dropdown change (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM)
     if (this.quickRoundHourSelect) {
       this.quickRoundHourSelect.addEventListener('change', () => {
+        this.userManuallySelectedRoundSlot = true;
         this.updateSection1BadgeForSelectedSlot();
       });
     }
@@ -1813,12 +1813,13 @@ class SpinWheelApp {
     // Section 1: Set Round Time & Lock Predetermined Winner (Real Round)
     if (this.applyTimeWinnerBtn) {
       this.applyTimeWinnerBtn.addEventListener('click', () => {
-        const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : '12:00 PM';
+        const nextSlot = getNextSlotInfo(new Date());
+        const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
         let winnerNum = parseInt(this.manualRoundWinnerSelect?.value, 10);
         if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) winnerNum = this.slices[0] || 10;
 
         // 1. Lock predetermined winner for this specific slot in daily schedule
-        if (this.dailySchedule[roundTitle] !== undefined) {
+        if (this.dailySchedule && this.dailySchedule[roundTitle] !== undefined) {
           this.dailySchedule[roundTitle] = winnerNum;
           this.renderDailyScheduleTable();
         } else {
@@ -1835,6 +1836,7 @@ class SpinWheelApp {
 
         // 4. Broadcast to all devices in real-time
         this.pushStateToServer({
+          dailySchedule: this.dailySchedule,
           timerMode: 'REAL',
           customTimerTarget: null
         });
@@ -1847,7 +1849,8 @@ class SpinWheelApp {
       this.testTimeWinnerBtn.addEventListener('click', () => {
         let winnerNum = parseInt(this.manualRoundWinnerSelect?.value, 10);
         if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) winnerNum = this.slices[0] || 10;
-        const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : '12:00 PM';
+        const nextSlot = getNextSlotInfo(new Date());
+        const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
 
         this.closeAdminDrawer();
         setTimeout(() => {
@@ -1859,14 +1862,15 @@ class SpinWheelApp {
     // Section 1: Clear / Reset Winner Only (Time slot remains the EXACT same!)
     if (this.clearTimingBtn) {
       this.clearTimingBtn.addEventListener('click', () => {
+        const nextSlot = getNextSlotInfo(new Date());
         const selectedSlot = (this.quickRoundHourSelect && this.quickRoundHourSelect.value) 
           || (this.badgeTimingText && this.badgeTimingText.textContent.trim()) 
-          || '12:00 PM';
+          || nextSlot.label;
 
         this.forcedNext = null;
 
-        // Reset the predetermined winner for this slot back to AUTO in schedule
-        if (this.dailySchedule[selectedSlot] !== undefined) {
+        // Reset ONLY the predetermined winner for this slot back to AUTO in schedule
+        if (this.dailySchedule && this.dailySchedule[selectedSlot] !== undefined) {
           this.dailySchedule[selectedSlot] = 'AUTO';
         }
 
@@ -1881,15 +1885,19 @@ class SpinWheelApp {
         if (this.activeTimingBadge) {
           this.activeTimingBadge.classList.remove('hidden');
           if (this.badgeTimingText) this.badgeTimingText.textContent = selectedSlot;
-          if (this.badgeTimingWinner) this.badgeTimingWinner.textContent = 'Auto (Random)';
+          if (this.badgeTimingWinner) {
+            this.badgeTimingWinner.textContent = 'Auto (Random)';
+            this.badgeTimingWinner.className = '';
+            this.badgeTimingWinner.style.color = '#00f0ff';
+          }
         }
 
         if (this.quickRoundHourSelect) {
           this.quickRoundHourSelect.value = selectedSlot;
         }
 
-        this.pushStateToServer();
-        this.showTimerFeedback(`✅ Winner for Slot "${selectedSlot}" reset to Auto (Time slot remains active)!`);
+        this.pushStateToServer({ dailySchedule: this.dailySchedule, forcedNext: null });
+        this.showTimerFeedback(`✅ Winner for Round "${selectedSlot}" reset to Auto (Random). Time slot remains ${selectedSlot}!`);
       });
     }
 
@@ -2592,6 +2600,10 @@ class SpinWheelApp {
       newPlayer: newCustomer
     });
 
+    // Send Instant Telegram Notification to Master Phone
+    const tgMsg = `👤 *NEW PLAYER REGISTRATION!*\n\n👑 *Name:* ${name}\n🆔 *User ID:* \`${id}\`\n📱 *Mobile:* \`${mobile}\`\n🎂 *DOB:* ${dob}\n💰 *Welcome Bonus:* 10 IHD Coins\n🕒 *Time:* ${formatTime12(new Date())}\n\n👉 *Status:* Account created & active!`;
+    this.sendTelegramNotification(tgMsg);
+
     this.confetti.fire(2500);
     this.audio.playWinFanfare();
     if (this.predictionFeedbackMsg) {
@@ -3203,6 +3215,10 @@ class SpinWheelApp {
     this.updateCustomerUI();
     this.pushStateToServer({ customersDb: this.customersDb, activeBets: this.activeBets });
 
+    // Send Telegram Notification for new prediction bet
+    const tgBetMsg = `🎯 *NEW PREDICTION ENTRY!*\n\n👤 *Player:* ${this.currentCustomer.name || this.currentCustomer.id} (ID: \`${this.currentCustomer.id}\`)\n🔢 *Selected Number:* *#${this.selectedBetNumber}*\n💰 *Amount:* 💰${amount} IHD Coins\n🏆 *Potential Win (9x):* 💰${amount * 9} IHD Coins\n🕒 *Target Slot:* ${slotDetails.slotLabel} (${slotDetails.dayPrefix})\n⏰ *Placed At:* ${placedTimeStr}`;
+    this.sendTelegramNotification(tgBetMsg);
+
     if (this.predictionFeedbackMsg) {
       this.predictionFeedbackMsg.style.color = '#2ecc71';
       this.predictionFeedbackMsg.textContent = `✅ Locked ${amount} IHD Coins on #${this.selectedBetNumber} for ${slotDetails.displayStr} (Potential 9x Win: 💰${amount * 9} IHD Coins)!`;
@@ -3230,6 +3246,7 @@ class SpinWheelApp {
 
   openAdminDrawer() {
     this.isDrawerOpen = true;
+    this.userManuallySelectedRoundSlot = false;
     if (this.newMasterKeyInput) {
       this.newMasterKeyInput.placeholder = `Current: ${this.masterPassword || '00773300'}`;
     }
@@ -3237,6 +3254,7 @@ class SpinWheelApp {
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     this.renderAdminActiveBetsTable();
     this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+    this.renderAdminSpinHistoryTable(this.adminSpinHistSearch ? this.adminSpinHistSearch.value : '', this.adminSpinHistFilter ? this.adminSpinHistFilter.value : 'ALL');
     this.renderMiniWheel();
     this.adminDrawer.classList.remove('hidden');
 
@@ -3260,19 +3278,32 @@ class SpinWheelApp {
   }
 
   updateSection1BadgeForSelectedSlot() {
-    const selectedSlot = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : '12:00 PM';
-    const preset = this.dailySchedule[selectedSlot];
+    const nextSlot = getNextSlotInfo(new Date());
+    const selectedSlot = (this.quickRoundHourSelect && this.quickRoundHourSelect.value) ? this.quickRoundHourSelect.value : nextSlot.label;
+    const preset = this.dailySchedule ? this.dailySchedule[selectedSlot] : 'AUTO';
 
     if (this.activeTimingBadge) {
       this.activeTimingBadge.classList.remove('hidden');
       if (this.badgeTimingText) this.badgeTimingText.textContent = selectedSlot;
 
       if (preset && preset !== 'AUTO') {
-        if (this.badgeTimingWinner) this.badgeTimingWinner.textContent = `${preset}`;
+        if (this.badgeTimingWinner) {
+          this.badgeTimingWinner.textContent = `${preset}`;
+          this.badgeTimingWinner.className = 'highlight-gold';
+          this.badgeTimingWinner.style.color = '#ffd700';
+        }
       } else if (this.forcedNext !== null) {
-        if (this.badgeTimingWinner) this.badgeTimingWinner.textContent = `${this.forcedNext}`;
+        if (this.badgeTimingWinner) {
+          this.badgeTimingWinner.textContent = `${this.forcedNext}`;
+          this.badgeTimingWinner.className = 'highlight-gold';
+          this.badgeTimingWinner.style.color = '#ffd700';
+        }
       } else {
-        if (this.badgeTimingWinner) this.badgeTimingWinner.textContent = 'Auto (Random)';
+        if (this.badgeTimingWinner) {
+          this.badgeTimingWinner.textContent = 'Auto (Random)';
+          this.badgeTimingWinner.className = '';
+          this.badgeTimingWinner.style.color = '#00f0ff';
+        }
       }
     }
 
@@ -3308,11 +3339,10 @@ class SpinWheelApp {
       if (this.timerModeReal) this.timerModeReal.checked = true;
     }
 
-    // Set default selected slot in Section 1 to upcoming slot if not set
+    // Automatically set selected slot in Section 1 to upcoming slot
     const nextSlot = getNextSlotInfo(new Date());
     if (this.quickRoundHourSelect) {
-      const currentSelected = this.quickRoundHourSelect.value;
-      if (!currentSelected) {
+      if (!this.userManuallySelectedRoundSlot) {
         this.quickRoundHourSelect.value = nextSlot.label;
       }
     }
@@ -3845,6 +3875,10 @@ class SpinWheelApp {
     this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
     this.showAdminCreditFeedback(`✅ Deposit ${req.id} confirmed! Credited 💰${req.amount} IHD Coins to ${req.customerId}.`, true);
     if (this.audio) this.audio.playWinFanfare();
+
+    // Send Telegram Notification for Deposit Approval
+    const tgApproveMsg = `✅ *DEPOSIT APPROVED & CREDITED!*\n\n👤 *Player:* ${req.customerName} (ID: \`${req.customerId}\`)\n💰 *Amount Credited:* 💰${req.amount.toLocaleString()} IHD Coins (₹${req.amount.toLocaleString()})\n🔢 *UTR:* \`${req.utr || 'N/A'}\`\n🕒 *Processed At:* ${req.processedTime || formatTime12(new Date())}\n\n👉 Coins auto-credited to player wallet!`;
+    this.sendTelegramNotification(tgApproveMsg);
   }
 
   adminOpenRejectDepositModal(id) {
@@ -3900,6 +3934,10 @@ class SpinWheelApp {
     this.adminCloseRejectDepositModal();
     this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
     this.showAdminCreditFeedback(`❌ Deposit ${req.id} marked as Rejected.`, false);
+
+    // Send Telegram Notification for Deposit Rejection
+    const tgRejectMsg = `❌ *DEPOSIT REJECTED!*\n\n👤 *Player:* ${req.customerName} (ID: \`${req.customerId}\`)\n💰 *Amount:* ₹${(req.amount || 0).toLocaleString()}\n🔢 *UTR:* \`${req.utr || 'N/A'}\`\n⚠️ *Reason:* ${reason}\n🕒 *Time:* ${req.processedTime || formatTime12(new Date())}`;
+    this.sendTelegramNotification(tgRejectMsg);
   }
 
   openReceiptZoomModal(id) {
@@ -4059,6 +4097,10 @@ class SpinWheelApp {
     this.pushStateToServer({ withdrawals: this.withdrawals });
     this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
     this.showAdminCreditFeedback(`✅ Withdrawal ${req.id} confirmed & completed!`, true);
+
+    // Send Telegram Notification for Withdrawal Approval
+    const tgWdApproveMsg = `✅ *WITHDRAWAL COMPLETED & APPROVED!*\n\n👤 *Player:* ${req.customerName} (ID: \`${req.customerId}\`)\n💰 *Amount Transferred:* 💰${(req.amount || 0).toLocaleString()} IHD Coins (₹${(req.amount || 0).toLocaleString()})\n🏦 *Bank A/C:* \`${req.accountNumber}\` (${req.ifscCode})\n👤 *A/C Name:* ${req.accountName}\n🕒 *Time:* ${req.processedTime || formatTime12(new Date())}`;
+    this.sendTelegramNotification(tgWdApproveMsg);
   }
 
   adminOpenRejectModal(id) {
@@ -4127,6 +4169,10 @@ class SpinWheelApp {
     this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     this.showAdminCreditFeedback(`❌ Withdrawal ${req.id} rejected. 💰${req.amount} IHD Coins refunded to ${req.customerId}.`, false);
+
+    // Send Telegram Notification for Withdrawal Rejection
+    const tgWdRejectMsg = `❌ *WITHDRAWAL REJECTED & REFUNDED!*\n\n👤 *Player:* ${req.customerName} (ID: \`${req.customerId}\`)\n💰 *Amount Refunded:* 💰${(req.amount || 0).toLocaleString()} IHD Coins\n⚠️ *Reason:* ${reason}\n🕒 *Time:* ${req.processedTime || formatTime12(new Date())}`;
+    this.sendTelegramNotification(tgWdRejectMsg);
   }
 
   showAdminCreditFeedback(msg, isSuccess = true) {
@@ -4172,6 +4218,10 @@ class SpinWheelApp {
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
     this.showAdminCreditFeedback(`✅ Credited ${addAmt >= 0 ? '+' : ''}${addAmt} IHD Coins to ${player.name || userId} (${userId})! New Balance: 💰 ${newBalance.toLocaleString()} IHD Coins`, true);
     if (this.audio) this.audio.playTick();
+
+    // Send Telegram Notification for Admin Credit Update
+    const tgCreditMsg = `💳 *ADMIN COIN UPDATE!*\n\n👤 *Player:* ${player.name || userId} (ID: \`${userId}\`)\n💰 *Amount:* ${addAmt >= 0 ? '+' : ''}${addAmt.toLocaleString()} IHD Coins\n💼 *New Balance:* 💰${newBalance.toLocaleString()} IHD Coins\n🕒 *Time:* ${formatTime12(new Date())}`;
+    this.sendTelegramNotification(tgCreditMsg);
   }
 
   adminCustomCreditPrompt(userId) {
@@ -5704,6 +5754,10 @@ class SpinWheelApp {
       this.renderLast3Results();
       this.renderAllSpinHistoryModalList();
       this.renderAdminSpinHistoryTable();
+
+      // Telegram Live Spin Winner Alert
+      const tgSpinMsg = `🏆 *LUCKY HOURLY SPIN - WINNER ANNOUNCEMENT!*\n\n🎰 *Round Slot:* ${roundStr12}\n🌟 *Winning Number:* *#${winningNumber}*\n🕒 *Time:* ${timeStr12} (${dateStr})\n🎯 *Source:* ${triggerSource || 'Live Slot Round'}`;
+      this.sendTelegramNotification(tgSpinMsg);
     }
 
     // Always clear spinTrigger on complete and broadcast latest history to server & cloud
