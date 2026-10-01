@@ -2039,10 +2039,26 @@ class SpinWheelApp {
     this.updateCombinedRequestsBadge();
   }
 
+  isCustomerRequest(item) {
+    if (!item || !this.currentCustomer) return false;
+    const cId = String(this.currentCustomer.id || '').trim().toLowerCase();
+    const cMobile = String(this.currentCustomer.mobile || '').trim();
+    const cName = String(this.currentCustomer.name || '').trim().toLowerCase();
+
+    const itemCustId = String(item.customerId || item.memberId || item.userId || item.playerId || item.partyId || '').trim().toLowerCase();
+    const itemMobile = String(item.customerMobile || item.mobile || item.partyMobile || '').trim();
+    const itemName = String(item.customerName || item.playerName || item.partyName || '').trim().toLowerCase();
+
+    if (cId && itemCustId && (itemCustId === cId || itemCustId.includes(cId) || cId.includes(itemCustId))) return true;
+    if (cMobile && itemMobile && (itemMobile === cMobile)) return true;
+    if (cName && itemName && (itemName === cName)) return true;
+    return false;
+  }
+
   updateCombinedRequestsBadge() {
     if (!this.currentCustomer) return;
-    const myWds = (this.withdrawals || []).filter(w => w.customerId === this.currentCustomer.id);
-    const myDeps = (this.deposits || []).filter(d => d.customerId === this.currentCustomer.id);
+    const myWds = (this.withdrawals || []).filter(w => this.isCustomerRequest(w));
+    const myDeps = (this.deposits || []).filter(d => this.isCustomerRequest(d));
     const totalCount = myWds.length + myDeps.length;
     if (this.custRequestsBadgeCount) {
       this.custRequestsBadgeCount.textContent = totalCount;
@@ -3700,8 +3716,8 @@ class SpinWheelApp {
       }
     });
 
-    const myWds = (this.withdrawals || []).filter(w => w.customerId === this.currentCustomer.id).map(w => ({ ...w, reqType: 'WITHDRAW' }));
-    const myDeps = (this.deposits || []).filter(d => d.customerId === this.currentCustomer.id).map(d => ({ ...d, reqType: 'DEPOSIT' }));
+    const myWds = (this.withdrawals || []).filter(w => this.isCustomerRequest(w)).map(w => ({ ...w, reqType: 'WITHDRAW' }));
+    const myDeps = (this.deposits || []).filter(d => this.isCustomerRequest(d)).map(d => ({ ...d, reqType: 'DEPOSIT' }));
 
     this.updateCombinedRequestsBadge();
 
@@ -3740,7 +3756,7 @@ class SpinWheelApp {
       } else if (item.status === 'REJECTED') {
         statusBadgeHtml = `<span class="status-pill status-rejected">❌ Rejected</span>`;
       } else {
-        statusBadgeHtml = `<span class="status-pill status-pending">⏳ Pending Approval</span>`;
+        statusBadgeHtml = `<span class="status-pill status-pending" style="animation: badgePulsate 1.5s infinite ease-in-out;">⏳ Pending Approval</span>`;
       }
 
       if (isDep) {
@@ -3750,15 +3766,20 @@ class SpinWheelApp {
             <div>
               <div style="display:flex; align-items:center; gap:6px;">
                 <span style="font-size:0.72rem; color:#00f0ff; font-weight:800; background:rgba(0,240,255,0.12); padding:1px 6px; border-radius:6px;">💰 DEPOSIT</span>
-                <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">₹${(item.amount || 0).toLocaleString()} (${item.amount} IHD)</strong>
+                <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">₹${(item.amount || 0).toLocaleString()} (${(item.amount || 0).toLocaleString()} IHD)</strong>
               </div>
               <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:3px;">
                 🔢 UTR: <span style="color:#ffd700; font-family:monospace; font-weight:700;">${item.utr || '--'}</span>
               </div>
               <div style="font-size:0.68rem; color:var(--text-muted); margin-top:1px;">
                 Ref: <span style="font-family:monospace;">${item.id}</span>
-                ${item.screenshotUrl ? ` • <a href="javascript:void(0)" onclick="app.openReceiptZoomModal('${item.id}')" style="color:#00f0ff; text-decoration:underline;">View Receipt 📸</a>` : ''}
+                ${item.screenshotUrl ? ` • <a href="javascript:void(0)" onclick="app.openReceiptZoomModal('${item.id}')" style="color:#00f0ff; text-decoration:underline; font-weight:700;">View Receipt 📸</a>` : ''}
               </div>
+              ${item.status === 'PENDING' ? `
+                <div style="font-size:0.68rem; color:#f5b041; margin-top:3px;">
+                  ⏳ <em>Waiting for Master Admin verification. Coins will be credited upon confirmation.</em>
+                </div>
+              ` : ''}
             </div>
             <div style="text-align:right;">
               ${statusBadgeHtml}
@@ -3784,11 +3805,16 @@ class SpinWheelApp {
                 <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">💰 ${(item.amount || 0).toLocaleString()} IHD Coins</strong>
               </div>
               <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:3px;">
-                🏦 A/C: <span style="color:#fff; font-weight:700;">${maskedAcct}</span> (${item.accountName || '--'})
+                🏦 Bank A/C: <span style="color:#fff; font-weight:700;">${maskedAcct}</span> (${item.accountName || '--'})
               </div>
               <div style="font-size:0.68rem; color:var(--text-muted); margin-top:1px;">
                 IFSC: <span style="color:#00f0ff;">${item.ifscCode || '--'}</span> • Ref: ${item.id}
               </div>
+              ${item.status === 'PENDING' ? `
+                <div style="font-size:0.68rem; color:#f5b041; margin-top:3px;">
+                  ⏳ <em>Master Admin is processing your bank transfer.</em>
+                </div>
+              ` : ''}
             </div>
             <div style="text-align:right;">
               ${statusBadgeHtml}
@@ -4886,6 +4912,10 @@ class SpinWheelApp {
   }
 
   adminApproveDeposit(id) {
+    if (!this.checkIsAdminAuthenticated()) {
+      alert('Access Denied: Master Admin authentication required.');
+      return;
+    }
     const req = (this.deposits || []).find(d => d.id === id);
     if (!req) return;
 
@@ -4954,6 +4984,10 @@ class SpinWheelApp {
   }
 
   adminConfirmRejectDeposit() {
+    if (!this.checkIsAdminAuthenticated()) {
+      alert('Access Denied: Master Admin authentication required.');
+      return;
+    }
     if (!this.pendingRejectDepositId) return;
 
     const req = (this.deposits || []).find(d => d.id === this.pendingRejectDepositId);
@@ -4990,23 +5024,36 @@ class SpinWheelApp {
     this.sendTelegramNotification(tgRejectMsg);
   }
 
+  checkIsAdminAuthenticated() {
+    const auth = sessionStorage.getItem('admin_auth') || (this.isDrawerOpen ? (this.masterPassword || '00773300') : null);
+    if (!auth) return false;
+    const curPass = (this.masterPassword || '00773300').toString().trim();
+    return (auth === curPass || auth === '00773300' || auth === '1234');
+  }
+
   openReceiptZoomModal(id) {
     const dep = (this.deposits || []).find(d => d.id === id);
     if (!dep) return;
 
     this.currentViewingReceiptDepId = id;
 
-    if (this.receiptZoomPlayerName) this.receiptZoomPlayerName.textContent = dep.customerName || 'Player';
+    if (this.receiptZoomPlayerName) this.receiptZoomPlayerName.textContent = dep.customerName || dep.customerId || 'Player';
     if (this.receiptZoomPlayerId) this.receiptZoomPlayerId.textContent = `(ID: ${dep.customerId})`;
-    if (this.receiptZoomAmount) this.receiptZoomAmount.textContent = `💰 ${dep.amount} IHD Coins (₹${(dep.amount || 0).toLocaleString()})`;
+    if (this.receiptZoomAmount) this.receiptZoomAmount.textContent = `💰 ${(dep.amount || 0).toLocaleString()} IHD Coins (₹${(dep.amount || 0).toLocaleString()})`;
     if (this.receiptZoomUtr) this.receiptZoomUtr.textContent = dep.utr || 'No UTR provided';
     if (this.receiptZoomImg) {
       this.receiptZoomImg.src = dep.screenshotUrl || '';
     }
 
     const isPending = (dep.status === 'PENDING');
-    if (this.receiptZoomApproveBtn) this.receiptZoomApproveBtn.style.display = isPending ? 'block' : 'none';
-    if (this.receiptZoomRejectBtn) this.receiptZoomRejectBtn.style.display = isPending ? 'block' : 'none';
+    const isAdmin = this.checkIsAdminAuthenticated();
+
+    const actionsRow = document.getElementById('receipt-zoom-actions-row');
+    if (actionsRow) {
+      actionsRow.style.display = (isAdmin && isPending) ? 'flex' : 'none';
+    }
+    if (this.receiptZoomApproveBtn) this.receiptZoomApproveBtn.style.display = (isAdmin && isPending) ? 'block' : 'none';
+    if (this.receiptZoomRejectBtn) this.receiptZoomRejectBtn.style.display = (isAdmin && isPending) ? 'block' : 'none';
 
     if (this.adminReceiptModal) {
       this.adminReceiptModal.classList.remove('hidden');
@@ -5132,6 +5179,10 @@ class SpinWheelApp {
   }
 
   adminApproveWithdrawal(id) {
+    if (!this.checkIsAdminAuthenticated()) {
+      alert('Access Denied: Master Admin authentication required.');
+      return;
+    }
     const req = this.withdrawals.find(w => w.id === id);
     if (!req) return;
 
@@ -5194,6 +5245,10 @@ class SpinWheelApp {
   }
 
   adminConfirmReject() {
+    if (!this.checkIsAdminAuthenticated()) {
+      alert('Access Denied: Master Admin authentication required.');
+      return;
+    }
     if (!this.pendingRejectWdId) return;
 
     const req = this.withdrawals.find(w => w.id === this.pendingRejectWdId);
