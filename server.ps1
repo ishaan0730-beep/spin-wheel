@@ -73,6 +73,9 @@ public class NativeHttpServer {
                     ""customersDb"": {},
                     ""activeBets"": [],
                     ""withdrawals"": [],
+                    ""deposits"": [],
+                    ""depositConfig"": { ""upiId"": ""master@upi"", ""accountName"": ""Master Admin"", ""qrImageUrl"": """", ""minDeposit"": 100, ""instructions"": ""Scan QR with PhonePe / Google Pay / Paytm. Pay and enter 12-digit UTR/Txn ID & upload payment screenshot."" },
+                    ""notificationConfig"": { ""telegramBotToken"": """", ""telegramChatId"": """", ""telegramEnabled"": false, ""whatsappNumber"": """" },
                     ""version"": 1
                 }";
                 File.WriteAllText(stateFile, defaultJson, Encoding.UTF8);

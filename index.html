@@ -74,6 +74,7 @@
             <span class="player-name" id="chip-player-name">Player</span>
             <span class="player-coins" id="chip-player-coins">💰 10 IHD Coins</span>
           </div>
+          <button id="customer-deposit-btn" class="btn btn-gold btn-xs" style="padding:3px 8px; font-weight:800; font-size:0.72rem; border-radius:12px; margin:0 2px; background:linear-gradient(135deg, #00f0ff, #0077ff); color:#fff; border-color:#00f0ff; box-shadow:0 0 8px rgba(0,240,255,0.4);" title="Deposit / Add IHD Coins">💰 Deposit</button>
           <button id="customer-withdraw-btn" class="btn btn-gold btn-xs" style="padding:3px 8px; font-weight:800; font-size:0.72rem; border-radius:12px; margin:0 2px; color:#000;" title="Withdraw IHD Coins">💸 Withdraw</button>
           <button id="customer-dashboard-btn" class="icon-btn-xs" title="Player Dashboard">🪙</button>
           <button id="customer-logout-btn" class="icon-btn-xs" title="Logout">🚪</button>
@@ -336,15 +337,103 @@
             </div>
           </div>
 
-          <!-- Customer Modal Subtabs: Withdraw, Requests History, Profile -->
+          <!-- Customer Modal Subtabs: Deposit, Withdraw, Requests History, Profile -->
           <div class="customer-modal-subtabs" style="display:flex; gap:4px; margin-bottom:0.85rem; background:rgba(0,0,0,0.3); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
-            <button type="button" id="dash-tab-withdraw-btn" class="cust-dash-tab active" style="flex:1; padding:6px 4px; font-size:0.75rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">💸 Withdraw</button>
-            <button type="button" id="dash-tab-history-btn" class="cust-dash-tab" style="flex:1; padding:6px 4px; font-size:0.75rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">📜 Requests (<span id="cust-wd-badge-count">0</span>)</button>
-            <button type="button" id="dash-tab-profile-btn" class="cust-dash-tab" style="flex:1; padding:6px 4px; font-size:0.75rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">👤 Profile</button>
+            <button type="button" id="dash-tab-deposit-btn" class="cust-dash-tab active" style="flex:1; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">💰 Deposit</button>
+            <button type="button" id="dash-tab-withdraw-btn" class="cust-dash-tab" style="flex:1; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">💸 Withdraw</button>
+            <button type="button" id="dash-tab-history-btn" class="cust-dash-tab" style="flex:1; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">📜 Requests (<span id="cust-requests-badge-count">0</span>)</button>
+            <button type="button" id="dash-tab-profile-btn" class="cust-dash-tab" style="flex:1; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">👤 Profile</button>
           </div>
 
-          <!-- PANE 1: WITHDRAW FORM PANE -->
-          <div id="dash-withdraw-pane" class="dash-subtab-pane">
+          <!-- PANE 1: DEPOSIT / ADD COINS PANE -->
+          <div id="dash-deposit-pane" class="dash-subtab-pane">
+            <!-- Master UPI QR Display Box -->
+            <div class="deposit-qr-card" style="background:linear-gradient(180deg, rgba(0,240,255,0.08) 0%, rgba(245,176,65,0.05) 100%); border:1px solid rgba(0,240,255,0.35); border-radius:var(--radius-sm); padding:0.85rem; margin-bottom:0.85rem; text-align:center;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.45rem;">
+                <span style="font-size:0.75rem; color:#00f0ff; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">⚡ Instant UPI Payment</span>
+                <span id="cust-deposit-min-badge" style="font-size:0.7rem; color:var(--primary-gold-bright); font-weight:700; background:rgba(245,176,65,0.12); border:1px solid rgba(245,176,65,0.4); padding:2px 6px; border-radius:10px;">Min. ₹100 (1 IHD = ₹1)</span>
+              </div>
+
+              <!-- QR Code Image & Scan Visual -->
+              <div class="cust-qr-container" style="display:inline-block; position:relative; background:#fff; padding:8px; border-radius:8px; box-shadow:0 0 20px rgba(0,240,255,0.25); border:2px solid #00f0ff; margin:0.3rem 0;">
+                <img id="cust-deposit-qr-img" src="" alt="Master UPI QR Code" style="width:160px; height:160px; object-fit:contain; display:block; margin:0 auto; border-radius:4px;">
+                <div id="cust-deposit-qr-fallback" class="hidden" style="width:160px; height:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#000; font-size:0.75rem; font-weight:700; text-align:center; padding:6px;">
+                  <span style="font-size:1.8rem; display:block;">📱</span>
+                  <span>UPI Payment Ready</span>
+                </div>
+              </div>
+
+              <!-- UPI ID & One-Click Copy -->
+              <div class="cust-upi-copy-row" style="margin-top:0.4rem; background:rgba(0,0,0,0.45); border:1px dashed rgba(0,240,255,0.4); border-radius:6px; padding:0.4rem 0.6rem; display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                <div style="text-align:left; overflow:hidden;">
+                  <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Master UPI ID (Account: <span id="cust-deposit-acc-name" style="color:#fff; font-weight:700;">Master Admin</span>)</span>
+                  <strong id="cust-deposit-upi-id" style="font-family:monospace; color:#00f0ff; font-size:0.85rem; word-break:break-all;">master@upi</strong>
+                </div>
+                <button type="button" id="cust-copy-upi-btn" class="btn btn-secondary btn-xs" style="color:#ffd700; border-color:rgba(245,176,65,0.4); white-space:nowrap;">📋 Copy UPI</button>
+              </div>
+
+              <p id="cust-deposit-instructions" style="font-size:0.68rem; color:var(--text-secondary); margin:6px 0 0 0; line-height:1.3;">
+                1. Scan QR with PhonePe / GPay / Paytm & pay. 2. Enter 12-digit UTR No. & upload Screenshot below.
+              </p>
+            </div>
+
+            <!-- Deposit Submission Form -->
+            <form id="customer-deposit-form" onsubmit="return false;">
+              <div class="form-group">
+                <label class="field-label">Deposit Amount (Min ₹100 / IHD Coins):</label>
+                <div style="display:flex; gap:0.4rem;">
+                  <input type="number" id="cust-deposit-amount" class="admin-input" placeholder="Amount (min 100)" min="100" step="10" value="100">
+                </div>
+              </div>
+
+              <!-- Quick Amount Chips -->
+              <div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:0.35rem;">
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-dep" data-amount="100">+100</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-dep" data-amount="200">+200</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-dep" data-amount="500">+500</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-dep" data-amount="1000">+1,000</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-dep" data-amount="2000">+2,000</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-quick-dep" data-amount="5000">+5,000</button>
+              </div>
+
+              <div class="form-group" style="margin-top:0.6rem;">
+                <label class="field-label">12-Digit UTR / Transaction Ref Number:</label>
+                <input type="text" id="cust-deposit-utr" class="admin-input" placeholder="e.g. 428198765432 (from GPay / PhonePe / Paytm)" maxlength="32">
+              </div>
+
+              <!-- Payment Receipt Screenshot Upload -->
+              <div class="form-group" style="margin-top:0.6rem;">
+                <label class="field-label">Upload Payment Screenshot / Receipt (रसीद):</label>
+                <div class="receipt-upload-box" id="cust-deposit-upload-area" style="border:2px dashed rgba(0,240,255,0.4); border-radius:6px; padding:0.6rem; text-align:center; background:rgba(0,0,0,0.25); cursor:pointer; transition:all 0.2s ease;">
+                  <input type="file" id="cust-deposit-receipt-file" accept="image/*" style="display:none;">
+                  
+                  <div id="cust-deposit-upload-prompt">
+                    <span style="font-size:1.3rem; display:block;">📸</span>
+                    <span style="font-size:0.75rem; color:#00f0ff; font-weight:700;">Tap to Choose Screenshot from Gallery</span>
+                    <span style="font-size:0.65rem; color:var(--text-muted); display:block; margin-top:2px;">PNG, JPG, JPEG accepted</span>
+                  </div>
+
+                  <!-- Live Image Preview Wrap -->
+                  <div id="cust-deposit-preview-wrap" class="hidden" style="position:relative; display:inline-block; margin-top:4px;">
+                    <img id="cust-deposit-preview-img" src="" alt="Receipt Preview" style="max-height:130px; max-width:100%; border-radius:6px; border:1px solid rgba(0,240,255,0.6); box-shadow:0 0 10px rgba(0,0,0,0.5);">
+                    <button type="button" id="cust-deposit-preview-remove-btn" class="btn btn-danger btn-xs" style="position:absolute; top:-6px; right:-6px; border-radius:50%; width:22px; height:22px; padding:0; line-height:1; font-weight:800;" title="Remove image">✕</button>
+                  </div>
+                </div>
+              </div>
+
+              <p id="cust-deposit-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
+              <p id="cust-deposit-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
+
+              <div class="form-actions" style="margin-top:0.75rem;">
+                <button type="button" id="cust-submit-deposit-btn" class="btn btn-gold btn-block" style="background:linear-gradient(135deg, #00f0ff, #0077ff); color:#fff; border-color:#00f0ff; font-weight:800;">
+                  📤 Submit Deposit Request (जमा अनुरोध भेजें)
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- PANE 2: WITHDRAW FORM PANE -->
+          <div id="dash-withdraw-pane" class="dash-subtab-pane hidden">
             <div class="withdraw-guidance-box" style="background:rgba(245,176,65,0.08); border:1px solid rgba(245,176,65,0.3); border-radius:var(--radius-sm); padding:0.6rem 0.75rem; margin-bottom:0.75rem;">
               <div style="display:flex; align-items:center; gap:6px;">
                 <span style="font-size:1.1rem;">⚡</span>
@@ -394,23 +483,27 @@
               <p id="cust-withdraw-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
 
               <div class="form-actions" style="margin-top:0.75rem;">
-                <button id="cust-submit-withdraw-btn" class="btn btn-gold btn-block">📤 Submit Withdrawal Request</button>
+                <button type="button" id="cust-submit-withdraw-btn" class="btn btn-gold btn-block">📤 Submit Withdrawal Request</button>
               </div>
             </form>
           </div>
 
-          <!-- PANE 2: WITHDRAWAL HISTORY PANE -->
+          <!-- PANE 3: REQUESTS HISTORY PANE (DEPOSITS & WITHDRAWALS) -->
           <div id="dash-history-pane" class="dash-subtab-pane hidden">
-            <div class="history-list-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-              <span style="font-size:0.76rem; color:var(--text-secondary); font-weight:700;">My Withdrawal Requests:</span>
+            <div class="history-list-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; flex-wrap:wrap; gap:4px;">
+              <div class="cust-hist-filter-tabs" style="display:flex; gap:3px;">
+                <button type="button" class="btn btn-secondary btn-xs cust-hist-flt-btn active" data-filter="ALL">All (<span id="cust-hist-all-count">0</span>)</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-hist-flt-btn" data-filter="DEPOSIT" style="color:#00f0ff;">💰 Deposits (<span id="cust-hist-dep-count">0</span>)</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-hist-flt-btn" data-filter="WITHDRAW" style="color:var(--primary-gold-bright);">💸 Withdrawals (<span id="cust-hist-wd-count">0</span>)</button>
+              </div>
               <button type="button" id="cust-refresh-history-btn" class="btn btn-secondary btn-xs">🔄 Refresh</button>
             </div>
-            <div id="cust-withdrawal-history-list" class="cust-history-list-box" style="max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem;">
+            <div id="cust-requests-history-list" class="cust-history-list-box" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem;">
               <!-- Rendered dynamically -->
             </div>
           </div>
 
-          <!-- PANE 3: PROFILE OVERVIEW PANE -->
+          <!-- PANE 4: PROFILE OVERVIEW PANE -->
           <div id="dash-profile-pane" class="dash-subtab-pane hidden">
             <div class="profile-details-table" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.75rem; margin-bottom:0.75rem;">
               <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.78rem;">
@@ -633,6 +726,10 @@
           <button id="admin-nav-players-btn" class="admin-tab-btn">
             <span>👥 Players & Live Bets</span>
             <span id="admin-tab-badge-players" class="admin-tab-badge">0</span>
+          </button>
+          <button id="admin-nav-deposits-btn" class="admin-tab-btn">
+            <span>💰 Deposit Requests</span>
+            <span id="admin-tab-badge-deposits" class="admin-tab-badge highlight-gold">0</span>
           </button>
           <button id="admin-nav-withdrawals-btn" class="admin-tab-btn">
             <span>💸 Withdrawal Requests</span>
@@ -939,7 +1036,190 @@
 
           </div>
 
-          <!-- TAB 3: WITHDRAWAL REQUESTS MANAGER -->
+          <!-- TAB 3: DEPOSIT REQUESTS & PAYMENT SETTINGS MANAGER -->
+          <div id="admin-tab-deposits-pane" class="admin-tab-pane hidden">
+            
+            <div class="admin-card control-highlight">
+              <div class="admin-card-header-flex">
+                <div class="admin-card-title">
+                  <span class="step-num">💰</span>
+                  <h4>Customer Deposit Requests & Payment Manager</h4>
+                </div>
+                <button type="button" id="admin-refresh-deposits-btn" class="btn btn-secondary btn-sm">🔄 Refresh Deposits</button>
+              </div>
+              <p class="card-desc">Review player UPI payments, view full receipt screenshots, and approve or reject deposits:</p>
+
+              <!-- Top Summary Badges -->
+              <div class="players-summary-grid" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:0.5rem; margin-bottom:0.85rem;">
+                <div class="player-stat-badge">
+                  <span class="stat-badge-lbl">Total Deposits</span>
+                  <strong id="admin-dep-total-count" class="stat-badge-val" style="color:#fff;">0</strong>
+                </div>
+                <div class="player-stat-badge" style="border-color:rgba(245,176,65,0.6); background:rgba(245,176,65,0.08);">
+                  <span class="stat-badge-lbl" style="color:var(--primary-gold-bright);">⏳ Pending</span>
+                  <strong id="admin-dep-pending-count" class="stat-badge-val highlight-gold">0</strong>
+                </div>
+                <div class="player-stat-badge" style="border-color:rgba(46,204,113,0.5); background:rgba(46,204,113,0.08);">
+                  <span class="stat-badge-lbl" style="color:#2ecc71;">✅ Approved</span>
+                  <strong id="admin-dep-approved-count" class="stat-badge-val" style="color:#2ecc71;">0</strong>
+                </div>
+                <div class="player-stat-badge" style="border-color:rgba(239,68,68,0.5); background:rgba(239,68,68,0.08);">
+                  <span class="stat-badge-lbl" style="color:#ef4444;">❌ Rejected</span>
+                  <strong id="admin-dep-rejected-count" class="stat-badge-val" style="color:#ef4444;">0</strong>
+                </div>
+                <div class="player-stat-badge" style="border-color:rgba(0,240,255,0.5); background:rgba(0,240,255,0.08);">
+                  <span class="stat-badge-lbl" style="color:#00f0ff;">Total ₹ Deposited</span>
+                  <strong id="admin-dep-total-amount" class="stat-badge-val" style="color:#00f0ff; font-size:0.95rem;">₹0</strong>
+                </div>
+              </div>
+
+              <!-- COLLAPSIBLE MASTER SETTINGS: QR CODE & MOBILE NOTIFICATIONS -->
+              <div class="admin-settings-accordion-box" style="background:rgba(0,0,0,0.35); border:1px solid rgba(0,240,255,0.3); border-radius:var(--radius-sm); margin-bottom:0.9rem; overflow:hidden;">
+                <div id="admin-settings-toggle-hdr" style="padding:0.6rem 0.85rem; background:rgba(0,240,255,0.06); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:1.1rem;">⚙️</span>
+                    <strong style="font-size:0.85rem; color:#00f0ff;">Master UPI QR Code & Mobile Notifications Settings</strong>
+                  </div>
+                  <span id="admin-settings-toggle-icon" style="font-size:0.8rem; color:var(--text-muted);">▼ Click to Expand / Edit</span>
+                </div>
+
+                <div id="admin-settings-body" style="padding:0.85rem; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                  
+                  <!-- BOX 1: MASTER UPI & QR CODE SETUP -->
+                  <div class="admin-cfg-card" style="background:rgba(15,23,42,0.6); border:1px solid var(--border-subtle); border-radius:6px; padding:0.75rem;">
+                    <h5 style="color:var(--primary-gold-bright); margin:0 0 0.5rem 0; font-size:0.85rem;">💳 Master UPI QR & Payment Info</h5>
+                    
+                    <div style="display:flex; gap:0.8rem; align-items:center; margin-bottom:0.6rem;">
+                      <div class="admin-qr-preview-box" style="width:72px; height:72px; background:#fff; border-radius:6px; display:flex; align-items:center; justify-content:center; border:2px solid #00f0ff; overflow:hidden;">
+                        <img id="admin-cfg-qr-preview-img" src="" alt="QR" style="max-width:100%; max-height:100%; object-fit:contain;">
+                      </div>
+                      <div style="flex:1;">
+                        <label class="field-label" style="margin-bottom:2px;">Upload Custom QR Code Image:</label>
+                        <input type="file" id="admin-cfg-qr-file-input" accept="image/*" style="font-size:0.72rem; color:var(--text-secondary); width:100%;">
+                        <span style="font-size:0.65rem; color:var(--text-muted); display:block; margin-top:2px;">Your scanner QR for Google Pay / PhonePe / Paytm</span>
+                      </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top:0.4rem;">
+                      <label class="field-label">Master UPI ID:</label>
+                      <input type="text" id="admin-cfg-upi-id" class="admin-input" placeholder="e.g. 9876543210@paytm or ishaan@oksbi" style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                    </div>
+
+                    <div class="form-group" style="margin-top:0.4rem;">
+                      <label class="field-label">Account / Receiver Name:</label>
+                      <input type="text" id="admin-cfg-upi-name" class="admin-input" placeholder="e.g. Master Admin / Lucky Spin" style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                    </div>
+
+                    <div class="form-group" style="margin-top:0.4rem;">
+                      <label class="field-label">Minimum Deposit Amount (₹):</label>
+                      <input type="number" id="admin-cfg-min-deposit" class="admin-input" placeholder="100" min="10" value="100" style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                    </div>
+
+                    <div class="form-group" style="margin-top:0.4rem;">
+                      <label class="field-label">Custom Deposit Instructions for Players:</label>
+                      <textarea id="admin-cfg-instructions" class="admin-input" rows="2" placeholder="Scan QR with PhonePe / Google Pay / Paytm..." style="padding:0.35rem 0.6rem; font-size:0.75rem;"></textarea>
+                    </div>
+
+                    <button type="button" id="admin-save-qr-btn" class="btn btn-gold btn-sm btn-block" style="margin-top:0.6rem;">
+                      💾 Save QR & UPI Settings
+                    </button>
+                    <span id="admin-qr-feedback" class="save-status-msg" style="display:block; margin-top:4px; font-size:0.72rem;"></span>
+                  </div>
+
+                  <!-- BOX 2: MASTER MOBILE NOTIFICATIONS (TELEGRAM / WHATSAPP / ALARM) -->
+                  <div class="admin-cfg-card" style="background:rgba(15,23,42,0.6); border:1px solid rgba(0,240,255,0.3); border-radius:6px; padding:0.75rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                      <h5 style="color:#00f0ff; margin:0; font-size:0.85rem;">📱 Mobile Instant Alerts (मोबाइल नोटिफिकेशन)</h5>
+                      <span style="font-size:0.68rem; color:#2ecc71; font-weight:700; background:rgba(46,204,113,0.12); padding:1px 6px; border-radius:8px;">100% Free & Instant</span>
+                    </div>
+
+                    <p style="font-size:0.7rem; color:var(--text-secondary); margin:0 0 0.5rem 0; line-height:1.3;">
+                      Get loud instant ring notifications on your phone whenever a customer deposits or requests a withdrawal!
+                    </p>
+
+                    <div class="form-group" style="margin-top:0.4rem;">
+                      <label class="field-label">Telegram Bot Token:</label>
+                      <input type="text" id="admin-cfg-tg-token" class="admin-input" placeholder="e.g. 718293847:AAHdf79-s8d9f..." style="padding:0.35rem 0.6rem; font-size:0.78rem; font-family:monospace;">
+                    </div>
+
+                    <div class="form-group" style="margin-top:0.4rem;">
+                      <label class="field-label">Your Telegram Chat ID:</label>
+                      <input type="text" id="admin-cfg-tg-chatid" class="admin-input" placeholder="e.g. 987654321" style="padding:0.35rem 0.6rem; font-size:0.78rem; font-family:monospace;">
+                    </div>
+
+                    <div class="form-group" style="margin-top:0.5rem; display:flex; align-items:center; gap:6px;">
+                      <input type="checkbox" id="admin-cfg-tg-enable" style="width:16px; height:16px; accent-color:#00f0ff; cursor:pointer;">
+                      <label for="admin-cfg-tg-enable" style="font-size:0.75rem; color:#fff; cursor:pointer; font-weight:700;">🔔 Enable Telegram Alerts to Phone</label>
+                    </div>
+
+                    <div class="form-group" style="margin-top:0.4rem;">
+                      <label class="field-label">Master WhatsApp Number (Optional):</label>
+                      <input type="text" id="admin-cfg-wa-number" class="admin-input" placeholder="e.g. 919876543210" style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                    </div>
+
+                    <!-- 1-Minute Easy Guide Accordion -->
+                    <div style="background:rgba(0,0,0,0.4); border:1px dashed rgba(245,176,65,0.4); border-radius:4px; padding:0.4rem 0.6rem; margin-top:0.5rem; font-size:0.68rem; color:var(--text-secondary);">
+                      <strong style="color:#ffd700;">📖 1-Minute Telegram Setup Guide:</strong>
+                      <ol style="margin:3px 0 0 16px; padding:0; line-height:1.35;">
+                        <li>Open Telegram, search <code>@BotFather</code> and send <code>/newbot</code>. Copy the Bot Token.</li>
+                        <li>Search <code>@userinfobot</code> in Telegram to see your numeric Chat ID.</li>
+                        <li>Paste Token & Chat ID here, check enable, and click Test Alert!</li>
+                      </ol>
+                    </div>
+
+                    <div style="display:flex; gap:0.4rem; margin-top:0.6rem;">
+                      <button type="button" id="admin-test-tg-btn" class="btn btn-secondary btn-sm" style="flex:1; color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.72rem;">
+                        🔔 Test Alert on Phone
+                      </button>
+                      <button type="button" id="admin-save-notifications-btn" class="btn btn-gold btn-sm" style="flex:1.2; font-size:0.72rem;">
+                        💾 Save Alert Settings
+                      </button>
+                    </div>
+                    <span id="admin-notification-feedback" class="save-status-msg" style="display:block; margin-top:4px; font-size:0.72rem;"></span>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Filter & Search Toolbar -->
+              <div class="wd-toolbar-flex" style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+                <div class="wd-filters-group" style="display:flex; gap:4px; flex-wrap:wrap;">
+                  <button type="button" class="btn btn-secondary btn-xs admin-dep-filter active" data-filter="ALL">All (<span id="dep-flt-all">0</span>)</button>
+                  <button type="button" class="btn btn-secondary btn-xs admin-dep-filter" data-filter="PENDING" style="color:var(--primary-gold-bright);">⏳ Pending (<span id="dep-flt-pending">0</span>)</button>
+                  <button type="button" class="btn btn-secondary btn-xs admin-dep-filter" data-filter="APPROVED" style="color:#2ecc71;">✅ Approved (<span id="dep-flt-approved">0</span>)</button>
+                  <button type="button" class="btn btn-secondary btn-xs admin-dep-filter" data-filter="REJECTED" style="color:#ef4444;">❌ Rejected (<span id="dep-flt-rejected">0</span>)</button>
+                </div>
+                <div style="flex:1; max-width:280px; min-width:180px;">
+                  <input type="text" id="admin-dep-search" class="admin-input" placeholder="🔍 Search by ID, Name, UTR..." style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                </div>
+              </div>
+
+              <!-- Deposit Requests Table -->
+              <div class="schedule-table-wrap" style="max-height: 420px; overflow-y:auto;">
+                <table class="schedule-table admin-players-table" style="font-size:0.75rem;">
+                  <thead>
+                    <tr>
+                      <th>Player (User ID)</th>
+                      <th>Amount</th>
+                      <th>UTR / Txn Ref</th>
+                      <th>Payment Screenshot</th>
+                      <th>Date & Time</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-deposits-table-body">
+                    <tr>
+                      <td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.2rem;">No deposit requests yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB 4: WITHDRAWAL REQUESTS MANAGER -->
           <div id="admin-tab-withdrawals-pane" class="admin-tab-pane hidden">
             
             <div class="admin-card control-highlight">
@@ -1055,7 +1335,7 @@
     </div>
   </div>
 
-  <!-- MASTER ADMIN REJECTION PROMPT MODAL -->
+  <!-- MASTER ADMIN REJECTION PROMPT MODAL FOR WITHDRAWALS -->
   <div id="admin-reject-modal" class="modal-wrapper hidden">
     <div class="modal-overlay" id="admin-reject-overlay"></div>
     <div class="modal-card auth-card" style="max-width: 440px;">
@@ -1095,6 +1375,101 @@
         <div class="form-actions" style="margin-top: 0.9rem; display:flex; gap:0.5rem;">
           <button type="button" id="admin-reject-cancel-btn" class="btn btn-secondary" style="flex:1;">Cancel</button>
           <button type="button" id="admin-reject-confirm-btn" class="btn btn-danger" style="flex:1.5;">❌ Confirm Reject & Refund</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MASTER ADMIN REJECTION PROMPT MODAL FOR DEPOSITS -->
+  <div id="admin-reject-deposit-modal" class="modal-wrapper hidden">
+    <div class="modal-overlay" id="admin-reject-deposit-overlay"></div>
+    <div class="modal-card auth-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span style="font-size:1.2rem;">❌</span>
+          <h3 style="color:#ef4444;">Reject Deposit Request</h3>
+        </div>
+        <button id="admin-reject-deposit-close-btn" class="icon-btn" aria-label="Close Modal">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 1.2rem;">
+        <div class="admin-badge-notice" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.4); margin-bottom: 0.85rem;">
+          <div>
+            <strong id="reject-deposit-modal-title" style="color:#fff;">Rejecting Deposit</strong>
+            <p id="reject-deposit-modal-desc" style="font-size: 0.74rem; color: var(--text-secondary); margin: 2px 0 0 0;">Customer will see rejection reason in their portal history.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">Select Common Rejection Reason:</label>
+          <select id="admin-reject-dep-quick-reason" class="admin-select">
+            <option value="Payment not received in bank account">Payment not received in bank account</option>
+            <option value="Invalid / Fake UTR / Transaction ID">Invalid / Fake UTR / Transaction ID</option>
+            <option value="Screenshot is blurry / unreadable">Screenshot is blurry / unreadable</option>
+            <option value="Amount paid does not match requested amount">Amount paid does not match requested amount</option>
+            <option value="Duplicate transaction reference already credited">Duplicate transaction reference already credited</option>
+            <option value="CUSTOM">Type custom reason...</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-top:0.6rem;">
+          <label class="field-label">Rejection Reason (Visible to Customer):</label>
+          <textarea id="admin-reject-dep-reason-text" class="admin-input" rows="3" placeholder="Enter reason for deposit rejection..."></textarea>
+        </div>
+
+        <div class="form-actions" style="margin-top: 0.9rem; display:flex; gap:0.5rem;">
+          <button type="button" id="admin-reject-dep-cancel-btn" class="btn btn-secondary" style="flex:1;">Cancel</button>
+          <button type="button" id="admin-reject-dep-confirm-btn" class="btn btn-danger" style="flex:1.5;">❌ Confirm Reject Deposit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MASTER ADMIN FULL-SIZE PAYMENT RECEIPT SCREENSHOT MODAL -->
+  <div id="admin-receipt-modal" class="modal-wrapper hidden">
+    <div class="modal-overlay" id="admin-receipt-overlay"></div>
+    <div class="modal-card receipt-zoom-modal-card" style="max-width: 600px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden;">
+      <div class="modal-header" style="padding:0.75rem 1rem;">
+        <div class="modal-header-title">
+          <span style="font-size:1.2rem;">📸</span>
+          <div>
+            <h3 style="margin:0; font-size:1.05rem; color:#00f0ff;">Payment Screenshot Verification</h3>
+            <span id="receipt-zoom-sub" style="font-size:0.7rem; color:var(--text-muted);">Player UPI Payment Receipt</span>
+          </div>
+        </div>
+        <button id="admin-receipt-close-btn" class="icon-btn" aria-label="Close Modal">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding:0.85rem; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:0.6rem;">
+        <!-- Top Info Pill Bar -->
+        <div style="background:rgba(0,0,0,0.45); border:1px solid var(--border-subtle); border-radius:6px; padding:0.6rem 0.8rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+          <div>
+            <strong id="receipt-zoom-player-name" style="color:#fff; font-size:0.85rem;">Player Name</strong>
+            <span id="receipt-zoom-player-id" style="font-family:monospace; color:#00f0ff; font-size:0.75rem; margin-left:4px;">(ID)</span>
+          </div>
+          <div>
+            <strong id="receipt-zoom-amount" style="color:var(--primary-gold-bright); font-size:1rem;">💰 500 IHD Coins (₹500)</strong>
+          </div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.35); border:1px dashed rgba(0,240,255,0.3); border-radius:6px; padding:0.4rem 0.6rem; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem;">
+          <span style="color:var(--text-muted);">UTR / Txn Ref: <strong id="receipt-zoom-utr" style="font-family:monospace; color:#ffd700; font-size:0.85rem; letter-spacing:0.5px;">--</strong></span>
+          <button type="button" id="receipt-zoom-copy-utr-btn" class="btn btn-secondary btn-xs" style="font-size:0.7rem;">📋 Copy UTR</button>
+        </div>
+
+        <!-- High-Res Zoomable Image Container -->
+        <div class="receipt-img-view-wrap" style="background:#090d16; border:1px solid rgba(0,240,255,0.4); border-radius:8px; padding:6px; text-align:center; min-height:200px; max-height:420px; overflow:auto; display:flex; align-items:center; justify-content:center;">
+          <img id="receipt-zoom-img" src="" alt="Payment Screenshot" style="max-width:100%; max-height:400px; object-fit:contain; border-radius:4px; box-shadow:0 0 15px rgba(0,0,0,0.8);">
+        </div>
+
+        <!-- Direct Actions within Modal -->
+        <div style="display:flex; gap:0.5rem; margin-top:0.4rem;">
+          <button type="button" id="receipt-zoom-approve-btn" class="btn btn-gold" style="flex:1.2; background:#2ecc71; border-color:#27ae60; color:#000; font-weight:800; font-size:0.82rem;">
+            ✅ Confirm & Approve (Credit Coins)
+          </button>
+          <button type="button" id="receipt-zoom-reject-btn" class="btn btn-danger" style="flex:1; font-size:0.82rem;">
+            ❌ Reject Request
+          </button>
         </div>
       </div>
     </div>
@@ -1180,8 +1555,12 @@
             <span>🎲 Predictions & Bets History</span>
             <span id="aph-tab-badge-bets" class="aph-subtab-badge">0</span>
           </button>
+          <button type="button" id="aph-tab-btn-deposits" class="aph-subtab-btn" onclick="app.setPlayerHistoryTab('deposits')">
+            <span>💰 Deposits</span>
+            <span id="aph-tab-badge-deposits" class="aph-subtab-badge">0</span>
+          </button>
           <button type="button" id="aph-tab-btn-wd" class="aph-subtab-btn" onclick="app.setPlayerHistoryTab('wd')">
-            <span>💸 Bank Withdrawal History</span>
+            <span>💸 Withdrawals</span>
             <span id="aph-tab-badge-wd" class="aph-subtab-badge">0</span>
           </button>
           <button type="button" id="aph-tab-btn-credit" class="aph-subtab-btn" onclick="app.setPlayerHistoryTab('credit')">
@@ -1211,7 +1590,30 @@
           </div>
         </div>
 
-        <!-- PANE 2: WITHDRAWAL REQUESTS -->
+        <!-- PANE 2: DEPOSITS HISTORY -->
+        <div id="aph-pane-deposits" class="aph-tab-pane hidden">
+          <div class="aph-table-scroll">
+            <table class="schedule-table aph-table">
+              <thead>
+                <tr>
+                  <th>Deposit ID</th>
+                  <th>Amount</th>
+                  <th>UTR / Txn Ref</th>
+                  <th>Screenshot</th>
+                  <th>Date & Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="aph-deposits-table-body">
+                <tr>
+                  <td colspan="6" style="text-align:center; color:var(--text-muted); padding:1rem;">No deposit requests found for this player.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PANE 3: WITHDRAWAL REQUESTS -->
         <div id="aph-pane-wd" class="aph-tab-pane hidden">
           <div class="aph-table-scroll">
             <table class="schedule-table aph-table">
@@ -1234,7 +1636,7 @@
           </div>
         </div>
 
-        <!-- PANE 3: QUICK CREDIT & ACTIONS -->
+        <!-- PANE 4: QUICK CREDIT & ACTIONS -->
         <div id="aph-pane-credit" class="aph-tab-pane hidden">
           <div class="aph-credit-box">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">

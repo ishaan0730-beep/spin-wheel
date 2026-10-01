@@ -27,6 +27,20 @@ let globalState = {
   activeBets: [],
   deletedBetIds: [],
   withdrawals: [],
+  deposits: [],
+  depositConfig: {
+    upiId: 'master@upi',
+    accountName: 'Master Admin',
+    qrImageUrl: '',
+    minDeposit: 100,
+    instructions: 'Scan QR with PhonePe / Google Pay / Paytm. Pay and enter 12-digit UTR/Txn ID & upload payment screenshot.'
+  },
+  notificationConfig: {
+    telegramBotToken: '',
+    telegramChatId: '',
+    telegramEnabled: false,
+    whatsappNumber: ''
+  },
   version: 1
 };
 
@@ -87,6 +101,14 @@ export default function handler(req, res) {
         customersDb: globalState.customersDb,
         activeBets: globalState.activeBets,
         withdrawals: globalState.withdrawals || [],
+        deposits: globalState.deposits || [],
+        depositConfig: {
+          upiId: globalState.depositConfig?.upiId || 'master@upi',
+          accountName: globalState.depositConfig?.accountName || 'Master Admin',
+          qrImageUrl: globalState.depositConfig?.qrImageUrl || '',
+          minDeposit: globalState.depositConfig?.minDeposit || 100,
+          instructions: globalState.depositConfig?.instructions || ''
+        },
         version: globalState.version
       };
       return res.status(200).json(publicState);
@@ -143,13 +165,31 @@ export default function handler(req, res) {
             globalState.withdrawals = Array.from(existingMap.values());
             delete body.withdrawals;
           }
+          if (Array.isArray(body.deposits)) {
+            const existingMap = new Map((globalState.deposits || []).map(d => [d.id, d]));
+            body.deposits.forEach(d => {
+              if (d && d.id) {
+                existingMap.set(d.id, { ...(existingMap.get(d.id) || {}), ...d });
+              }
+            });
+            globalState.deposits = Array.from(existingMap.values());
+            delete body.deposits;
+          }
+          if (body.depositConfig && typeof body.depositConfig === 'object') {
+            globalState.depositConfig = { ...(globalState.depositConfig || {}), ...body.depositConfig };
+            delete body.depositConfig;
+          }
+          if (body.notificationConfig && typeof body.notificationConfig === 'object') {
+            globalState.notificationConfig = { ...(globalState.notificationConfig || {}), ...body.notificationConfig };
+            delete body.notificationConfig;
+          }
           globalState = {
             ...globalState,
             ...body,
             version: Date.now()
           };
         } else {
-          // Public updates: sync customer registration, merge active bets, merge withdrawals, clear spin triggers, update history
+          // Public updates: sync customer registration, merge active bets, merge withdrawals, merge deposits, clear spin triggers, update history
           if (body.customersDb && typeof body.customersDb === 'object') {
             const merged = { ...(globalState.customersDb || {}) };
             Object.keys(body.customersDb).forEach(id => {
@@ -176,6 +216,15 @@ export default function handler(req, res) {
             });
             globalState.withdrawals = Array.from(existingMap.values());
           }
+          if (Array.isArray(body.deposits)) {
+            const existingMap = new Map((globalState.deposits || []).map(d => [d.id, d]));
+            body.deposits.forEach(d => {
+              if (d && d.id) {
+                existingMap.set(d.id, { ...(existingMap.get(d.id) || {}), ...d });
+              }
+            });
+            globalState.deposits = Array.from(existingMap.values());
+          }
           if (body.spinTrigger === null) {
             globalState.spinTrigger = null;
           }
@@ -191,6 +240,8 @@ export default function handler(req, res) {
         activeBets: globalState.activeBets,
         customersDb: globalState.customersDb,
         withdrawals: globalState.withdrawals,
+        deposits: globalState.deposits,
+        depositConfig: globalState.depositConfig,
         masterPassword: globalState.masterPassword 
       });
     } catch (e) {
