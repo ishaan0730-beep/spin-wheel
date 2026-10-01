@@ -788,6 +788,9 @@
             <span>💸 Withdrawal Requests</span>
             <span id="admin-tab-badge-withdrawals" class="admin-tab-badge highlight-gold">0</span>
           </button>
+          <button id="admin-nav-settings-btn" class="admin-tab-btn">
+            <span>📲 Telegram & Settings</span>
+          </button>
         </div>
 
         <div class="admin-header-right">
@@ -1376,6 +1379,122 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB 5: TELEGRAM ALERTS & MASTER PAYMENT SETTINGS -->
+          <div id="admin-tab-settings-pane" class="admin-tab-pane hidden">
+            
+            <!-- SECTION A: TELEGRAM NOTIFICATIONS SETUP -->
+            <div class="admin-card control-highlight" style="margin-bottom:1rem;">
+              <div class="admin-card-header-flex">
+                <div class="admin-card-title">
+                  <span class="step-num">📲</span>
+                  <h4>Telegram Live Mobile Notifications (लाइव मोबाइल अलर्ट)</h4>
+                </div>
+                <span class="live-dot-tag" style="background:rgba(0,240,255,0.12); color:#00f0ff; border:1px solid rgba(0,240,255,0.3);"><span class="pulse-dot"></span> Instant Phone Alerts</span>
+              </div>
+              <p class="card-desc">Receive instant notifications on your Telegram app for every <strong>New Registration, Deposit Request, Approved/Rejected Deposits, Withdrawal Requests, Prediction Bets, and Winning Announcements</strong>!</p>
+
+              <div style="background:rgba(15,23,42,0.8); border:1px solid rgba(0,240,255,0.35); border-radius:var(--radius-sm); padding:1rem; margin-bottom:1rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.9rem;">
+                  <div>
+                    <label class="field-label" style="color:#00f0ff; font-weight:700;">🤖 Telegram Bot Token:</label>
+                    <input type="text" id="admin-cfg-tg-token-pane" class="admin-input" placeholder="e.g. 718293847:AAHdf79-s8d9f..." style="padding:0.45rem 0.65rem; font-size:0.8rem; font-family:monospace;">
+                    <span style="font-size:0.68rem; color:var(--text-muted); display:block; margin-top:3px;">Created via Telegram <strong>@BotFather</strong></span>
+                  </div>
+
+                  <div>
+                    <label class="field-label" style="color:#00f0ff; font-weight:700;">💬 Your Telegram Chat ID / User ID:</label>
+                    <input type="text" id="admin-cfg-tg-chatid-pane" class="admin-input" placeholder="e.g. 987654321" style="padding:0.45rem 0.65rem; font-size:0.8rem; font-family:monospace;">
+                    <span style="font-size:0.68rem; color:var(--text-muted); display:block; margin-top:3px;">Your personal Chat ID from <strong>@userinfobot</strong></span>
+                  </div>
+                </div>
+
+                <div style="margin-top:0.75rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; background:rgba(0,0,0,0.3); padding:0.6rem 0.8rem; border-radius:var(--radius-sm);">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="admin-cfg-tg-enable-pane" style="width:18px; height:18px; accent-color:#00f0ff; cursor:pointer;" checked>
+                    <label for="admin-cfg-tg-enable-pane" style="font-size:0.82rem; color:#fff; cursor:pointer; font-weight:700;">🔔 Enable All Live Telegram Notifications</label>
+                  </div>
+                  <div>
+                    <input type="text" id="admin-cfg-wa-number-pane" class="admin-input" placeholder="WhatsApp (Optional): 919876543210" style="padding:0.35rem 0.6rem; font-size:0.75rem; width:220px;">
+                  </div>
+                </div>
+
+                <div style="display:flex; gap:0.65rem; margin-top:0.9rem; flex-wrap:wrap;">
+                  <button type="button" id="admin-save-notifications-btn-pane" class="btn btn-gold btn-sm" style="flex:1; min-width:180px; padding:0.5rem 1rem; font-weight:700;">
+                    💾 Save Telegram Notification Settings
+                  </button>
+                  <button type="button" id="admin-test-tg-btn-pane" class="btn btn-secondary btn-sm" style="flex:1; min-width:180px; padding:0.5rem 1rem; border-color:rgba(0,240,255,0.4); color:#00f0ff; font-weight:700;">
+                    ⚡ Send Test Message to Phone Now
+                  </button>
+                </div>
+                <span id="admin-notification-feedback-pane" class="save-status-msg" style="display:block; margin-top:6px; font-size:0.78rem; min-height:1.2rem;"></span>
+              </div>
+
+              <!-- Telegram Bot 3-Step Setup Instructions -->
+              <div style="background:rgba(245,176,65,0.06); border:1px solid rgba(245,176,65,0.3); border-radius:var(--radius-sm); padding:0.85rem;">
+                <h5 style="color:var(--primary-gold-bright); margin:0 0 0.5rem 0; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                  <span>📖</span> 2-Minute Easy Guide: How to Get Your Telegram Bot Token & Chat ID
+                </h5>
+                <ol style="margin:0; padding-left:1.2rem; font-size:0.76rem; color:var(--text-secondary); line-height:1.65;">
+                  <li><strong>Step 1:</strong> Open Telegram app and search for <code>@BotFather</code>. Send <code>/newbot</code> and give it a name (e.g., <em>Spin Wheel Alerts</em>).</li>
+                  <li><strong>Step 2:</strong> BotFather will give you an <strong>API Token</strong> (e.g., <code>7123456789:AAH...</code>). Copy and paste it in <strong>Telegram Bot Token</strong> above.</li>
+                  <li><strong>Step 3:</strong> Open your new bot in Telegram and press <strong>Start</strong>.</li>
+                  <li><strong>Step 4:</strong> Search for <code>@userinfobot</code> in Telegram, click Start, and copy the <strong>Id</strong> number. Paste it in <strong>Telegram Chat ID</strong> above.</li>
+                  <li><strong>Step 5:</strong> Click <strong>⚡ Send Test Message to Phone Now</strong>. Once confirmed, click <strong>💾 Save Settings</strong>!</li>
+                </ol>
+              </div>
+            </div>
+
+            <!-- SECTION B: MASTER UPI & QR CODE SETUP -->
+            <div class="admin-card control-highlight">
+              <div class="admin-card-header-flex">
+                <div class="admin-card-title">
+                  <span class="step-num">💳</span>
+                  <h4>Master UPI QR Code & Payment Details</h4>
+                </div>
+              </div>
+              <p class="card-desc">Configure the payment QR code and UPI ID shown to players when adding funds to their wallet:</p>
+
+              <div style="display:grid; grid-template-columns:140px 1fr; gap:1.2rem; align-items:start; background:rgba(15,23,42,0.6); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.9rem;">
+                <div style="text-align:center;">
+                  <div style="width:130px; height:130px; background:#fff; border-radius:8px; display:flex; align-items:center; justify-content:center; border:2px solid var(--primary-gold-bright); overflow:hidden; margin:0 auto 0.5rem auto;">
+                    <img id="admin-cfg-qr-preview-img-pane" src="" alt="QR Preview" style="max-width:100%; max-height:100%; object-fit:contain;">
+                  </div>
+                  <label class="field-label" style="font-size:0.7rem; margin-bottom:3px;">Upload QR Image:</label>
+                  <input type="file" id="admin-cfg-qr-file-input-pane" accept="image/*" style="font-size:0.7rem; color:var(--text-secondary); width:100%;">
+                </div>
+
+                <div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem;">
+                    <div>
+                      <label class="field-label">Master UPI ID:</label>
+                      <input type="text" id="admin-cfg-upi-id-pane" class="admin-input" placeholder="e.g. master@upi or 9876543210@paytm" style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                    </div>
+                    <div>
+                      <label class="field-label">Receiver / Account Name:</label>
+                      <input type="text" id="admin-cfg-upi-name-pane" class="admin-input" placeholder="e.g. Master Admin / Lucky Spin" style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                    </div>
+                  </div>
+
+                  <div style="margin-top:0.5rem;">
+                    <label class="field-label">Minimum Deposit Amount (₹):</label>
+                    <input type="number" id="admin-cfg-min-deposit-pane" class="admin-input" placeholder="100" min="10" value="100" style="padding:0.35rem 0.6rem; font-size:0.78rem;">
+                  </div>
+
+                  <div style="margin-top:0.5rem;">
+                    <label class="field-label">Deposit Instructions for Players:</label>
+                    <textarea id="admin-cfg-instructions-pane" class="admin-input" rows="2" placeholder="Scan QR with PhonePe / Google Pay / Paytm..." style="padding:0.35rem 0.6rem; font-size:0.75rem;"></textarea>
+                  </div>
+
+                  <button type="button" id="admin-save-qr-btn-pane" class="btn btn-gold btn-sm" style="margin-top:0.75rem; width:100%; font-weight:700;">
+                    💾 Save UPI QR & Payment Settings
+                  </button>
+                  <span id="admin-qr-feedback-pane" class="save-status-msg" style="display:block; margin-top:4px; font-size:0.72rem;"></span>
+                </div>
               </div>
             </div>
 

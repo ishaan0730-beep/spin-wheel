@@ -622,10 +622,12 @@ class SpinWheelApp {
     this.adminNavPlayersBtn = document.getElementById('admin-nav-players-btn');
     this.adminNavDepositsBtn = document.getElementById('admin-nav-deposits-btn');
     this.adminNavWithdrawalsBtn = document.getElementById('admin-nav-withdrawals-btn');
+    this.adminNavSettingsBtn = document.getElementById('admin-nav-settings-btn');
     this.adminTabSpinPane = document.getElementById('admin-tab-spin-pane');
     this.adminTabPlayersPane = document.getElementById('admin-tab-players-pane');
     this.adminTabDepositsPane = document.getElementById('admin-tab-deposits-pane');
     this.adminTabWithdrawalsPane = document.getElementById('admin-tab-withdrawals-pane');
+    this.adminTabSettingsPane = document.getElementById('admin-tab-settings-pane');
     this.adminTabBadgePlayers = document.getElementById('admin-tab-badge-players');
     this.adminTabBadgeDeposits = document.getElementById('admin-tab-badge-deposits');
     this.adminTabBadgeWithdrawals = document.getElementById('admin-tab-badge-withdrawals');
@@ -644,7 +646,7 @@ class SpinWheelApp {
     this.depFltApproved = document.getElementById('dep-flt-approved');
     this.depFltRejected = document.getElementById('dep-flt-rejected');
 
-    // Admin Settings Box Elements
+    // Admin Settings Box Elements (Both accordion & dedicated tab)
     this.adminSettingsToggleHdr = document.getElementById('admin-settings-toggle-hdr');
     this.adminSettingsBody = document.getElementById('admin-settings-body');
     this.adminSettingsToggleIcon = document.getElementById('admin-settings-toggle-icon');
@@ -663,6 +665,23 @@ class SpinWheelApp {
     this.adminTestTgBtn = document.getElementById('admin-test-tg-btn');
     this.adminSaveNotificationsBtn = document.getElementById('admin-save-notifications-btn');
     this.adminNotificationFeedback = document.getElementById('admin-notification-feedback');
+
+    // Dedicated Tab 5 Settings Elements
+    this.adminCfgTgTokenPane = document.getElementById('admin-cfg-tg-token-pane');
+    this.adminCfgTgChatidPane = document.getElementById('admin-cfg-tg-chatid-pane');
+    this.adminCfgTgEnablePane = document.getElementById('admin-cfg-tg-enable-pane');
+    this.adminCfgWaNumberPane = document.getElementById('admin-cfg-wa-number-pane');
+    this.adminSaveNotificationsBtnPane = document.getElementById('admin-save-notifications-btn-pane');
+    this.adminTestTgBtnPane = document.getElementById('admin-test-tg-btn-pane');
+    this.adminNotificationFeedbackPane = document.getElementById('admin-notification-feedback-pane');
+    this.adminCfgQrPreviewImgPane = document.getElementById('admin-cfg-qr-preview-img-pane');
+    this.adminCfgQrFileInputPane = document.getElementById('admin-cfg-qr-file-input-pane');
+    this.adminCfgUpiIdPane = document.getElementById('admin-cfg-upi-id-pane');
+    this.adminCfgUpiNamePane = document.getElementById('admin-cfg-upi-name-pane');
+    this.adminCfgMinDepositPane = document.getElementById('admin-cfg-min-deposit-pane');
+    this.adminCfgInstructionsPane = document.getElementById('admin-cfg-instructions-pane');
+    this.adminSaveQrBtnPane = document.getElementById('admin-save-qr-btn-pane');
+    this.adminQrFeedbackPane = document.getElementById('admin-qr-feedback-pane');
 
     // Admin Withdrawal Manager Elements
     this.adminWdTotalCount = document.getElementById('admin-wd-total-count');
@@ -1494,22 +1513,31 @@ class SpinWheelApp {
     const depCfg = this.depositConfig || {};
     const notifCfg = this.notificationConfig || {};
 
+    // UPI & QR inputs
     if (this.adminCfgUpiId) this.adminCfgUpiId.value = depCfg.upiId || '';
     if (this.adminCfgUpiName) this.adminCfgUpiName.value = depCfg.accountName || '';
     if (this.adminCfgMinDeposit) this.adminCfgMinDeposit.value = depCfg.minDeposit || 100;
     if (this.adminCfgInstructions) this.adminCfgInstructions.value = depCfg.instructions || '';
-    if (this.adminCfgQrPreviewImg) {
-      if (depCfg.qrImageUrl) {
-        this.adminCfgQrPreviewImg.src = depCfg.qrImageUrl;
-      } else {
-        this.adminCfgQrPreviewImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent('upi://pay?pa=' + (depCfg.upiId || 'master@upi') + '&pn=Master&cu=INR')}`;
-      }
-    }
+    
+    if (this.adminCfgUpiIdPane) this.adminCfgUpiIdPane.value = depCfg.upiId || '';
+    if (this.adminCfgUpiNamePane) this.adminCfgUpiNamePane.value = depCfg.accountName || '';
+    if (this.adminCfgMinDepositPane) this.adminCfgMinDepositPane.value = depCfg.minDeposit || 100;
+    if (this.adminCfgInstructionsPane) this.adminCfgInstructionsPane.value = depCfg.instructions || '';
 
+    const qrSrc = depCfg.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent('upi://pay?pa=' + (depCfg.upiId || 'master@upi') + '&pn=Master&cu=INR')}`;
+    if (this.adminCfgQrPreviewImg) this.adminCfgQrPreviewImg.src = qrSrc;
+    if (this.adminCfgQrPreviewImgPane) this.adminCfgQrPreviewImgPane.src = qrSrc;
+
+    // Telegram & WhatsApp inputs
     if (this.adminCfgTgToken) this.adminCfgTgToken.value = notifCfg.telegramBotToken || '';
     if (this.adminCfgTgChatid) this.adminCfgTgChatid.value = notifCfg.telegramChatId || '';
-    if (this.adminCfgTgEnable) this.adminCfgTgEnable.checked = !!notifCfg.telegramEnabled;
+    if (this.adminCfgTgEnable) this.adminCfgTgEnable.checked = notifCfg.telegramEnabled !== false;
     if (this.adminCfgWaNumber) this.adminCfgWaNumber.value = notifCfg.whatsappNumber || '';
+
+    if (this.adminCfgTgTokenPane) this.adminCfgTgTokenPane.value = notifCfg.telegramBotToken || '';
+    if (this.adminCfgTgChatidPane) this.adminCfgTgChatidPane.value = notifCfg.telegramChatId || '';
+    if (this.adminCfgTgEnablePane) this.adminCfgTgEnablePane.checked = notifCfg.telegramEnabled !== false;
+    if (this.adminCfgWaNumberPane) this.adminCfgWaNumberPane.value = notifCfg.whatsappNumber || '';
   }
 
   compressAndConvertImageToBase64(file, maxWidth = 800, maxHeight = 800, quality = 0.75) {
@@ -1574,20 +1602,16 @@ class SpinWheelApp {
   }
 
   async sendTelegramTestNotification() {
-    const token = this.adminCfgTgToken?.value.trim();
-    const chatId = this.adminCfgTgChatid?.value.trim();
+    const token = (this.adminCfgTgTokenPane?.value || this.adminCfgTgToken?.value || '').trim();
+    const chatId = (this.adminCfgTgChatidPane?.value || this.adminCfgTgChatid?.value || '').trim();
     if (!token || !chatId) {
       this.showNotificationFeedback('❌ Please enter Telegram Bot Token and Chat ID first!', false);
       return;
     }
 
-    const testMsg = `🔔 *LUCKY HOURLY SPIN - TEST ALERT*\n\n✅ *Mobile Notification connected successfully!*\n🕒 *Time:* ${formatTime12(new Date())}\n\nYou will now receive loud instant alerts on your phone for every new customer Deposit & Withdrawal!`;
+    const testMsg = `🔔 *LUCKY HOURLY SPIN - TEST ALERT*\n\n✅ *Mobile Notification connected successfully!*\n🕒 *Time:* ${formatTime12(new Date())}\n\nYou will now receive instant alerts on your phone for every new customer Registration, Deposit, Withdrawal, Prediction Bet, and Live Winning Spin!`;
 
-    if (this.adminNotificationFeedback) {
-      this.adminNotificationFeedback.textContent = '⏳ Sending test notification to your phone...';
-      this.adminNotificationFeedback.style.color = '#00f0ff';
-      this.adminNotificationFeedback.classList.remove('hidden');
-    }
+    this.showNotificationFeedback('⏳ Sending test notification to your phone...', true);
 
     try {
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -1602,7 +1626,7 @@ class SpinWheelApp {
       });
       const data = await res.json();
       if (data && data.ok) {
-        this.showNotificationFeedback('🎉 Success! Test alert received on your phone!', true);
+        this.showNotificationFeedback('🎉 Success! Test alert received on your Telegram phone app!', true);
         if (this.audio) this.audio.playWinFanfare();
       } else {
         this.showNotificationFeedback(`❌ Telegram Error: ${data.description || 'Check Bot Token & Chat ID'}`, false);
@@ -1613,25 +1637,35 @@ class SpinWheelApp {
   }
 
   showNotificationFeedback(msg, isSuccess = true) {
-    if (this.adminNotificationFeedback) {
-      this.adminNotificationFeedback.textContent = msg;
-      this.adminNotificationFeedback.style.color = isSuccess ? '#2ecc71' : '#ff6b6b';
-      this.adminNotificationFeedback.classList.remove('hidden');
-      setTimeout(() => {
-        if (this.adminNotificationFeedback) this.adminNotificationFeedback.classList.add('hidden');
-      }, 5000);
-    }
+    const targets = [this.adminNotificationFeedback, this.adminNotificationFeedbackPane];
+    targets.forEach(el => {
+      if (el) {
+        el.textContent = msg;
+        el.style.color = isSuccess ? '#2ecc71' : '#ff6b6b';
+        el.classList.remove('hidden');
+      }
+    });
+    setTimeout(() => {
+      targets.forEach(el => {
+        if (el) el.classList.add('hidden');
+      });
+    }, 6000);
   }
 
   showQrFeedback(msg, isSuccess = true) {
-    if (this.adminQrFeedback) {
-      this.adminQrFeedback.textContent = msg;
-      this.adminQrFeedback.style.color = isSuccess ? '#2ecc71' : '#ff6b6b';
-      this.adminQrFeedback.classList.remove('hidden');
-      setTimeout(() => {
-        if (this.adminQrFeedback) this.adminQrFeedback.classList.add('hidden');
-      }, 4000);
-    }
+    const targets = [this.adminQrFeedback, this.adminQrFeedbackPane];
+    targets.forEach(el => {
+      if (el) {
+        el.textContent = msg;
+        el.style.color = isSuccess ? '#2ecc71' : '#ff6b6b';
+        el.classList.remove('hidden');
+      }
+    });
+    setTimeout(() => {
+      targets.forEach(el => {
+        if (el) el.classList.add('hidden');
+      });
+    }, 5000);
   }
 
   // ==========================================================
@@ -3439,6 +3473,7 @@ class SpinWheelApp {
     this.adminNavPlayersBtn?.addEventListener('click', () => this.setAdminTab('players'));
     this.adminNavDepositsBtn?.addEventListener('click', () => this.setAdminTab('deposits'));
     this.adminNavWithdrawalsBtn?.addEventListener('click', () => this.setAdminTab('withdrawals'));
+    this.adminNavSettingsBtn?.addEventListener('click', () => this.setAdminTab('settings'));
 
     this.adminMiniTestSpinBtn?.addEventListener('click', () => {
       this.dispatchSynchronizedSpin('Admin Mini Test Spin', true, null);
@@ -3516,23 +3551,30 @@ class SpinWheelApp {
       }
     });
 
-    // Master Custom QR Code Image Upload & Preview
-    this.adminCfgQrFileInput?.addEventListener('change', async (e) => {
-      if (e.target.files && e.target.files[0]) {
+    // Master Custom QR Code Image Upload & Preview (both sources)
+    const handleQrUpload = async (file) => {
+      if (file) {
         try {
-          const base64 = await this.compressAndConvertImageToBase64(e.target.files[0], 600, 600, 0.8);
+          const base64 = await this.compressAndConvertImageToBase64(file, 600, 600, 0.8);
           if (this.adminCfgQrPreviewImg) this.adminCfgQrPreviewImg.src = base64;
+          if (this.adminCfgQrPreviewImgPane) this.adminCfgQrPreviewImgPane.src = base64;
           this.adminUploadedQrBase64 = base64;
         } catch (err) {}
       }
+    };
+    this.adminCfgQrFileInput?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleQrUpload(e.target.files[0]);
+    });
+    this.adminCfgQrFileInputPane?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleQrUpload(e.target.files[0]);
     });
 
     // Save Master QR & UPI Settings
-    this.adminSaveQrBtn?.addEventListener('click', () => {
-      const upiId = this.adminCfgUpiId?.value.trim() || 'master@upi';
-      const upiName = this.adminCfgUpiName?.value.trim() || 'Master Admin';
-      const minDep = parseInt(this.adminCfgMinDeposit?.value, 10) || 100;
-      const inst = this.adminCfgInstructions?.value.trim() || '';
+    const handleSaveQr = () => {
+      const upiId = (this.adminCfgUpiIdPane?.value || this.adminCfgUpiId?.value || '').trim() || 'master@upi';
+      const upiName = (this.adminCfgUpiNamePane?.value || this.adminCfgUpiName?.value || '').trim() || 'Master Admin';
+      const minDep = parseInt(this.adminCfgMinDepositPane?.value || this.adminCfgMinDeposit?.value, 10) || 100;
+      const inst = (this.adminCfgInstructionsPane?.value || this.adminCfgInstructions?.value || '').trim() || '';
       const qrUrl = this.adminUploadedQrBase64 || this.depositConfig?.qrImageUrl || '';
 
       this.depositConfig = {
@@ -3546,14 +3588,16 @@ class SpinWheelApp {
       this.pushStateToServer({ depositConfig: this.depositConfig });
       this.renderCustomerDepositUI();
       this.showQrFeedback('✅ QR Code & UPI settings saved & published to all players!', true);
-    });
+    };
+    this.adminSaveQrBtn?.addEventListener('click', handleSaveQr);
+    this.adminSaveQrBtnPane?.addEventListener('click', handleSaveQr);
 
     // Save Notification Settings & Test Telegram Alert
-    this.adminSaveNotificationsBtn?.addEventListener('click', () => {
-      const token = this.adminCfgTgToken?.value.trim() || '';
-      const chatId = this.adminCfgTgChatid?.value.trim() || '';
-      const enabled = !!this.adminCfgTgEnable?.checked;
-      const wa = this.adminCfgWaNumber?.value.trim() || '';
+    const handleSaveNotifications = () => {
+      const token = (this.adminCfgTgTokenPane?.value || this.adminCfgTgToken?.value || '').trim();
+      const chatId = (this.adminCfgTgChatidPane?.value || this.adminCfgTgChatid?.value || '').trim();
+      const enabled = this.adminCfgTgEnablePane ? !!this.adminCfgTgEnablePane.checked : !!this.adminCfgTgEnable?.checked;
+      const wa = (this.adminCfgWaNumberPane?.value || this.adminCfgWaNumber?.value || '').trim();
 
       this.notificationConfig = {
         telegramBotToken: token,
@@ -3563,10 +3607,13 @@ class SpinWheelApp {
       };
       this.saveNotificationConfig(this.notificationConfig);
       this.pushStateToServer({ notificationConfig: this.notificationConfig });
-      this.showNotificationFeedback('✅ Notification settings saved successfully!', true);
-    });
+      this.showNotificationFeedback('✅ Telegram Notification settings saved successfully!', true);
+    };
+    this.adminSaveNotificationsBtn?.addEventListener('click', handleSaveNotifications);
+    this.adminSaveNotificationsBtnPane?.addEventListener('click', handleSaveNotifications);
 
     this.adminTestTgBtn?.addEventListener('click', () => this.sendTelegramTestNotification());
+    this.adminTestTgBtnPane?.addEventListener('click', () => this.sendTelegramTestNotification());
 
     // Deposit Rejection Modal Events
     this.adminRejectDepositCloseBtn?.addEventListener('click', () => this.adminCloseRejectDepositModal());
@@ -3690,47 +3737,41 @@ class SpinWheelApp {
 
   setAdminTab(tabName) {
     if (this.cloudSync) this.cloudSync.requestSync();
+    
+    // Clear all active states
+    this.adminNavSpinBtn?.classList.remove('active');
+    this.adminNavPlayersBtn?.classList.remove('active');
+    this.adminNavDepositsBtn?.classList.remove('active');
+    this.adminNavWithdrawalsBtn?.classList.remove('active');
+    this.adminNavSettingsBtn?.classList.remove('active');
+
+    this.adminTabSpinPane?.classList.add('hidden');
+    this.adminTabPlayersPane?.classList.add('hidden');
+    this.adminTabDepositsPane?.classList.add('hidden');
+    this.adminTabWithdrawalsPane?.classList.add('hidden');
+    this.adminTabSettingsPane?.classList.add('hidden');
+
     if (tabName === 'players') {
       this.adminNavPlayersBtn?.classList.add('active');
-      this.adminNavSpinBtn?.classList.remove('active');
-      this.adminNavDepositsBtn?.classList.remove('active');
-      this.adminNavWithdrawalsBtn?.classList.remove('active');
       this.adminTabPlayersPane?.classList.remove('hidden');
-      this.adminTabSpinPane?.classList.add('hidden');
-      this.adminTabDepositsPane?.classList.add('hidden');
-      this.adminTabWithdrawalsPane?.classList.add('hidden');
       this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
       this.renderAdminActiveBetsTable();
     } else if (tabName === 'deposits') {
       this.adminNavDepositsBtn?.classList.add('active');
-      this.adminNavSpinBtn?.classList.remove('active');
-      this.adminNavPlayersBtn?.classList.remove('active');
-      this.adminNavWithdrawalsBtn?.classList.remove('active');
       this.adminTabDepositsPane?.classList.remove('hidden');
-      this.adminTabSpinPane?.classList.add('hidden');
-      this.adminTabPlayersPane?.classList.add('hidden');
-      this.adminTabWithdrawalsPane?.classList.add('hidden');
       this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
       this.populateMasterConfigInputs();
     } else if (tabName === 'withdrawals') {
       this.adminNavWithdrawalsBtn?.classList.add('active');
-      this.adminNavSpinBtn?.classList.remove('active');
-      this.adminNavPlayersBtn?.classList.remove('active');
-      this.adminNavDepositsBtn?.classList.remove('active');
       this.adminTabWithdrawalsPane?.classList.remove('hidden');
-      this.adminTabSpinPane?.classList.add('hidden');
-      this.adminTabPlayersPane?.classList.add('hidden');
-      this.adminTabDepositsPane?.classList.add('hidden');
       this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+    } else if (tabName === 'settings') {
+      this.adminNavSettingsBtn?.classList.add('active');
+      this.adminTabSettingsPane?.classList.remove('hidden');
+      this.populateMasterConfigInputs();
     } else {
       this.adminNavSpinBtn?.classList.add('active');
-      this.adminNavPlayersBtn?.classList.remove('active');
-      this.adminNavDepositsBtn?.classList.remove('active');
-      this.adminNavWithdrawalsBtn?.classList.remove('active');
       this.adminTabSpinPane?.classList.remove('hidden');
-      this.adminTabPlayersPane?.classList.add('hidden');
-      this.adminTabDepositsPane?.classList.add('hidden');
-      this.adminTabWithdrawalsPane?.classList.add('hidden');
       this.populateAdminControls();
     }
   }
