@@ -2357,7 +2357,17 @@ class SpinWheelApp {
 
     // Render all active prediction bets for the logged-in player (Unlimited Entries)
     if (this.currentCustomer) {
-      const myBets = (this.activeBets || []).filter(b => b && (b.playerId === this.currentCustomer.id || b.memberId === this.currentCustomer.id || b.userId === this.currentCustomer.id));
+      const custId = String(this.currentCustomer.id || '').toLowerCase();
+      const myBets = (this.activeBets || []).filter(b => {
+        if (!b) return false;
+        const pId = String(b.playerId || '').toLowerCase();
+        const mId = String(b.memberId || '').toLowerCase();
+        const uId = String(b.userId || '').toLowerCase();
+        const cId = String(b.customerId || '').toLowerCase();
+        const ptId = String(b.partyId || '').toLowerCase();
+        return pId === custId || mId === custId || uId === custId || cId === custId || ptId === custId;
+      });
+
       if (this.chipActiveBetsCount) this.chipActiveBetsCount.textContent = myBets.length;
       if (this.custBetsBadgeCount) this.custBetsBadgeCount.textContent = myBets.length;
 
@@ -2371,15 +2381,26 @@ class SpinWheelApp {
           this.myActiveBetsList.innerHTML = '';
           myBets.forEach(b => {
             const item = document.createElement('div');
-            item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:4px 8px; font-size:0.73rem;';
+            const numVal = b.number !== undefined ? b.number : (b.no !== undefined ? b.no : '--');
+            const amtVal = Number(b.amount || b.coins || 0);
+            const winVal = Number(b.potentialWin || (amtVal * 9));
+            const targetSlotVal = b.targetSlot || b.slot || b.timeSlot || 'Next Round';
+            const targetDateVal = b.targetDate || b.date || 'Today';
+            const placedTimeVal = b.placedTime || b.time || 'Recent';
+
+            item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.45); border:1px solid rgba(0,240,255,0.3); border-radius:6px; padding:6px 10px; font-size:0.75rem; flex-wrap:wrap; gap:6px; margin-bottom:4px;';
             item.innerHTML = `
-              <div>
-                <span style="display:inline-block; background:#ffd700; color:#000; font-weight:800; padding:1px 6px; border-radius:10px; font-size:0.75rem; margin-right:4px;">#${b.number}</span>
-                <strong style="color:var(--primary-gold-bright);">💰 ${b.amount} IHD</strong>
-                <span style="color:#2ecc71; font-weight:600; margin-left:4px;">(Win 9x: 💰 ${b.potentialWin || b.amount * 9})</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-block; background:#ffd700; color:#000; font-weight:900; padding:2px 8px; border-radius:12px; font-size:0.88rem; box-shadow:0 0 8px rgba(255,215,0,0.5);">#${numVal}</span>
+                <div>
+                  <strong style="color:var(--primary-gold-bright); font-size:0.88rem;">💰 ${amtVal} IHD</strong>
+                  <span style="color:#2ecc71; font-weight:700; font-size:0.75rem; margin-left:4px;">(Win 9x: 💰 ${winVal.toLocaleString()} IHD)</span>
+                  <div style="font-size:0.65rem; color:var(--text-muted); font-family:monospace;">ID: ${b.id || '--'}</div>
+                </div>
               </div>
-              <div style="text-align:right; font-size:0.68rem; color:var(--text-secondary);">
-                <span style="color:#00f0ff; font-weight:700;">🕒 ${b.targetSlot || 'Next'}</span> &bull; <span>${b.targetDate || 'Today'}</span>
+              <div style="text-align:right; font-size:0.7rem; line-height:1.35;">
+                <div style="color:#00f0ff; font-weight:800;">🎰 Target Spin: <span style="color:#fff;">${targetSlotVal}</span></div>
+                <div style="color:var(--text-secondary); font-size:0.68rem;">📅 ${targetDateVal} &bull; ⏰ Placed: <span style="color:#ffd700; font-weight:700;">${placedTimeVal}</span></div>
               </div>
             `;
             this.myActiveBetsList.appendChild(item);
@@ -4736,11 +4757,12 @@ class SpinWheelApp {
           <span style="font-size:0.68rem; color:var(--text-muted);">9x Multiplier</span>
         </td>
         <td>
-          <span style="color:#00f0ff; font-weight:700; font-size:0.8rem;">🕒 ${targetSlotVal}</span><br>
+          <span style="color:#00f0ff; font-weight:800; font-size:0.82rem;">🎰 ${targetSlotVal}</span><br>
           <span style="font-size:0.7rem; color:var(--text-secondary);">📅 ${targetDateVal}</span>
         </td>
         <td>
-          <span style="font-size:0.72rem; color:var(--text-secondary);">${placedTimeVal}</span>
+          <strong style="color:#ffd700; font-weight:700; font-size:0.8rem;">⏰ ${placedTimeVal}</strong><br>
+          <span style="font-size:0.65rem; color:var(--text-muted);">Placed Time</span>
         </td>
         <td>
           <button class="btn btn-danger btn-xs" style="padding:3px 7px; font-weight:700; font-size:0.7rem;" title="Cancel Entry & Refund Coins to Party" onclick="app.adminDeleteActiveBet('${b.id}')">
@@ -4957,20 +4979,22 @@ class SpinWheelApp {
 
           tr.innerHTML = `
             <td>
-              <strong style="color:#fff;">${b.displaySlot || (b.targetSlot ? `${b.targetSlot} • ${b.targetDate || ''}` : 'Next Round')}</strong><br>
-              <span style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">${b.id || ''}</span>
+              <div style="color:#00f0ff; font-weight:800; font-size:0.84rem;">🎰 ${b.targetSlot || 'Next'} Round</div>
+              <div style="color:var(--text-secondary); font-size:0.72rem;">📅 ${b.targetDate || 'Today'}</div>
+              <span style="font-size:0.65rem; color:var(--text-muted); font-family:monospace;">${b.id || ''}</span>
             </td>
             <td>
               <span class="bet-number-pill">#${b.number}</span>
             </td>
             <td>
-              <strong style="color:var(--primary-gold-bright);">💰 ${(b.amount || 0).toLocaleString()} IHD</strong>
+              <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">💰 ${(b.amount || 0).toLocaleString()} IHD</strong>
             </td>
             <td>
               ${statusBadge}
             </td>
             <td>
-              <span style="color:var(--text-secondary); font-size:0.72rem;">${b.placedTime || '--'}</span>
+              <strong style="color:#ffd700; font-size:0.82rem; display:block;">⏰ ${b.placedTime || '--'}</strong>
+              <span style="font-size:0.65rem; color:var(--text-muted);">Placed Time</span>
             </td>
           `;
           this.aphBetsTableBody.appendChild(tr);

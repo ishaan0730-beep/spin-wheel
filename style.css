@@ -49,6 +49,27 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.active-bet-notice {
+  display: flex !important;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(180deg, rgba(46, 204, 113, 0.1) 0%, rgba(0, 0, 0, 0.5) 100%);
+  border: 1px solid rgba(46, 204, 113, 0.45);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 20px rgba(46, 204, 113, 0.15), inset 0 0 15px rgba(46, 204, 113, 0.05);
+  margin-top: 0.6rem;
+  width: 100%;
+}
+
+.active-bet-notice.hidden {
+  display: none !important;
+}
+
 body {
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-main);
