@@ -1,32 +1,16 @@
 {
-  "slices": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
-  "history": [],
-  "forcedNext": null,
-  "upcomingQueue": ["AUTO", "AUTO", "AUTO"],
-  "dailySchedule": { "12:00 PM": "AUTO", "04:00 PM": "AUTO", "08:00 PM": "AUTO", "11:00 PM": "AUTO" },
-  "hourlySchedule": {},
-  "timerMode": "REAL",
-  "customSecs": 60,
-  "customTimerTarget": null,
-  "manualRoundTitle": null,
-  "masterPassword": "00773300",
-  "spinTrigger": null,
-  "customersDb": {},
-  "activeBets": [],
-  "withdrawals": [],
-  "deposits": [],
-  "depositConfig": {
-    "upiId": "master@upi",
-    "accountName": "Master Admin",
-    "qrImageUrl": "",
-    "minDeposit": 100,
-    "instructions": "Scan QR with PhonePe / Google Pay / Paytm. Pay and enter 12-digit UTR/Txn ID & upload payment screenshot."
-  },
-  "notificationConfig": {
-    "telegramBotToken": "",
-    "telegramChatId": "",
-    "telegramEnabled": false,
-    "whatsappNumber": ""
-  },
-  "version": 1
+    "adminKey":  "00773300",
+    "depositConfig":  {
+                          "instructions":  "Pay via UPI",
+                          "upiId":  "testmaster@upi",
+                          "minDeposit":  150,
+                          "accountName":  "Master Test",
+                          "qrImageUrl":  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"
+                      },
+    "notificationConfig":  {
+                               "telegramEnabled":  true,
+                               "telegramBotToken":  "123456:ABC-DEF",
+                               "telegramChatId":  "987654321",
+                               "whatsappNumber":  "9876543210"
+                           }
 }

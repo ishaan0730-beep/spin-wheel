@@ -78,7 +78,7 @@ public class NativeHttpServer {
                     ""notificationConfig"": { ""telegramBotToken"": """", ""telegramChatId"": """", ""telegramEnabled"": false, ""whatsappNumber"": """" },
                     ""version"": 1
                 }";
-                File.WriteAllText(stateFile, defaultJson, Encoding.UTF8);
+                File.WriteAllText(stateFile, defaultJson, new UTF8Encoding(false));
             }
         }
     }
@@ -193,7 +193,7 @@ public class NativeHttpServer {
                         string bodyJson = Encoding.UTF8.GetString(bodyBuffer, 0, bodyBytesRead);
                         if (!string.IsNullOrWhiteSpace(bodyJson) && bodyJson.Trim().StartsWith("{")) {
                             lock (stateLock) {
-                                File.WriteAllText(stateFile, bodyJson, Encoding.UTF8);
+                                File.WriteAllText(stateFile, bodyJson, new UTF8Encoding(false));
                             }
                         }
 

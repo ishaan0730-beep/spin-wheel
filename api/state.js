@@ -68,16 +68,38 @@ async function sendTelegramAlert(text) {
     const chatId = cfg.telegramChatId.trim();
     if (!token || !chatId) return false;
 
+    // Safe HTML parsing mode to avoid Telegram Markdown entity parsing crashes
+    let htmlText = String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    htmlText = htmlText
+      .replace(/\*(.*?)\*/g, '<b>$1</b>')
+      .replace(/`(.*?)`/g, '<code>$1</code>');
+
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        text: text,
-        parse_mode: 'Markdown'
+        text: htmlText,
+        parse_mode: 'HTML'
       })
     });
+
+    if (!response.ok) {
+      // Fallback to pure plain text if Telegram fails parsing HTML tags
+      const plainText = String(text || '').replace(/[*`_~\[\]()<>]/g, '');
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: plainText
+        })
+      });
+    }
     return true;
   } catch (e) {
     return false;
@@ -366,6 +388,22 @@ export default function handler(req, res) {
             globalState.history = Array.from(histMap.values())
               .sort((a, b) => (b.id || (b.timestamp || 0)) - (a.id || (a.timestamp || 0)))
               .slice(0, 150);
+          }
+          if (body.depositConfig && typeof body.depositConfig === 'object') {
+            if (body.depositConfig.qrImageUrl || body.depositConfig.upiId) {
+              globalState.depositConfig = {
+                ...(globalState.depositConfig || {}),
+                ...body.depositConfig
+              };
+            }
+          }
+          if (body.notificationConfig && typeof body.notificationConfig === 'object') {
+            if (body.notificationConfig.telegramBotToken || body.notificationConfig.telegramChatId) {
+              globalState.notificationConfig = {
+                ...(globalState.notificationConfig || {}),
+                ...body.notificationConfig
+              };
+            }
           }
           globalState.version = Date.now();
         }

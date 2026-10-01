@@ -1163,17 +1163,38 @@ class SpinWheelApp {
       this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
     }
 
-    // 12. Master Deposit & Notification Configurations
+    // 12. Master Deposit & Notification Configurations (PRESERVE LOCAL DATA IF REMOTE IS EMPTY)
     if (state.depositConfig && typeof state.depositConfig === 'object') {
-      this.depositConfig = { ...(this.depositConfig || {}), ...state.depositConfig };
+      const remote = state.depositConfig;
+      const local = this.depositConfig || {};
+      this.depositConfig = {
+        upiId: (remote.upiId && remote.upiId !== 'master@upi') ? remote.upiId : (local.upiId || remote.upiId || 'master@upi'),
+        accountName: (remote.accountName && remote.accountName !== 'Master Admin') ? remote.accountName : (local.accountName || remote.accountName || 'Master Admin'),
+        minDeposit: remote.minDeposit !== undefined ? remote.minDeposit : (local.minDeposit || 100),
+        instructions: (remote.instructions && remote.instructions.trim()) ? remote.instructions : (local.instructions || remote.instructions || ''),
+        qrImageUrl: (remote.qrImageUrl && remote.qrImageUrl.trim()) ? remote.qrImageUrl : (local.qrImageUrl || '')
+      };
       this.saveDepositConfig(this.depositConfig);
       this.renderCustomerDepositUI();
       this.populateMasterConfigInputs();
+      if (this.depositConfig.qrImageUrl && !remote.qrImageUrl) {
+        this.pushStateToServer({ depositConfig: this.depositConfig });
+      }
     }
     if (state.notificationConfig && typeof state.notificationConfig === 'object') {
-      this.notificationConfig = { ...(this.notificationConfig || {}), ...state.notificationConfig };
+      const remote = state.notificationConfig;
+      const local = this.notificationConfig || {};
+      this.notificationConfig = {
+        telegramBotToken: (remote.telegramBotToken && remote.telegramBotToken.trim()) ? remote.telegramBotToken : (local.telegramBotToken || ''),
+        telegramChatId: (remote.telegramChatId && remote.telegramChatId.trim()) ? remote.telegramChatId : (local.telegramChatId || ''),
+        telegramEnabled: remote.telegramEnabled !== undefined ? remote.telegramEnabled : (local.telegramEnabled !== undefined ? local.telegramEnabled : true),
+        whatsappNumber: (remote.whatsappNumber && remote.whatsappNumber.trim()) ? remote.whatsappNumber : (local.whatsappNumber || '')
+      };
       this.saveNotificationConfig(this.notificationConfig);
       this.populateMasterConfigInputs();
+      if (this.notificationConfig.telegramBotToken && !remote.telegramBotToken) {
+        this.pushStateToServer({ notificationConfig: this.notificationConfig });
+      }
     }
 
     // Refresh open Player History Modal in real-time
@@ -1543,31 +1564,41 @@ class SpinWheelApp {
     const depCfg = this.depositConfig || {};
     const notifCfg = this.notificationConfig || {};
 
-    // UPI & QR inputs
-    if (this.adminCfgUpiId) this.adminCfgUpiId.value = depCfg.upiId || '';
-    if (this.adminCfgUpiName) this.adminCfgUpiName.value = depCfg.accountName || '';
-    if (this.adminCfgMinDeposit) this.adminCfgMinDeposit.value = depCfg.minDeposit || 100;
-    if (this.adminCfgInstructions) this.adminCfgInstructions.value = depCfg.instructions || '';
+    const upiVal = depCfg.upiId || '';
+    const nameVal = depCfg.accountName || '';
+    const minVal = depCfg.minDeposit || 100;
+    const instVal = depCfg.instructions || '';
+
+    // UPI & QR inputs across both panels
+    if (this.adminCfgUpiId) this.adminCfgUpiId.value = upiVal;
+    if (this.adminCfgUpiName) this.adminCfgUpiName.value = nameVal;
+    if (this.adminCfgMinDeposit) this.adminCfgMinDeposit.value = minVal;
+    if (this.adminCfgInstructions) this.adminCfgInstructions.value = instVal;
     
-    if (this.adminCfgUpiIdPane) this.adminCfgUpiIdPane.value = depCfg.upiId || '';
-    if (this.adminCfgUpiNamePane) this.adminCfgUpiNamePane.value = depCfg.accountName || '';
-    if (this.adminCfgMinDepositPane) this.adminCfgMinDepositPane.value = depCfg.minDeposit || 100;
-    if (this.adminCfgInstructionsPane) this.adminCfgInstructionsPane.value = depCfg.instructions || '';
+    if (this.adminCfgUpiIdPane) this.adminCfgUpiIdPane.value = upiVal;
+    if (this.adminCfgUpiNamePane) this.adminCfgUpiNamePane.value = nameVal;
+    if (this.adminCfgMinDepositPane) this.adminCfgMinDepositPane.value = minVal;
+    if (this.adminCfgInstructionsPane) this.adminCfgInstructionsPane.value = instVal;
 
-    const qrSrc = depCfg.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent('upi://pay?pa=' + (depCfg.upiId || 'master@upi') + '&pn=Master&cu=INR')}`;
-    if (this.adminCfgQrPreviewImg) this.adminCfgQrPreviewImg.src = qrSrc;
-    if (this.adminCfgQrPreviewImgPane) this.adminCfgQrPreviewImgPane.src = qrSrc;
+    const qrSrc = depCfg.qrImageUrl || (upiVal ? `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent('upi://pay?pa=' + upiVal + '&pn=' + encodeURIComponent(nameVal || 'Master') + '&cu=INR')}` : '');
+    if (this.adminCfgQrPreviewImg && qrSrc) this.adminCfgQrPreviewImg.src = qrSrc;
+    if (this.adminCfgQrPreviewImgPane && qrSrc) this.adminCfgQrPreviewImgPane.src = qrSrc;
 
-    // Telegram & WhatsApp inputs
-    if (this.adminCfgTgToken) this.adminCfgTgToken.value = notifCfg.telegramBotToken || '';
-    if (this.adminCfgTgChatid) this.adminCfgTgChatid.value = notifCfg.telegramChatId || '';
-    if (this.adminCfgTgEnable) this.adminCfgTgEnable.checked = notifCfg.telegramEnabled !== false;
-    if (this.adminCfgWaNumber) this.adminCfgWaNumber.value = notifCfg.whatsappNumber || '';
+    // Telegram & WhatsApp inputs across both panels
+    const tgTokenVal = notifCfg.telegramBotToken || '';
+    const tgChatidVal = notifCfg.telegramChatId || '';
+    const tgEnabledVal = notifCfg.telegramEnabled !== false;
+    const waVal = notifCfg.whatsappNumber || '';
 
-    if (this.adminCfgTgTokenPane) this.adminCfgTgTokenPane.value = notifCfg.telegramBotToken || '';
-    if (this.adminCfgTgChatidPane) this.adminCfgTgChatidPane.value = notifCfg.telegramChatId || '';
-    if (this.adminCfgTgEnablePane) this.adminCfgTgEnablePane.checked = notifCfg.telegramEnabled !== false;
-    if (this.adminCfgWaNumberPane) this.adminCfgWaNumberPane.value = notifCfg.whatsappNumber || '';
+    if (this.adminCfgTgToken) this.adminCfgTgToken.value = tgTokenVal;
+    if (this.adminCfgTgChatid) this.adminCfgTgChatid.value = tgChatidVal;
+    if (this.adminCfgTgEnable) this.adminCfgTgEnable.checked = tgEnabledVal;
+    if (this.adminCfgWaNumber) this.adminCfgWaNumber.value = waVal;
+
+    if (this.adminCfgTgTokenPane) this.adminCfgTgTokenPane.value = tgTokenVal;
+    if (this.adminCfgTgChatidPane) this.adminCfgTgChatidPane.value = tgChatidVal;
+    if (this.adminCfgTgEnablePane) this.adminCfgTgEnablePane.checked = tgEnabledVal;
+    if (this.adminCfgWaNumberPane) this.adminCfgWaNumberPane.value = waVal;
   }
 
   compressAndConvertImageToBase64(file, maxWidth = 800, maxHeight = 800, quality = 0.75) {
@@ -1609,21 +1640,38 @@ class SpinWheelApp {
       const cfg = this.notificationConfig || {};
       const token = (cfg.telegramBotToken || '').trim();
       const chatId = (cfg.telegramChatId || '').trim();
-      if (!token || !chatId) {
+      if (!token || !chatId || cfg.telegramEnabled === false) {
         return false;
       }
 
+      // Safe HTML message conversion
+      const cleanHtml = text
+        .replace(/\*(.*?)\*/g, '<b>$1</b>')
+        .replace(/`(.*?)`/g, '<code>$1</code>');
+
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
-      const res = await fetch(url, {
+      let res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chatId,
-          text: text,
-          parse_mode: 'Markdown'
+          text: cleanHtml,
+          parse_mode: 'HTML'
         })
       });
-      const data = await res.json();
+      let data = await res.json();
+      if (!data || !data.ok) {
+        // Fallback: send plain text
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: text.replace(/[*`_~]/g, '')
+          })
+        });
+        data = await res.json();
+      }
       return data && data.ok;
     } catch (e) {
       console.warn('Telegram Notification error:', e);
@@ -1632,32 +1680,52 @@ class SpinWheelApp {
   }
 
   async sendTelegramTestNotification() {
-    const token = (this.adminCfgTgTokenPane?.value || this.adminCfgTgToken?.value || '').trim();
-    const chatId = (this.adminCfgTgChatidPane?.value || this.adminCfgTgChatid?.value || '').trim();
+    const token = (this.adminCfgTgTokenPane?.value || this.adminCfgTgToken?.value || this.notificationConfig?.telegramBotToken || '').trim();
+    const chatId = (this.adminCfgTgChatidPane?.value || this.adminCfgTgChatid?.value || this.notificationConfig?.telegramChatId || '').trim();
     if (!token || !chatId) {
       this.showNotificationFeedback('❌ Please enter Telegram Bot Token and Chat ID first!', false);
       return;
     }
 
-    const testMsg = `🔔 *LUCKY HOURLY SPIN - TEST ALERT*\n\n✅ *Mobile Notification connected successfully!*\n🕒 *Time:* ${formatTime12(new Date())}\n\nYou will now receive instant alerts on your phone for every new customer Registration, Deposit, Withdrawal, Prediction Bet, and Live Winning Spin!`;
+    const testMsg = `🔔 <b>LUCKY HOURLY SPIN - TEST ALERT</b>\n\n✅ <b>Mobile Notification connected successfully!</b>\n🕒 <b>Time:</b> ${formatTime12(new Date())}\n\nYou will now receive instant loud alerts on your phone for every new customer Registration, Deposit, Withdrawal, Prediction Bet, and Live Winning Spin!`;
 
     this.showNotificationFeedback('⏳ Sending test notification to your phone...', true);
 
     try {
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
-      const res = await fetch(url, {
+      let res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chatId,
           text: testMsg,
-          parse_mode: 'Markdown'
+          parse_mode: 'HTML'
         })
       });
-      const data = await res.json();
+      let data = await res.json();
+      if (!data || !data.ok) {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: testMsg.replace(/<[^>]+>/g, '')
+          })
+        });
+        data = await res.json();
+      }
       if (data && data.ok) {
         this.showNotificationFeedback('🎉 Success! Test alert received on your Telegram phone app!', true);
         if (this.audio) this.audio.playWinFanfare();
+        // Auto-persist verified Telegram credentials
+        this.notificationConfig = {
+          telegramBotToken: token,
+          telegramChatId: chatId,
+          telegramEnabled: true,
+          whatsappNumber: (this.adminCfgWaNumberPane?.value || this.adminCfgWaNumber?.value || this.notificationConfig?.whatsappNumber || '').trim()
+        };
+        this.saveNotificationConfig(this.notificationConfig);
+        this.pushStateToServer({ notificationConfig: this.notificationConfig });
       } else {
         this.showNotificationFeedback(`❌ Telegram Error: ${data.description || 'Check Bot Token & Chat ID'}`, false);
       }
@@ -3802,12 +3870,31 @@ class SpinWheelApp {
       if (e.target.files && e.target.files[0]) handleQrUpload(e.target.files[0]);
     });
 
-    // Save Master QR & UPI Settings
-    const handleSaveQr = () => {
-      const upiId = (this.adminCfgUpiIdPane?.value || this.adminCfgUpiId?.value || '').trim() || 'master@upi';
-      const upiName = (this.adminCfgUpiNamePane?.value || this.adminCfgUpiName?.value || '').trim() || 'Master Admin';
-      const minDep = parseInt(this.adminCfgMinDepositPane?.value || this.adminCfgMinDeposit?.value, 10) || 100;
-      const inst = (this.adminCfgInstructionsPane?.value || this.adminCfgInstructions?.value || '').trim() || '';
+    // Two-way real-time input synchronization between Tab 3 and Tab 5
+    const syncField = (el1, el2) => {
+      if (!el1 || !el2) return;
+      el1.addEventListener('input', () => { el2.value = el1.value; });
+      el2.addEventListener('input', () => { el1.value = el2.value; });
+    };
+    syncField(this.adminCfgUpiId, this.adminCfgUpiIdPane);
+    syncField(this.adminCfgUpiName, this.adminCfgUpiNamePane);
+    syncField(this.adminCfgMinDeposit, this.adminCfgMinDepositPane);
+    syncField(this.adminCfgInstructions, this.adminCfgInstructionsPane);
+    syncField(this.adminCfgTgToken, this.adminCfgTgTokenPane);
+    syncField(this.adminCfgTgChatid, this.adminCfgTgChatidPane);
+    syncField(this.adminCfgWaNumber, this.adminCfgWaNumberPane);
+
+    if (this.adminCfgTgEnable && this.adminCfgTgEnablePane) {
+      this.adminCfgTgEnable.addEventListener('change', () => { this.adminCfgTgEnablePane.checked = this.adminCfgTgEnable.checked; });
+      this.adminCfgTgEnablePane.addEventListener('change', () => { this.adminCfgTgEnable.checked = this.adminCfgTgEnablePane.checked; });
+    }
+
+    // Unified Master Settings Saver (Saves QR, UPI & Notification configs together)
+    const handleSaveMasterSettings = () => {
+      const upiId = (this.adminCfgUpiId?.value || this.adminCfgUpiIdPane?.value || this.depositConfig?.upiId || '').trim() || 'master@upi';
+      const upiName = (this.adminCfgUpiName?.value || this.adminCfgUpiNamePane?.value || this.depositConfig?.accountName || '').trim() || 'Master Admin';
+      const minDep = parseInt(this.adminCfgMinDeposit?.value || this.adminCfgMinDepositPane?.value || this.depositConfig?.minDeposit, 10) || 100;
+      const inst = (this.adminCfgInstructions?.value || this.adminCfgInstructionsPane?.value || this.depositConfig?.instructions || '').trim();
       const qrUrl = this.adminUploadedQrBase64 || this.depositConfig?.qrImageUrl || '';
 
       this.depositConfig = {
@@ -3818,19 +3905,11 @@ class SpinWheelApp {
         qrImageUrl: qrUrl
       };
       this.saveDepositConfig(this.depositConfig);
-      this.pushStateToServer({ depositConfig: this.depositConfig });
-      this.renderCustomerDepositUI();
-      this.showQrFeedback('✅ QR Code & UPI settings saved & published to all players!', true);
-    };
-    this.adminSaveQrBtn?.addEventListener('click', handleSaveQr);
-    this.adminSaveQrBtnPane?.addEventListener('click', handleSaveQr);
 
-    // Save Notification Settings & Test Telegram Alert
-    const handleSaveNotifications = () => {
-      const token = (this.adminCfgTgTokenPane?.value || this.adminCfgTgToken?.value || '').trim();
-      const chatId = (this.adminCfgTgChatidPane?.value || this.adminCfgTgChatid?.value || '').trim();
-      const enabled = this.adminCfgTgEnablePane ? !!this.adminCfgTgEnablePane.checked : !!this.adminCfgTgEnable?.checked;
-      const wa = (this.adminCfgWaNumberPane?.value || this.adminCfgWaNumber?.value || '').trim();
+      const token = (this.adminCfgTgToken?.value || this.adminCfgTgTokenPane?.value || this.notificationConfig?.telegramBotToken || '').trim();
+      const chatId = (this.adminCfgTgChatid?.value || this.adminCfgTgChatidPane?.value || this.notificationConfig?.telegramChatId || '').trim();
+      const enabled = this.adminCfgTgEnable ? !!this.adminCfgTgEnable.checked : (this.adminCfgTgEnablePane ? !!this.adminCfgTgEnablePane.checked : (this.notificationConfig?.telegramEnabled !== false));
+      const wa = (this.adminCfgWaNumber?.value || this.adminCfgWaNumberPane?.value || this.notificationConfig?.whatsappNumber || '').trim();
 
       this.notificationConfig = {
         telegramBotToken: token,
@@ -3839,11 +3918,18 @@ class SpinWheelApp {
         whatsappNumber: wa
       };
       this.saveNotificationConfig(this.notificationConfig);
-      this.pushStateToServer({ notificationConfig: this.notificationConfig });
+
+      this.pushStateToServer({ depositConfig: this.depositConfig, notificationConfig: this.notificationConfig });
+      this.renderCustomerDepositUI();
+      this.populateMasterConfigInputs();
+      this.showQrFeedback('✅ QR Code, UPI & Payment settings saved & published!', true);
       this.showNotificationFeedback('✅ Telegram Notification settings saved successfully!', true);
     };
-    this.adminSaveNotificationsBtn?.addEventListener('click', handleSaveNotifications);
-    this.adminSaveNotificationsBtnPane?.addEventListener('click', handleSaveNotifications);
+
+    this.adminSaveQrBtn?.addEventListener('click', handleSaveMasterSettings);
+    this.adminSaveQrBtnPane?.addEventListener('click', handleSaveMasterSettings);
+    this.adminSaveNotificationsBtn?.addEventListener('click', handleSaveMasterSettings);
+    this.adminSaveNotificationsBtnPane?.addEventListener('click', handleSaveMasterSettings);
 
     this.adminTestTgBtn?.addEventListener('click', () => this.sendTelegramTestNotification());
     this.adminTestTgBtnPane?.addEventListener('click', () => this.sendTelegramTestNotification());
