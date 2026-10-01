@@ -4255,7 +4255,7 @@ class SpinWheelApp {
     }
 
     if (this.newMasterKeyInput) {
-      this.newMasterKeyInput.placeholder = Current:  + (this.masterPassword || '00773300');
+      this.newMasterKeyInput.placeholder = 'Current: ' + (this.masterPassword || '00773300');
     }
 
     // 2. Safely populate and render all admin sub-panels
