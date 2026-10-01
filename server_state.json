@@ -1,33 +1,43 @@
 {
     "activeBets":  [
                        {
-                           "mobile":  "9876543210",
-                           "date":  "Oct 1",
-                           "potentialWin":  450,
-                           "playerId":  "USR_98765",
-                           "timestamp":  1790841701181,
-                           "status":  "ACTIVE",
-                           "amount":  50,
-                           "id":  "bet_test_20261001_133141",
-                           "timeSlot":  "04:00 PM",
+                           "id":  "bet_today_1",
+                           "timeSlot":  "12:00 PM",
                            "targetDate":  "Oct 1",
-                           "playerName":  "Rohan Sharma",
-                           "placedTime":  "01:30 PM",
-                           "number":  50,
-                           "targetSlot":  "04:00 PM",
-                           "memberId":  "USR_98765",
-                           "slot":  "04:00 PM",
-                           "name":  "Rohan Sharma"
+                           "timestamp":  1790845685561,
+                           "number":  20,
+                           "name":  "Aman Verma",
+                           "status":  "ACTIVE",
+                           "date":  "Oct 1",
+                           "targetDateFull":  "Oct 1, 2026",
+                           "memberId":  "USR_101",
+                           "amount":  50
+                       },
+                       {
+                           "id":  "bet_yest_1",
+                           "timeSlot":  "12:00 PM",
+                           "targetDate":  "Sep 30",
+                           "timestamp":  1790759285565,
+                           "number":  10,
+                           "name":  "Hardik Chauhan",
+                           "status":  "ACTIVE",
+                           "date":  "Sep 30",
+                           "targetDateFull":  "Sep 30, 2026",
+                           "memberId":  "USR_102",
+                           "amount":  20
+                       },
+                       {
+                           "id":  "bet_yest_2",
+                           "timeSlot":  "04:00 PM",
+                           "targetDate":  "Sep 30",
+                           "timestamp":  1790759285570,
+                           "number":  30,
+                           "name":  "Hardik Chauhan",
+                           "status":  "ACTIVE",
+                           "date":  "Sep 30",
+                           "targetDateFull":  "Sep 30, 2026",
+                           "memberId":  "USR_102",
+                           "amount":  10
                        }
-                   ],
-    "customersDb":  {
-                        "USR_98765":  {
-                                          "id":  "USR_98765",
-                                          "name":  "Rohan Sharma",
-                                          "coins":  950,
-                                          "joinedAt":  "2026-10-01",
-                                          "totalBets":  1,
-                                          "mobile":  "9876543210"
-                                      }
-                    }
+                   ]
 }

@@ -690,7 +690,11 @@ class SpinWheelApp {
     this.adminImportLedgerTriggerBtn = document.getElementById('admin-import-ledger-trigger-btn');
     this.adminImportLedgerFile = document.getElementById('admin-import-ledger-file');
     this.adminLedgerFeedback = document.getElementById('admin-ledger-feedback');
+    this.adminBetDatePicker = document.getElementById('admin-bet-date-picker');
+    this.adminActiveBetsViewingBadge = document.getElementById('admin-active-bets-viewing-badge');
+    this.currentAdminBetDateFilter = 'TODAY'; // Default: TODAY
     this.currentAdminBetSlotFilter = 'ALL';
+    this.currentAdminBetCustomDate = '';
 
     // Master Full-Page Nav Tabs & Side Live Monitor Elements
     this.adminNavSpinBtn = document.getElementById('admin-nav-spin-btn');
@@ -3933,8 +3937,31 @@ class SpinWheelApp {
 
     this.adminRefreshBetsBtn?.addEventListener('click', () => {
       if (this.cloudSync) this.cloudSync.requestSync();
-      this.pullStateFromServer().then(() => this.renderAdminActiveBetsTable(this.currentAdminBetSlotFilter || 'ALL'));
+      this.pullStateFromServer().then(() => this.renderAdminActiveBetsTable());
       this.showAdminCreditFeedback('🔄 Live bets refreshed!', true);
+    });
+
+    // Date Filter Pills (Today, Yesterday, Tomorrow, All Dates)
+    document.querySelectorAll('.admin-bet-date-filter').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.admin-bet-date-filter').forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        const dateVal = e.currentTarget.getAttribute('data-date') || 'TODAY';
+        this.currentAdminBetDateFilter = dateVal;
+        this.currentAdminBetCustomDate = '';
+        if (this.adminBetDatePicker) this.adminBetDatePicker.value = '';
+        this.renderAdminActiveBetsTable();
+      });
+    });
+
+    // Custom Date Picker Filter
+    this.adminBetDatePicker?.addEventListener('change', (e) => {
+      if (e.target.value) {
+        document.querySelectorAll('.admin-bet-date-filter').forEach(b => b.classList.remove('active'));
+        this.currentAdminBetDateFilter = 'CUSTOM';
+        this.currentAdminBetCustomDate = e.target.value;
+        this.renderAdminActiveBetsTable();
+      }
     });
 
     // Per-Slot Active Bets Filter Pills
@@ -3944,7 +3971,7 @@ class SpinWheelApp {
         e.currentTarget.classList.add('active');
         const slot = e.currentTarget.getAttribute('data-slot') || 'ALL';
         this.currentAdminBetSlotFilter = slot;
-        this.renderAdminActiveBetsTable(slot);
+        this.renderAdminActiveBetsTable();
       });
     });
 
@@ -4839,74 +4866,171 @@ class SpinWheelApp {
     });
   }
 
-  renderAdminActiveBetsTable(slotFilter = null) {
+  getBetDateCategory(bet, now = new Date()) {
+    if (!bet) return 'OTHER';
+    const norm = (str) => String(str || '').toLowerCase().trim();
+    
+    const todayStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // e.g. "Oct 1"
+    const todayISO = now.toISOString().split('T')[0]; // "2026-10-01"
+    
+    const yest = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yestStr = yest.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // e.g. "Sep 30"
+    const yestISO = yest.toISOString().split('T')[0]; // "2026-09-30"
+
+    const tom = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const tomStr = tom.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // e.g. "Oct 2"
+    const tomISO = tom.toISOString().split('T')[0]; // "2026-10-02"
+
+    const bDate = norm(bet.date || bet.targetDate || bet.entryDate || '');
+    const bFull = norm(bet.targetDateFull || bet.placedDate || '');
+    const bDisp = norm(bet.displaySlot || '');
+
+    // Check by timestamp
+    if (bet.timestamp) {
+      const d = new Date(bet.timestamp);
+      if (d.toDateString() === now.toDateString()) return 'TODAY';
+      if (d.toDateString() === yest.toDateString()) return 'YESTERDAY';
+      if (d.toDateString() === tom.toDateString()) return 'TOMORROW';
+    }
+
+    // Check by string matches
+    if (bDate === norm(todayStr) || bDate === todayISO || bFull.includes(norm(todayStr)) || bDisp.includes('today') || bDisp.includes(norm(todayStr))) {
+      return 'TODAY';
+    }
+    if (bDate === norm(yestStr) || bDate === yestISO || bFull.includes(norm(yestStr)) || bDisp.includes('yesterday') || bDisp.includes(norm(yestStr))) {
+      return 'YESTERDAY';
+    }
+    if (bDate === norm(tomStr) || bDate === tomISO || bFull.includes(norm(tomStr)) || bDisp.includes('tomorrow') || bDisp.includes(norm(tomStr))) {
+      return 'TOMORROW';
+    }
+
+    return 'OTHER';
+  }
+
+  matchesBetDate(bet, filterType = 'TODAY', customDateISO = '', now = new Date()) {
+    if (filterType === 'ALL') return true;
+
+    if (filterType === 'CUSTOM' && customDateISO) {
+      const cDate = new Date(customDateISO + 'T00:00:00');
+      const cStr = cDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase();
+      const bDate = String(bet.date || bet.targetDate || bet.entryDate || '').toLowerCase();
+      const bFull = String(bet.targetDateFull || bet.placedDate || '').toLowerCase();
+      
+      if (bet.timestamp && new Date(bet.timestamp).toDateString() === cDate.toDateString()) {
+        return true;
+      }
+      return bDate === cStr || bDate === customDateISO || bFull.includes(cStr);
+    }
+
+    const cat = this.getBetDateCategory(bet, now);
+    return cat === filterType;
+  }
+
+  renderAdminActiveBetsTable(dateFilter = null, slotFilter = null) {
     if (!this.adminActiveBetsTableBody) return;
 
-    const filter = slotFilter || this.currentAdminBetSlotFilter || 'ALL';
-    this.currentAdminBetSlotFilter = filter;
+    const dFilter = dateFilter || this.currentAdminBetDateFilter || 'TODAY';
+    const sFilter = slotFilter || this.currentAdminBetSlotFilter || 'ALL';
+    this.currentAdminBetDateFilter = dFilter;
+    this.currentAdminBetSlotFilter = sFilter;
 
+    const now = new Date();
     const allBets = Array.isArray(this.activeBets) ? this.activeBets : [];
-    
-    // Calculate per-slot counts for pill badges
-    const cntAll = allBets.length;
-    const cnt12 = allBets.filter(b => (b.timeSlot === '12:00 PM' || b.slot === '12:00 PM' || b.round === '12:00 PM' || b.targetSlot === '12:00 PM')).length;
-    const cnt4 = allBets.filter(b => (b.timeSlot === '04:00 PM' || b.slot === '04:00 PM' || b.round === '04:00 PM' || b.targetSlot === '04:00 PM')).length;
-    const cnt8 = allBets.filter(b => (b.timeSlot === '08:00 PM' || b.slot === '08:00 PM' || b.round === '08:00 PM' || b.targetSlot === '08:00 PM')).length;
-    const cnt11 = allBets.filter(b => (b.timeSlot === '11:00 PM' || b.slot === '11:00 PM' || b.round === '11:00 PM' || b.targetSlot === '11:00 PM')).length;
 
-    const elCntAll = document.getElementById('bet-slot-cnt-all');
-    const elCnt12 = document.getElementById('bet-slot-cnt-12');
-    const elCnt4 = document.getElementById('bet-slot-cnt-4');
-    const elCnt8 = document.getElementById('bet-slot-cnt-8');
-    const elCnt11 = document.getElementById('bet-slot-cnt-11');
+    // 1. Calculate Date Badge Counts across all active bets
+    const cntToday = allBets.filter(b => this.matchesBetDate(b, 'TODAY', '', now)).length;
+    const cntYesterday = allBets.filter(b => this.matchesBetDate(b, 'YESTERDAY', '', now)).length;
+    const cntTomorrow = allBets.filter(b => this.matchesBetDate(b, 'TOMORROW', '', now)).length;
+    const cntAllDate = allBets.length;
 
-    if (elCntAll) elCntAll.textContent = cntAll;
-    if (elCnt12) elCnt12.textContent = cnt12;
-    if (elCnt4) elCnt4.textContent = cnt4;
-    if (elCnt8) elCnt8.textContent = cnt8;
-    if (elCnt11) elCnt11.textContent = cnt11;
+    const elDateToday = document.getElementById('bet-date-cnt-today');
+    const elDateYest = document.getElementById('bet-date-cnt-yesterday');
+    const elDateTom = document.getElementById('bet-date-cnt-tomorrow');
+    const elDateAll = document.getElementById('bet-date-cnt-all');
 
-    // Filter bets based on selected slot
-    let filteredBets = allBets;
-    if (filter !== 'ALL') {
-      filteredBets = allBets.filter(b => (b.timeSlot === filter || b.slot === filter || b.round === filter || b.targetSlot === filter));
-    }
+    if (elDateToday) elDateToday.textContent = cntToday;
+    if (elDateYest) elDateYest.textContent = cntYesterday;
+    if (elDateTom) elDateTom.textContent = cntTomorrow;
+    if (elDateAll) elDateAll.textContent = cntAllDate;
 
-    const totalCount = filteredBets.length;
-    const totalCoins = filteredBets.reduce((sum, b) => sum + (Number(b.amount) || Number(b.coins) || 0), 0);
-
-    if (this.adminActiveBetsSummary) {
-      if (filter === 'ALL') {
-        this.adminActiveBetsSummary.textContent = `${totalCount} Active Bet${totalCount === 1 ? '' : 's'} (💰 ${totalCoins.toLocaleString()} IHD Coins Pool)`;
-      } else {
-        this.adminActiveBetsSummary.textContent = `${filter}: ${totalCount} Bet${totalCount === 1 ? '' : 's'} (💰 ${totalCoins.toLocaleString()} IHD Pool)`;
-      }
-    }
-
-    // Update active state on filter buttons
-    document.querySelectorAll('.admin-bet-slot-filter').forEach(btn => {
-      if (btn.getAttribute('data-slot') === filter) {
+    // Highlight active Date pill
+    document.querySelectorAll('.admin-bet-date-filter').forEach(btn => {
+      if (btn.getAttribute('data-date') === dFilter) {
         btn.classList.add('active');
       } else {
         btn.classList.remove('active');
       }
     });
 
-    if (filteredBets.length === 0) {
+    // 2. Filter bets by the selected Date first
+    let dateFilteredBets = allBets.filter(b => this.matchesBetDate(b, dFilter, this.currentAdminBetCustomDate, now));
+
+    // 3. Recalculate Slot Counts for this selected Date
+    const cntSlotAll = dateFilteredBets.length;
+    const cnt12 = dateFilteredBets.filter(b => (b.timeSlot === '12:00 PM' || b.slot === '12:00 PM' || b.round === '12:00 PM' || b.targetSlot === '12:00 PM')).length;
+    const cnt4 = dateFilteredBets.filter(b => (b.timeSlot === '04:00 PM' || b.slot === '04:00 PM' || b.round === '04:00 PM' || b.targetSlot === '04:00 PM')).length;
+    const cnt8 = dateFilteredBets.filter(b => (b.timeSlot === '08:00 PM' || b.slot === '08:00 PM' || b.round === '08:00 PM' || b.targetSlot === '08:00 PM')).length;
+    const cnt11 = dateFilteredBets.filter(b => (b.timeSlot === '11:00 PM' || b.slot === '11:00 PM' || b.round === '11:00 PM' || b.targetSlot === '11:00 PM')).length;
+
+    const elSlotAll = document.getElementById('bet-slot-cnt-all');
+    const elSlot12 = document.getElementById('bet-slot-cnt-12');
+    const elSlot4 = document.getElementById('bet-slot-cnt-4');
+    const elSlot8 = document.getElementById('bet-slot-cnt-8');
+    const elSlot11 = document.getElementById('bet-slot-cnt-11');
+
+    if (elSlotAll) elSlotAll.textContent = cntSlotAll;
+    if (elSlot12) elSlot12.textContent = cnt12;
+    if (elSlot4) elSlot4.textContent = cnt4;
+    if (elSlot8) elSlot8.textContent = cnt8;
+    if (elSlot11) elSlot11.textContent = cnt11;
+
+    // Highlight active Slot pill
+    document.querySelectorAll('.admin-bet-slot-filter').forEach(btn => {
+      if (btn.getAttribute('data-slot') === sFilter) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    // 4. Filter by selected Slot
+    let finalBets = dateFilteredBets;
+    if (sFilter !== 'ALL') {
+      finalBets = dateFilteredBets.filter(b => (b.timeSlot === sFilter || b.slot === sFilter || b.round === sFilter || b.targetSlot === sFilter));
+    }
+
+    const totalCount = finalBets.length;
+    const totalCoins = finalBets.reduce((sum, b) => sum + (Number(b.amount) || Number(b.coins) || 0), 0);
+
+    // Update viewing badge & summary text
+    let dateLabel = 'Today';
+    if (dFilter === 'YESTERDAY') dateLabel = 'Yesterday';
+    else if (dFilter === 'TOMORROW') dateLabel = 'Tomorrow';
+    else if (dFilter === 'ALL') dateLabel = 'All Dates';
+    else if (dFilter === 'CUSTOM') dateLabel = this.currentAdminBetCustomDate || 'Custom Date';
+
+    if (this.adminActiveBetsViewingBadge) {
+      this.adminActiveBetsViewingBadge.textContent = `Viewing: ${dateLabel} • ${sFilter}`;
+    }
+
+    if (this.adminActiveBetsSummary) {
+      this.adminActiveBetsSummary.textContent = `[${dateLabel} | ${sFilter}]: ${totalCount} Active Bet${totalCount === 1 ? '' : 's'} (💰 ${totalCoins.toLocaleString()} IHD Pool)`;
+    }
+
+    if (finalBets.length === 0) {
       this.adminActiveBetsTableBody.innerHTML = `
         <tr>
           <td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
-            ${filter === 'ALL' 
-              ? 'No active player predictions right now.' 
-              : `No active player predictions for <strong>${filter}</strong> round.`}
+            No active player predictions found for <strong>${dateLabel}</strong> ${sFilter !== 'ALL' ? `(${sFilter} round)` : ''}.
           </td>
         </tr>
       `;
       return;
     }
 
+    // Render table rows
     this.adminActiveBetsTableBody.innerHTML = '';
-    filteredBets.forEach(b => {
+    finalBets.forEach(b => {
       const pid = b.memberId || b.member_id || b.userId || b.playerId || b.partyId || '--';
       const cust = (this.customersDb && this.customersDb[pid]) ? this.customersDb[pid] : null;
       const pName = b.name || b.playerName || b.partyName || b.memberName || (cust ? cust.name : '') || pid || 'Player';
@@ -5532,13 +5656,16 @@ class SpinWheelApp {
     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
     const allActive = Array.isArray(this.activeBets) ? this.activeBets : [];
 
-    let filtered = allActive;
+    const dFilter = this.currentAdminBetDateFilter || 'TODAY';
+    let dateFiltered = allActive.filter(b => this.matchesBetDate(b, dFilter, this.currentAdminBetCustomDate, now));
+
+    let filtered = dateFiltered;
     let fileSlotTag = 'all_active';
     let targetSlotTitle = 'All Slots';
     let cutoffInfoStr = '--';
 
     if (slotLabel && slotLabel !== 'ALL') {
-      filtered = allActive.filter(b => {
+      filtered = dateFiltered.filter(b => {
         const s = b.timeSlot || b.slot || b.round || b.targetSlot || '';
         return s === slotLabel;
       });
@@ -5551,6 +5678,11 @@ class SpinWheelApp {
         cutoffD.setHours(slotObj.hour, slotObj.min - 30, 0, 0);
         cutoffInfoStr = formatTime12(cutoffD);
       }
+    }
+
+    let dateTag = dFilter.toLowerCase();
+    if (dFilter === 'CUSTOM' && this.currentAdminBetCustomDate) {
+      dateTag = this.currentAdminBetCustomDate;
     }
 
     const totalCoins = filtered.reduce((sum, b) => sum + (Number(b.amount) || Number(b.coins) || 0), 0);
@@ -5663,6 +5795,7 @@ class SpinWheelApp {
       appName: 'Num Ledger Pro',
       fileType: slotLabel === 'ALL' ? 'NUM_LEDGER_PRO_ALL_ACTIVE_ENTRIES' : 'NUM_LEDGER_PRO_SLOT_ENTRIES',
       version: '6.0',
+      dateFilter: dFilter,
       targetSlot: targetSlotTitle,
       spinTime: targetSlotTitle,
       bettingCutoff: cutoffInfoStr,
@@ -5682,7 +5815,7 @@ class SpinWheelApp {
       ledger: entries
     };
 
-    const filename = `num_ledger_pro_${fileSlotTag}_entries_${dateStr}_${timeStr}.json`;
+    const filename = `num_ledger_pro_${dateTag}_${fileSlotTag}_entries_${dateStr}_${timeStr}.json`;
     const jsonStr = JSON.stringify(exportData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -5694,7 +5827,7 @@ class SpinWheelApp {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    this.showAdminCreditFeedback(`✅ Exported ${entries.length} entries for ${targetSlotTitle} to ${filename}!`, true);
+    this.showAdminCreditFeedback(`✅ Exported ${entries.length} entries for ${dateTag.toUpperCase()} - ${targetSlotTitle} to ${filename}!`, true);
     if (this.audio) this.audio.playTick();
   }
 

@@ -1111,26 +1111,44 @@
                   </div>
                 </div>
 
-                <!-- Per-Slot Filter & 1-Click Export Toolbar -->
-                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.45); border:1px solid rgba(0,240,255,0.3); border-radius:6px; padding:6px 10px; margin-bottom:0.75rem; flex-wrap:wrap; gap:8px;">
-                  <!-- Filter Slot Pills -->
-                  <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                    <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">Filter Slot:</span>
-                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter active" data-slot="ALL">All Slots (<span id="bet-slot-cnt-all">0</span>)</button>
-                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="12:00 PM">12:00 PM (<span id="bet-slot-cnt-12">0</span>)</button>
-                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="04:00 PM">04:00 PM (<span id="bet-slot-cnt-4">0</span>)</button>
-                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="08:00 PM">08:00 PM (<span id="bet-slot-cnt-8">0</span>)</button>
-                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="11:00 PM">11:00 PM (<span id="bet-slot-cnt-11">0</span>)</button>
+                <!-- Per-Date & Per-Slot Multi-Filter & 1-Click Export Toolbar -->
+                <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(0,240,255,0.3); border-radius:8px; padding:8px 12px; margin-bottom:0.75rem; display:flex; flex-direction:column; gap:8px;">
+                  <!-- Row 1: Date Filter Row (Defaults to Today) -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:6px;">
+                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                      <span style="font-size:0.72rem; color:#ffd700; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">📅 Date Filter:</span>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter active" data-date="TODAY">📅 Today (<span id="bet-date-cnt-today">0</span>)</button>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="YESTERDAY">📅 Yesterday (<span id="bet-date-cnt-yesterday">0</span>)</button>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="TOMORROW">📅 Tomorrow (<span id="bet-date-cnt-tomorrow">0</span>)</button>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="ALL">🌐 All Dates (<span id="bet-date-cnt-all">0</span>)</button>
+                      <input type="date" id="admin-bet-date-picker" title="Select Specific Date" style="padding:2px 6px; font-size:0.7rem; color:#00f0ff; background:rgba(20,27,45,0.9); border:1px solid rgba(0,240,255,0.4); border-radius:4px; outline:none; cursor:pointer;">
+                    </div>
+                    <span id="admin-active-bets-viewing-badge" style="font-size:0.72rem; color:#00f0ff; font-weight:700; background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.3); padding:2px 8px; border-radius:12px;">
+                      Viewing: Today
+                    </span>
                   </div>
 
-                  <!-- 1-Click Individual Slot JSON Export Buttons -->
-                  <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                    <span style="font-size:0.7rem; color:#ffd700; font-weight:700;">📥 Per-Slot Export:</span>
-                    <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('12:00 PM')" title="Export only 12:00 PM Slot JSON">12 PM</button>
-                    <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('04:00 PM')" title="Export only 04:00 PM Slot JSON">04 PM</button>
-                    <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('08:00 PM')" title="Export only 08:00 PM Slot JSON">08 PM</button>
-                    <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('11:00 PM')" title="Export only 11:00 PM Slot JSON">11 PM</button>
-                    <button type="button" class="btn btn-gold btn-xs" style="color:#000; font-weight:800; font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('ALL')" title="Export All Active Entries Combined">All Active</button>
+                  <!-- Row 2: Slot Filter Row & 1-Click Export Toolbar -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <!-- Filter Slot Pills -->
+                    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                      <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">🎰 Filter Slot:</span>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter active" data-slot="ALL">All Slots (<span id="bet-slot-cnt-all">0</span>)</button>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="12:00 PM">12:00 PM (<span id="bet-slot-cnt-12">0</span>)</button>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="04:00 PM">04:00 PM (<span id="bet-slot-cnt-4">0</span>)</button>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="08:00 PM">08:00 PM (<span id="bet-slot-cnt-8">0</span>)</button>
+                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="11:00 PM">11:00 PM (<span id="bet-slot-cnt-11">0</span>)</button>
+                    </div>
+
+                    <!-- 1-Click Individual Slot JSON Export Buttons -->
+                    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                      <span style="font-size:0.7rem; color:#ffd700; font-weight:700;">📥 Per-Slot Export:</span>
+                      <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('12:00 PM')" title="Export only 12:00 PM Slot JSON">12 PM</button>
+                      <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('04:00 PM')" title="Export only 04:00 PM Slot JSON">04 PM</button>
+                      <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('08:00 PM')" title="Export only 08:00 PM Slot JSON">08 PM</button>
+                      <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('11:00 PM')" title="Export only 11:00 PM Slot JSON">11 PM</button>
+                      <button type="button" class="btn btn-gold btn-xs" style="color:#000; font-weight:800; font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('ALL')" title="Export All Active Entries Combined">All Active</button>
+                    </div>
                   </div>
                 </div>
 
