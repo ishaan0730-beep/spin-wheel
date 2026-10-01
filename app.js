@@ -1588,12 +1588,22 @@ class SpinWheelApp {
   loadLocalNotificationConfig() {
     try {
       const saved = localStorage.getItem(STATE_KEYS.NOTIFICATION_CONFIG);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            telegramBotToken: parsed.telegramBotToken || '',
+            telegramChatId: parsed.telegramChatId || '8187881990',
+            telegramEnabled: parsed.telegramEnabled !== false,
+            whatsappNumber: parsed.whatsappNumber || ''
+          };
+        }
+      }
     } catch (e) {}
     return {
       telegramBotToken: '',
-      telegramChatId: '',
-      telegramEnabled: false,
+      telegramChatId: '8187881990',
+      telegramEnabled: true,
       whatsappNumber: ''
     };
   }

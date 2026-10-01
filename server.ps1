@@ -207,6 +207,8 @@ public class NativeHttpServer {
                                     if (currentObj != null && incomingObj != null) {
                                         foreach (KeyValuePair<string, object> kvp in incomingObj) {
                                             var inDep = kvp.Value as Dictionary<string, object>;
+                                            var inList = kvp.Value as System.Collections.IEnumerable;
+
                                             if (kvp.Key == "depositConfig" && inDep != null) {
                                                 var curDep = (currentObj.ContainsKey("depositConfig") && currentObj["depositConfig"] is Dictionary<string, object>) 
                                                     ? (Dictionary<string, object>)currentObj["depositConfig"] 
@@ -228,9 +230,116 @@ public class NativeHttpServer {
                                                     ? (Dictionary<string, object>)currentObj["customersDb"] 
                                                     : new Dictionary<string, object>();
                                                 foreach (KeyValuePair<string, object> cKvp in inDep) {
-                                                    curCust[cKvp.Key] = cKvp.Value;
+                                                    var inUser = cKvp.Value as Dictionary<string, object>;
+                                                    if (inUser != null) {
+                                                        var curUser = (curCust.ContainsKey(cKvp.Key) && curCust[cKvp.Key] is Dictionary<string, object>)
+                                                            ? (Dictionary<string, object>)curCust[cKvp.Key]
+                                                            : new Dictionary<string, object>();
+                                                        foreach (KeyValuePair<string, object> uKvp in inUser) {
+                                                            curUser[uKvp.Key] = uKvp.Value;
+                                                        }
+                                                        curCust[cKvp.Key] = curUser;
+                                                    } else {
+                                                        curCust[cKvp.Key] = cKvp.Value;
+                                                    }
                                                 }
                                                 currentObj["customersDb"] = curCust;
+                                            } else if (kvp.Key == "deposits" && inList != null) {
+                                                var curList = (currentObj.ContainsKey("deposits") && currentObj["deposits"] is System.Collections.IEnumerable)
+                                                    ? (System.Collections.IEnumerable)currentObj["deposits"]
+                                                    : new object[0];
+
+                                                var depMap = new Dictionary<string, Dictionary<string, object>>();
+                                                foreach (object item in curList) {
+                                                    var d = item as Dictionary<string, object>;
+                                                    if (d != null && d.ContainsKey("id") && d["id"] != null) {
+                                                        depMap[d["id"].ToString()] = d;
+                                                    }
+                                                }
+                                                foreach (object item in inList) {
+                                                    var d = item as Dictionary<string, object>;
+                                                    if (d != null && d.ContainsKey("id") && d["id"] != null) {
+                                                        string idStr = d["id"].ToString();
+                                                        if (depMap.ContainsKey(idStr)) {
+                                                            foreach (KeyValuePair<string, object> field in d) {
+                                                                depMap[idStr][field.Key] = field.Value;
+                                                            }
+                                                        } else {
+                                                            depMap[idStr] = d;
+                                                        }
+                                                    }
+                                                }
+                                                var list = new List<Dictionary<string, object>>(depMap.Values);
+                                                list.Sort(delegate(Dictionary<string, object> a, Dictionary<string, object> b) {
+                                                    long tA = (a.ContainsKey("requestedAt") && a["requestedAt"] != null) ? Convert.ToInt64(a["requestedAt"]) : 0;
+                                                    long tB = (b.ContainsKey("requestedAt") && b["requestedAt"] != null) ? Convert.ToInt64(b["requestedAt"]) : 0;
+                                                    return tB.CompareTo(tA);
+                                                });
+                                                currentObj["deposits"] = list.ToArray();
+                                            } else if (kvp.Key == "withdrawals" && inList != null) {
+                                                var curList = (currentObj.ContainsKey("withdrawals") && currentObj["withdrawals"] is System.Collections.IEnumerable)
+                                                    ? (System.Collections.IEnumerable)currentObj["withdrawals"]
+                                                    : new object[0];
+
+                                                var wdMap = new Dictionary<string, Dictionary<string, object>>();
+                                                foreach (object item in curList) {
+                                                    var w = item as Dictionary<string, object>;
+                                                    if (w != null && w.ContainsKey("id") && w["id"] != null) {
+                                                        wdMap[w["id"].ToString()] = w;
+                                                    }
+                                                }
+                                                foreach (object item in inList) {
+                                                    var w = item as Dictionary<string, object>;
+                                                    if (w != null && w.ContainsKey("id") && w["id"] != null) {
+                                                        string idStr = w["id"].ToString();
+                                                        if (wdMap.ContainsKey(idStr)) {
+                                                            foreach (KeyValuePair<string, object> field in w) {
+                                                                wdMap[idStr][field.Key] = field.Value;
+                                                            }
+                                                        } else {
+                                                            wdMap[idStr] = w;
+                                                        }
+                                                    }
+                                                }
+                                                var list = new List<Dictionary<string, object>>(wdMap.Values);
+                                                list.Sort(delegate(Dictionary<string, object> a, Dictionary<string, object> b) {
+                                                    long tA = (a.ContainsKey("requestedAt") && a["requestedAt"] != null) ? Convert.ToInt64(a["requestedAt"]) : 0;
+                                                    long tB = (b.ContainsKey("requestedAt") && b["requestedAt"] != null) ? Convert.ToInt64(b["requestedAt"]) : 0;
+                                                    return tB.CompareTo(tA);
+                                                });
+                                                currentObj["withdrawals"] = list.ToArray();
+                                            } else if (kvp.Key == "activeBets" && inList != null) {
+                                                var curList = (currentObj.ContainsKey("activeBets") && currentObj["activeBets"] is System.Collections.IEnumerable)
+                                                    ? (System.Collections.IEnumerable)currentObj["activeBets"]
+                                                    : new object[0];
+
+                                                var betMap = new Dictionary<string, Dictionary<string, object>>();
+                                                foreach (object item in curList) {
+                                                    var b = item as Dictionary<string, object>;
+                                                    if (b != null && b.ContainsKey("id") && b["id"] != null) {
+                                                        betMap[b["id"].ToString()] = b;
+                                                    }
+                                                }
+                                                foreach (object item in inList) {
+                                                    var b = item as Dictionary<string, object>;
+                                                    if (b != null && b.ContainsKey("id") && b["id"] != null) {
+                                                        string idStr = b["id"].ToString();
+                                                        if (betMap.ContainsKey(idStr)) {
+                                                            foreach (KeyValuePair<string, object> field in b) {
+                                                                betMap[idStr][field.Key] = field.Value;
+                                                            }
+                                                        } else {
+                                                            betMap[idStr] = b;
+                                                        }
+                                                    }
+                                                }
+                                                var list = new List<Dictionary<string, object>>(betMap.Values);
+                                                list.Sort(delegate(Dictionary<string, object> a, Dictionary<string, object> b) {
+                                                    long tA = (a.ContainsKey("timestamp") && a["timestamp"] != null) ? Convert.ToInt64(a["timestamp"]) : 0;
+                                                    long tB = (b.ContainsKey("timestamp") && b["timestamp"] != null) ? Convert.ToInt64(b["timestamp"]) : 0;
+                                                    return tB.CompareTo(tA);
+                                                });
+                                                currentObj["activeBets"] = list.ToArray();
                                             } else {
                                                 currentObj[kvp.Key] = kvp.Value;
                                             }
