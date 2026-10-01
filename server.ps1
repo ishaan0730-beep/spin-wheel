@@ -23,6 +23,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Collections.Generic;
+using System.Web.Script.Serialization;
 
 public class NativeHttpServer {
     private TcpListener listener;
@@ -72,9 +74,10 @@ public class NativeHttpServer {
                     ""spinTrigger"": null,
                     ""customersDb"": {},
                     ""activeBets"": [],
+                    ""deletedBetIds"": [],
                     ""withdrawals"": [],
                     ""deposits"": [],
-                    ""depositConfig"": { ""upiId"": ""master@upi"", ""accountName"": ""Master Admin"", ""qrImageUrl"": """", ""minDeposit"": 100, ""instructions"": ""Scan QR with PhonePe / Google Pay / Paytm. Pay and enter 12-digit UTR/Txn ID & upload payment screenshot."" },
+                    ""depositConfig"": { ""upiId"": ""9041062733@PTSBI"", ""accountName"": ""DEEP"", ""qrImageUrl"": """", ""minDeposit"": 100, ""instructions"": ""1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below."" },
                     ""notificationConfig"": { ""telegramBotToken"": """", ""telegramChatId"": """", ""telegramEnabled"": false, ""whatsappNumber"": """" },
                     ""version"": 1
                 }";
@@ -193,7 +196,53 @@ public class NativeHttpServer {
                         string bodyJson = Encoding.UTF8.GetString(bodyBuffer, 0, bodyBytesRead);
                         if (!string.IsNullOrWhiteSpace(bodyJson) && bodyJson.Trim().StartsWith("{")) {
                             lock (stateLock) {
-                                File.WriteAllText(stateFile, bodyJson, new UTF8Encoding(false));
+                                try {
+                                    EnsureDefaultState();
+                                    var serializer = new JavaScriptSerializer();
+                                    serializer.MaxJsonLength = 50 * 1024 * 1024;
+                                    string currentJson = File.ReadAllText(stateFile, Encoding.UTF8);
+                                    var currentObj = serializer.Deserialize<Dictionary<string, object>>(currentJson);
+                                    var incomingObj = serializer.Deserialize<Dictionary<string, object>>(bodyJson);
+
+                                    if (currentObj != null && incomingObj != null) {
+                                        foreach (KeyValuePair<string, object> kvp in incomingObj) {
+                                            var inDep = kvp.Value as Dictionary<string, object>;
+                                            if (kvp.Key == "depositConfig" && inDep != null) {
+                                                var curDep = (currentObj.ContainsKey("depositConfig") && currentObj["depositConfig"] is Dictionary<string, object>) 
+                                                    ? (Dictionary<string, object>)currentObj["depositConfig"] 
+                                                    : new Dictionary<string, object>();
+                                                foreach (KeyValuePair<string, object> dKvp in inDep) {
+                                                    curDep[dKvp.Key] = dKvp.Value;
+                                                }
+                                                currentObj["depositConfig"] = curDep;
+                                            } else if (kvp.Key == "notificationConfig" && inDep != null) {
+                                                var curNotif = (currentObj.ContainsKey("notificationConfig") && currentObj["notificationConfig"] is Dictionary<string, object>) 
+                                                    ? (Dictionary<string, object>)currentObj["notificationConfig"] 
+                                                    : new Dictionary<string, object>();
+                                                foreach (KeyValuePair<string, object> nKvp in inDep) {
+                                                    curNotif[nKvp.Key] = nKvp.Value;
+                                                }
+                                                currentObj["notificationConfig"] = curNotif;
+                                            } else if (kvp.Key == "customersDb" && inDep != null) {
+                                                var curCust = (currentObj.ContainsKey("customersDb") && currentObj["customersDb"] is Dictionary<string, object>) 
+                                                    ? (Dictionary<string, object>)currentObj["customersDb"] 
+                                                    : new Dictionary<string, object>();
+                                                foreach (KeyValuePair<string, object> cKvp in inDep) {
+                                                    curCust[cKvp.Key] = cKvp.Value;
+                                                }
+                                                currentObj["customersDb"] = curCust;
+                                            } else {
+                                                currentObj[kvp.Key] = kvp.Value;
+                                            }
+                                        }
+                                        string mergedJson = serializer.Serialize(currentObj);
+                                        File.WriteAllText(stateFile, mergedJson, new UTF8Encoding(false));
+                                    } else {
+                                        File.WriteAllText(stateFile, bodyJson, new UTF8Encoding(false));
+                                    }
+                                } catch {
+                                    File.WriteAllText(stateFile, bodyJson, new UTF8Encoding(false));
+                                }
                             }
                         }
 
@@ -229,34 +278,41 @@ public class NativeHttpServer {
                     byte[] headerBytes = Encoding.UTF8.GetBytes(header);
                     stream.Write(headerBytes, 0, headerBytes.Length);
                     stream.Write(fileBytes, 0, fileBytes.Length);
+                    stream.Flush();
+                    return;
                 } else {
-                    byte[] notFound = Encoding.UTF8.GetBytes("404 Not Found");
+                    byte[] notFoundBytes = Encoding.UTF8.GetBytes("File Not Found: " + url);
                     string header = "HTTP/1.1 404 Not Found\r\n" +
-                                    "Content-Type: text/plain\r\n" +
-                                    "Content-Length: " + notFound.Length + "\r\n" +
+                                    "Content-Type: text/plain; charset=utf-8\r\n" +
+                                    "Content-Length: " + notFoundBytes.Length + "\r\n" +
+                                    "Access-Control-Allow-Origin: *\r\n" +
                                     "Connection: close\r\n\r\n";
                     byte[] headerBytes = Encoding.UTF8.GetBytes(header);
                     stream.Write(headerBytes, 0, headerBytes.Length);
-                    stream.Write(notFound, 0, notFound.Length);
+                    stream.Write(notFoundBytes, 0, notFoundBytes.Length);
+                    stream.Flush();
+                    return;
                 }
-                stream.Flush();
             }
         } catch {}
-        finally {
-            try { client.Close(); } catch {}
-        }
     }
 
     private string GetMime(string ext) {
         switch (ext) {
-            case ".html": return "text/html; charset=utf-8";
+            case ".html": case ".htm": return "text/html; charset=utf-8";
             case ".css": return "text/css; charset=utf-8";
             case ".js": return "application/javascript; charset=utf-8";
             case ".json": return "application/json; charset=utf-8";
             case ".png": return "image/png";
-            case ".jpg": return "image/jpeg";
+            case ".jpg": case ".jpeg": return "image/jpeg";
+            case ".gif": return "image/gif";
             case ".svg": return "image/svg+xml";
             case ".ico": return "image/x-icon";
+            case ".mp3": return "audio/mpeg";
+            case ".wav": return "audio/wav";
+            case ".woff": return "font/woff";
+            case ".woff2": return "font/woff2";
+            case ".ttf": return "font/ttf";
             default: return "application/octet-stream";
         }
     }
@@ -268,7 +324,7 @@ public class NativeHttpServer {
 }
 '@
 
-Add-Type -TypeDefinition $code -Language CSharp
+Add-Type -ReferencedAssemblies "System.Web.Extensions" -TypeDefinition $code -Language CSharp
 
 $server = New-Object NativeHttpServer($folder)
 $port = $server.ActivePort

@@ -25,11 +25,11 @@ let globalState = {
   withdrawals: [],
   deposits: [],
   depositConfig: {
-    upiId: 'master@upi',
-    accountName: 'Master Admin',
+    upiId: '9041062733@PTSBI',
+    accountName: 'DEEP',
     qrImageUrl: '',
     minDeposit: 100,
-    instructions: 'Scan QR with PhonePe / Google Pay / Paytm. Pay and enter 12-digit UTR/Txn ID & upload payment screenshot.'
+    instructions: '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
   },
   notificationConfig: {
     telegramBotToken: '',
@@ -225,11 +225,11 @@ export default function handler(req, res) {
         withdrawals: globalState.withdrawals || [],
         deposits: globalState.deposits || [],
         depositConfig: {
-          upiId: globalState.depositConfig?.upiId || 'master@upi',
-          accountName: globalState.depositConfig?.accountName || 'Master Admin',
+          upiId: globalState.depositConfig?.upiId || '9041062733@PTSBI',
+          accountName: globalState.depositConfig?.accountName || 'DEEP',
           qrImageUrl: globalState.depositConfig?.qrImageUrl || '',
           minDeposit: globalState.depositConfig?.minDeposit || 100,
-          instructions: globalState.depositConfig?.instructions || ''
+          instructions: globalState.depositConfig?.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
         },
         notificationConfig: {
           telegramBotToken: globalState.notificationConfig?.telegramBotToken || '',

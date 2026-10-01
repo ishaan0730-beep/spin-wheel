@@ -891,6 +891,8 @@ class SpinWheelApp {
     this.renderAllSpinHistoryModalList();
     this.renderAdminSpinHistoryTable();
     this.populateAdminControls();
+    this.renderCustomerDepositUI();
+    this.populateMasterConfigInputs();
     this.startTimerEngine();
 
     // 1. Start Instant Real-Time Cloud Synchronization
@@ -1229,23 +1231,19 @@ class SpinWheelApp {
       this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
     }
 
-    // 12. Master Deposit & Notification Configurations (PRESERVE LOCAL DATA IF REMOTE IS EMPTY)
+    // 12. Master Deposit & Notification Configurations
     if (state.depositConfig && typeof state.depositConfig === 'object') {
       const remote = state.depositConfig;
-      const local = this.depositConfig || {};
       this.depositConfig = {
-        upiId: (remote.upiId && remote.upiId !== 'master@upi') ? remote.upiId : (local.upiId || remote.upiId || 'master@upi'),
-        accountName: (remote.accountName && remote.accountName !== 'Master Admin') ? remote.accountName : (local.accountName || remote.accountName || 'Master Admin'),
-        minDeposit: remote.minDeposit !== undefined ? remote.minDeposit : (local.minDeposit || 100),
-        instructions: (remote.instructions && remote.instructions.trim()) ? remote.instructions : (local.instructions || remote.instructions || ''),
-        qrImageUrl: (remote.qrImageUrl && remote.qrImageUrl.trim()) ? remote.qrImageUrl : (local.qrImageUrl || '')
+        upiId: (remote.upiId && remote.upiId.trim()) ? remote.upiId.trim() : (this.depositConfig?.upiId || '9041062733@PTSBI'),
+        accountName: (remote.accountName && remote.accountName.trim()) ? remote.accountName.trim() : (this.depositConfig?.accountName || 'DEEP'),
+        minDeposit: remote.minDeposit !== undefined ? Number(remote.minDeposit) : (this.depositConfig?.minDeposit || 100),
+        instructions: (remote.instructions && remote.instructions.trim()) ? remote.instructions : (this.depositConfig?.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'),
+        qrImageUrl: remote.qrImageUrl !== undefined ? remote.qrImageUrl : (this.depositConfig?.qrImageUrl || '')
       };
       this.saveDepositConfig(this.depositConfig);
       this.renderCustomerDepositUI();
       this.populateMasterConfigInputs();
-      if (this.depositConfig.qrImageUrl && !remote.qrImageUrl) {
-        this.pushStateToServer({ depositConfig: this.depositConfig });
-      }
     }
     if (state.notificationConfig && typeof state.notificationConfig === 'object') {
       const remote = state.notificationConfig;
@@ -1332,6 +1330,9 @@ class SpinWheelApp {
     this.saveCustomersDB(this.customersDb);
     this.saveActiveBets(this.activeBets);
     this.saveWithdrawals(this.withdrawals);
+    this.saveDeposits(this.deposits);
+    if (this.depositConfig) this.saveDepositConfig(this.depositConfig);
+    if (this.notificationConfig) this.saveNotificationConfig(this.notificationConfig);
 
     // 1. Broadcast immediately to all connected Mobile & PC devices via MQTT WebSocket & BroadcastChannel
     if (this.cloudSync) {
@@ -1555,14 +1556,25 @@ class SpinWheelApp {
   loadLocalDepositConfig() {
     try {
       const saved = localStorage.getItem(STATE_KEYS.DEPOSIT_CONFIG);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            upiId: (parsed.upiId && parsed.upiId !== 'master@upi') ? parsed.upiId : '9041062733@PTSBI',
+            accountName: (parsed.accountName && parsed.accountName !== 'Master Admin') ? parsed.accountName : 'DEEP',
+            qrImageUrl: parsed.qrImageUrl || '',
+            minDeposit: parsed.minDeposit || 100,
+            instructions: parsed.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
+          };
+        }
+      }
     } catch (e) {}
     return {
-      upiId: 'master@upi',
-      accountName: 'Master Admin',
+      upiId: '9041062733@PTSBI',
+      accountName: 'DEEP',
       qrImageUrl: '',
       minDeposit: 100,
-      instructions: '1. Scan QR with PhonePe / GPay / Paytm & pay. 2. Enter 12-digit UTR No. & upload Screenshot below.'
+      instructions: '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
     };
   }
 
@@ -1617,10 +1629,10 @@ class SpinWheelApp {
 
   renderCustomerDepositUI() {
     const cfg = this.depositConfig || {};
-    const upiId = cfg.upiId || 'master@upi';
-    const accName = cfg.accountName || 'Master Admin';
+    const upiId = (cfg.upiId && cfg.upiId !== 'master@upi') ? cfg.upiId : '9041062733@PTSBI';
+    const accName = (cfg.accountName && cfg.accountName !== 'Master Admin') ? cfg.accountName : 'DEEP';
     const minDep = cfg.minDeposit || 100;
-    const instructions = cfg.instructions || '1. Scan QR with PhonePe / GPay / Paytm & pay. 2. Enter 12-digit UTR No. & upload Screenshot below.';
+    const instructions = cfg.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.';
 
     if (this.custDepositUpiId) this.custDepositUpiId.textContent = upiId;
     if (this.custDepositAccName) this.custDepositAccName.textContent = accName;
@@ -1634,14 +1646,14 @@ class SpinWheelApp {
     }
 
     if (this.custDepositQrImg) {
-      if (cfg.qrImageUrl && cfg.qrImageUrl.trim().length > 10) {
+      if (cfg.qrImageUrl && cfg.qrImageUrl.trim().length > 20) {
         this.custDepositQrImg.src = cfg.qrImageUrl;
         this.custDepositQrImg.classList.remove('hidden');
         if (this.custDepositQrFallback) this.custDepositQrFallback.classList.add('hidden');
       } else {
         // Generate high-resolution dynamic UPI payment QR
         const upiPayUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(accName)}&cu=INR`;
-        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiPayUri)}`;
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiPayUri)}`;
         this.custDepositQrImg.src = qrApiUrl;
         this.custDepositQrImg.classList.remove('hidden');
         if (this.custDepositQrFallback) this.custDepositQrFallback.classList.add('hidden');
@@ -2620,7 +2632,7 @@ class SpinWheelApp {
 
     // 1-Click Copy Master UPI ID
     this.custCopyUpiBtn?.addEventListener('click', () => {
-      const upiId = (this.depositConfig?.upiId || 'master@upi').trim();
+      const upiId = (this.depositConfig?.upiId || '9041062733@PTSBI').trim();
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(upiId).then(() => {
           const orig = this.custCopyUpiBtn.textContent;
@@ -4043,7 +4055,7 @@ class SpinWheelApp {
     const handleQrUpload = async (file) => {
       if (file) {
         try {
-          const base64 = await this.compressAndConvertImageToBase64(file, 600, 600, 0.8);
+          const base64 = await this.compressAndConvertImageToBase64(file, 400, 400, 0.85);
           if (this.adminCfgQrPreviewImg) this.adminCfgQrPreviewImg.src = base64;
           if (this.adminCfgQrPreviewImgPane) this.adminCfgQrPreviewImgPane.src = base64;
           this.adminUploadedQrBase64 = base64;
@@ -4078,11 +4090,11 @@ class SpinWheelApp {
 
     // Unified Master Settings Saver (Saves QR, UPI & Notification configs together)
     const handleSaveMasterSettings = () => {
-      const upiId = (this.adminCfgUpiId?.value || this.adminCfgUpiIdPane?.value || this.depositConfig?.upiId || '').trim() || 'master@upi';
-      const upiName = (this.adminCfgUpiName?.value || this.adminCfgUpiNamePane?.value || this.depositConfig?.accountName || '').trim() || 'Master Admin';
+      const upiId = (this.adminCfgUpiId?.value || this.adminCfgUpiIdPane?.value || this.depositConfig?.upiId || '').trim() || '9041062733@PTSBI';
+      const upiName = (this.adminCfgUpiName?.value || this.adminCfgUpiNamePane?.value || this.depositConfig?.accountName || '').trim() || 'DEEP';
       const minDep = parseInt(this.adminCfgMinDeposit?.value || this.adminCfgMinDepositPane?.value || this.depositConfig?.minDeposit, 10) || 100;
       const inst = (this.adminCfgInstructions?.value || this.adminCfgInstructionsPane?.value || this.depositConfig?.instructions || '').trim();
-      const qrUrl = this.adminUploadedQrBase64 || this.depositConfig?.qrImageUrl || '';
+      const qrUrl = this.adminUploadedQrBase64 !== undefined ? this.adminUploadedQrBase64 : (this.depositConfig?.qrImageUrl || '');
 
       this.depositConfig = {
         upiId: upiId,
@@ -4107,9 +4119,12 @@ class SpinWheelApp {
       this.saveNotificationConfig(this.notificationConfig);
 
       this.pushStateToServer({ depositConfig: this.depositConfig, notificationConfig: this.notificationConfig });
+      if (this.cloudSync) {
+        this.cloudSync.publish(this.getCompleteStatePayload({ type: 'UPDATE_DEPOSIT_CONFIG', depositConfig: this.depositConfig, notificationConfig: this.notificationConfig }));
+      }
       this.renderCustomerDepositUI();
       this.populateMasterConfigInputs();
-      this.showQrFeedback('✅ QR Code, UPI & Payment settings saved & published!', true);
+      this.showQrFeedback('✅ QR Code, UPI & Payment settings saved & published to all devices!', true);
       this.showNotificationFeedback('✅ Telegram Notification settings saved successfully!', true);
     };
 
