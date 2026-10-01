@@ -76,6 +76,7 @@
           </div>
           <button id="customer-deposit-btn" class="btn btn-gold btn-xs" style="padding:3px 8px; font-weight:800; font-size:0.72rem; border-radius:12px; margin:0 2px; background:linear-gradient(135deg, #00f0ff, #0077ff); color:#fff; border-color:#00f0ff; box-shadow:0 0 8px rgba(0,240,255,0.4);" title="Deposit / Add IHD Coins">💰 Deposit</button>
           <button id="customer-withdraw-btn" class="btn btn-gold btn-xs" style="padding:3px 8px; font-weight:800; font-size:0.72rem; border-radius:12px; margin:0 2px; color:#000;" title="Withdraw IHD Coins">💸 Withdraw</button>
+          <button id="customer-bets-btn" class="btn btn-secondary btn-xs" style="padding:3px 8px; font-weight:800; font-size:0.72rem; border-radius:12px; margin:0 2px; color:#00f0ff; border-color:rgba(0,240,255,0.4);" title="My Active Predictions & Bets History">🎯 My Bets (<span id="chip-active-bets-count">0</span>)</button>
           <button id="customer-dashboard-btn" class="icon-btn-xs" title="Player Dashboard">🪙</button>
           <button id="customer-logout-btn" class="icon-btn-xs" title="Logout">🚪</button>
         </div>
@@ -210,9 +211,12 @@
 
         <!-- ACTIVE PREDICTIONS LIST (UNLIMITED ENTRIES PER PLAYER) -->
         <div id="active-bet-notice" class="active-bet-notice hidden" style="flex-direction:column; gap:0.4rem; padding:0.6rem 0.8rem; background:rgba(46,204,113,0.06); border:1px solid rgba(46,204,113,0.35); border-radius:var(--radius-sm);">
-          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:1px solid rgba(46,204,113,0.25); padding-bottom:3px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:1px solid rgba(46,204,113,0.25); padding-bottom:3px; flex-wrap:wrap; gap:4px;">
             <span style="font-size:0.78rem; color:#2ecc71; font-weight:700;">🎯 My Active Locked Predictions (<span id="my-active-bets-count">0</span>)</span>
-            <span id="my-active-bets-pool" style="font-size:0.75rem; color:var(--primary-gold-bright); font-weight:800;">Total: 💰 0 IHD</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="my-active-bets-pool" style="font-size:0.75rem; color:var(--primary-gold-bright); font-weight:800;">Total: 💰 0 IHD</span>
+              <button type="button" id="view-my-bets-widget-btn" class="btn btn-secondary btn-xs" style="font-size:0.68rem; padding:2px 7px; color:#00f0ff; border-color:rgba(0,240,255,0.4); font-weight:700;" onclick="app.openAuthModal('bets')">📜 View All Bets</button>
+            </div>
           </div>
           <div id="my-active-bets-list" style="display:flex; flex-direction:column; gap:5px; max-height:160px; overflow-y:auto; width:100%;">
             <!-- Rendered dynamically for each entry -->
@@ -390,12 +394,13 @@
             </div>
           </div>
 
-          <!-- Customer Modal Subtabs: Deposit, Withdraw, Requests History, Profile -->
-          <div class="customer-modal-subtabs" style="display:flex; gap:4px; margin-bottom:0.85rem; background:rgba(0,0,0,0.3); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
-            <button type="button" id="dash-tab-deposit-btn" class="cust-dash-tab active" style="flex:1; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">💰 Deposit</button>
-            <button type="button" id="dash-tab-withdraw-btn" class="cust-dash-tab" style="flex:1; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">💸 Withdraw</button>
-            <button type="button" id="dash-tab-history-btn" class="cust-dash-tab" style="flex:1; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">📜 Requests (<span id="cust-requests-badge-count">0</span>)</button>
-            <button type="button" id="dash-tab-profile-btn" class="cust-dash-tab" style="flex:1; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">👤 Profile</button>
+          <!-- Customer Modal Subtabs: Deposit, Withdraw, My Bets, Requests History, Profile -->
+          <div class="customer-modal-subtabs" style="display:flex; gap:4px; margin-bottom:0.85rem; background:rgba(0,0,0,0.3); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); flex-wrap:wrap;">
+            <button type="button" id="dash-tab-deposit-btn" class="cust-dash-tab active" style="flex:1; min-width:65px; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">💰 Deposit</button>
+            <button type="button" id="dash-tab-withdraw-btn" class="cust-dash-tab" style="flex:1; min-width:65px; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">💸 Withdraw</button>
+            <button type="button" id="dash-tab-bets-btn" class="cust-dash-tab" style="flex:1; min-width:85px; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer; color:#00f0ff;">🎯 My Bets (<span id="cust-bets-badge-count">0</span>)</button>
+            <button type="button" id="dash-tab-history-btn" class="cust-dash-tab" style="flex:1; min-width:75px; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">📜 Requests (<span id="cust-requests-badge-count">0</span>)</button>
+            <button type="button" id="dash-tab-profile-btn" class="cust-dash-tab" style="flex:1; min-width:55px; padding:6px 2px; font-size:0.74rem; font-weight:700; border-radius:4px; border:none; cursor:pointer;">👤 Profile</button>
           </div>
 
           <!-- PANE 1: DEPOSIT / ADD COINS PANE -->
@@ -539,6 +544,35 @@
                 <button type="button" id="cust-submit-withdraw-btn" class="btn btn-gold btn-block">📤 Submit Withdrawal Request</button>
               </div>
             </form>
+          </div>
+
+          <!-- PANE: PLAYER PREDICTION BETS & BET HISTORY PANE -->
+          <div id="dash-bets-pane" class="dash-subtab-pane hidden">
+            <div class="history-list-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.55rem; flex-wrap:wrap; gap:4px;">
+              <div class="cust-bets-filter-tabs" style="display:flex; gap:3px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-secondary btn-xs cust-bet-flt-btn active" data-filter="ALL">All (<span id="cust-bet-all-count">0</span>)</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-bet-flt-btn" data-filter="ACTIVE" style="color:#00f0ff; font-weight:700;">⏳ Active (<span id="cust-bet-active-count">0</span>)</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-bet-flt-btn" data-filter="WON" style="color:#2ecc71; font-weight:700;">🏆 Won (<span id="cust-bet-won-count">0</span>)</button>
+                <button type="button" class="btn btn-secondary btn-xs cust-bet-flt-btn" data-filter="LOST" style="color:#e74c3c; font-weight:700;">❌ Lost (<span id="cust-bet-lost-count">0</span>)</button>
+              </div>
+              <button type="button" id="cust-refresh-bets-btn" class="btn btn-secondary btn-xs">🔄 Refresh</button>
+            </div>
+            
+            <!-- Summary Stats for Player Bets -->
+            <div class="cust-bets-summary-strip" style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,240,255,0.06); border:1px solid rgba(0,240,255,0.25); border-radius:6px; padding:0.4rem 0.6rem; margin-bottom:0.6rem; font-size:0.72rem;">
+              <div>
+                <span style="color:var(--text-muted);">Active Pool:</span>
+                <strong id="cust-active-bets-total-pool" style="color:#00f0ff; margin-left:3px;">💰 0 IHD</strong>
+              </div>
+              <div>
+                <span style="color:var(--text-muted);">Total Won (9x):</span>
+                <strong id="cust-bets-total-won-amount" style="color:#2ecc71; margin-left:3px;">💰 0 IHD</strong>
+              </div>
+            </div>
+
+            <div id="cust-bets-history-list" class="cust-history-list-box" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem;">
+              <!-- Rendered dynamically -->
+            </div>
           </div>
 
           <!-- PANE 3: REQUESTS HISTORY PANE (DEPOSITS & WITHDRAWALS) -->

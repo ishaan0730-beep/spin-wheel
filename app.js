@@ -443,12 +443,23 @@ class SpinWheelApp {
     // Customer Dashboard Subtabs & Panes
     this.dashTabDepositBtn = document.getElementById('dash-tab-deposit-btn');
     this.dashTabWithdrawBtn = document.getElementById('dash-tab-withdraw-btn');
+    this.dashTabBetsBtn = document.getElementById('dash-tab-bets-btn');
     this.dashTabHistoryBtn = document.getElementById('dash-tab-history-btn');
     this.dashTabProfileBtn = document.getElementById('dash-tab-profile-btn');
     this.dashDepositPane = document.getElementById('dash-deposit-pane');
     this.dashWithdrawPane = document.getElementById('dash-withdraw-pane');
+    this.dashBetsPane = document.getElementById('dash-bets-pane');
     this.dashHistoryPane = document.getElementById('dash-history-pane');
     this.dashProfilePane = document.getElementById('dash-profile-pane');
+    this.custBetsBadgeCount = document.getElementById('cust-bets-badge-count');
+    this.custRefreshBetsBtn = document.getElementById('cust-refresh-bets-btn');
+    this.custBetsHistoryList = document.getElementById('cust-bets-history-list');
+    this.custBetAllCount = document.getElementById('cust-bet-all-count');
+    this.custBetActiveCount = document.getElementById('cust-bet-active-count');
+    this.custBetWonCount = document.getElementById('cust-bet-won-count');
+    this.custBetLostCount = document.getElementById('cust-bet-lost-count');
+    this.custActiveBetsTotalPool = document.getElementById('cust-active-bets-total-pool');
+    this.custBetsTotalWonAmount = document.getElementById('cust-bets-total-won-amount');
 
     // Customer Deposit Elements
     this.custDepositQrImg = document.getElementById('cust-deposit-qr-img');
@@ -542,6 +553,8 @@ class SpinWheelApp {
     this.chipPlayerCoins = document.getElementById('chip-player-coins');
     this.customerDepositBtn = document.getElementById('customer-deposit-btn');
     this.customerWithdrawBtn = document.getElementById('customer-withdraw-btn');
+    this.customerBetsBtn = document.getElementById('customer-bets-btn');
+    this.chipActiveBetsCount = document.getElementById('chip-active-bets-count');
     this.customerDashboardBtn = document.getElementById('customer-dashboard-btn');
     this.customerLogoutBtn = document.getElementById('customer-logout-btn');
 
@@ -1090,11 +1103,26 @@ class SpinWheelApp {
     }
 
     if (Array.isArray(state.activeBets)) {
-      const filtered = state.activeBets.filter(b => b && b.id && !this.deletedBetIds.has(String(b.id)));
+      const betMap = new Map();
+      // 1. Add valid remote bets
+      state.activeBets.forEach(b => {
+        if (b && b.id && !this.deletedBetIds.has(String(b.id))) {
+          betMap.set(String(b.id), b);
+        }
+      });
+      // 2. Preserve local active bets that are not deleted or settled
+      (this.activeBets || []).forEach(b => {
+        if (b && b.id && !this.deletedBetIds.has(String(b.id))) {
+          if (!betMap.has(String(b.id))) {
+            betMap.set(String(b.id), b);
+          }
+        }
+      });
+      const mergedBets = Array.from(betMap.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       const currJson = JSON.stringify((this.activeBets || []).map(b => b.id));
-      const newJson = JSON.stringify(filtered.map(b => b.id));
+      const newJson = JSON.stringify(mergedBets.map(b => b.id));
       if (currJson !== newJson || state.deletedBetId) {
-        this.activeBets = filtered;
+        this.activeBets = mergedBets;
         this.saveActiveBets(this.activeBets);
         betsChanged = true;
       }
@@ -2050,14 +2078,20 @@ class SpinWheelApp {
     if (!this.authModal) return;
     this.closeSecretAdminModal();
     this.authModal.classList.remove('hidden');
-    this.updateCustomerAuthPane();
+    this.updateCustomerAuthPane(defaultMode);
     if (this.currentCustomer) {
-      if (defaultMode === 'history') {
+      if (defaultMode === 'bets') {
+        this.setCustomerDashSubtab('bets');
+      } else if (defaultMode === 'deposit') {
+        this.setCustomerDashSubtab('deposit');
+      } else if (defaultMode === 'withdraw') {
+        this.setCustomerDashSubtab('withdraw');
+      } else if (defaultMode === 'history') {
         this.setCustomerDashSubtab('history');
       } else if (defaultMode === 'profile') {
         this.setCustomerDashSubtab('profile');
       } else {
-        this.setCustomerDashSubtab('withdraw');
+        this.setCustomerDashSubtab('bets');
       }
     } else {
       if (defaultMode === 'signup') {
@@ -2089,7 +2123,7 @@ class SpinWheelApp {
     if (this.custWithdrawSuccess) this.custWithdrawSuccess.classList.add('hidden');
   }
 
-  updateCustomerAuthPane() {
+  updateCustomerAuthPane(defaultMode = null) {
     if (this.currentCustomer) {
       this.customerLoggedInView?.classList.remove('hidden');
       this.customerSubtabsBar?.classList.add('hidden');
@@ -2099,7 +2133,9 @@ class SpinWheelApp {
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
       if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD Coins`;
-      this.setCustomerDashSubtab('withdraw');
+      if (defaultMode) {
+        this.setCustomerDashSubtab(defaultMode);
+      }
     } else {
       this.customerLoggedInView?.classList.add('hidden');
       this.customerSubtabsBar?.classList.remove('hidden');
@@ -2253,10 +2289,13 @@ class SpinWheelApp {
 
     // Render all active prediction bets for the logged-in player (Unlimited Entries)
     if (this.currentCustomer) {
-      const myBets = (this.activeBets || []).filter(b => b.playerId === this.currentCustomer.id);
+      const myBets = (this.activeBets || []).filter(b => b && (b.playerId === this.currentCustomer.id || b.memberId === this.currentCustomer.id || b.userId === this.currentCustomer.id));
+      if (this.chipActiveBetsCount) this.chipActiveBetsCount.textContent = myBets.length;
+      if (this.custBetsBadgeCount) this.custBetsBadgeCount.textContent = myBets.length;
+
       if (myBets.length > 0) {
         this.activeBetNotice?.classList.remove('hidden');
-        const totalLockedCoins = myBets.reduce((sum, b) => sum + (b.amount || 0), 0);
+        const totalLockedCoins = myBets.reduce((sum, b) => sum + (Number(b.amount || b.coins || 0)), 0);
         if (this.myActiveBetsCount) this.myActiveBetsCount.textContent = myBets.length;
         if (this.myActiveBetsPool) this.myActiveBetsPool.textContent = `Total: 💰 ${totalLockedCoins.toLocaleString()} IHD`;
 
@@ -2280,6 +2319,10 @@ class SpinWheelApp {
         }
       } else {
         this.activeBetNotice?.classList.add('hidden');
+      }
+
+      if (this.dashBetsPane && !this.dashBetsPane.classList.contains('hidden')) {
+        this.renderCustomerBetsHistory(this.custBetsFilter || 'ALL');
       }
     } else {
       this.activeBetNotice?.classList.add('hidden');
@@ -2325,7 +2368,14 @@ class SpinWheelApp {
     this.forgotBackBtn?.addEventListener('click', () => this.setCustomerAuthSubtab('signin'));
 
     // Customer Dashboard & Logout buttons
-    this.customerDashboardBtn?.addEventListener('click', () => this.openAuthModal('signin'));
+    this.customerDashboardBtn?.addEventListener('click', () => this.openAuthModal('bets'));
+    this.customerBetsBtn?.addEventListener('click', () => {
+      if (this.currentCustomer) {
+        this.openAuthModal('bets');
+      } else {
+        this.openAuthModal('signin');
+      }
+    });
     this.customerDepositBtn?.addEventListener('click', () => {
       if (this.currentCustomer) {
         this.openAuthModal('deposit');
@@ -2343,13 +2393,25 @@ class SpinWheelApp {
     this.customerLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
     this.dashLogoutBtn?.addEventListener('click', () => this.handleCustomerLogout());
 
-    // Customer Dashboard Subtabs (Deposit, Withdraw, Requests History, Profile)
+    // Customer Dashboard Subtabs (Deposit, Withdraw, My Bets, Requests History, Profile)
     this.dashTabDepositBtn?.addEventListener('click', () => this.setCustomerDashSubtab('deposit'));
     this.dashTabWithdrawBtn?.addEventListener('click', () => this.setCustomerDashSubtab('withdraw'));
+    this.dashTabBetsBtn?.addEventListener('click', () => this.setCustomerDashSubtab('bets'));
     this.dashTabHistoryBtn?.addEventListener('click', () => this.setCustomerDashSubtab('history'));
     this.dashTabProfileBtn?.addEventListener('click', () => this.setCustomerDashSubtab('profile'));
     this.custRefreshHistoryBtn?.addEventListener('click', () => {
       this.pullStateFromServer().then(() => this.renderCustomerRequestsHistory(this.custHistoryFilter || 'ALL'));
+    });
+    this.custRefreshBetsBtn?.addEventListener('click', () => {
+      this.pullStateFromServer().then(() => this.renderCustomerBetsHistory(this.custBetsFilter || 'ALL'));
+    });
+
+    // Customer Bets filter buttons
+    document.querySelectorAll('.cust-bet-flt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const flt = btn.getAttribute('data-filter') || 'ALL';
+        this.renderCustomerBetsHistory(flt);
+      });
     });
 
     // Customer Deposit Quick Amount Chips (+100, +200, +500, +1000, +2000, +5000)
@@ -2750,21 +2812,27 @@ class SpinWheelApp {
 
     const btnDep = document.getElementById('dash-tab-deposit-btn');
     const btnWd = document.getElementById('dash-tab-withdraw-btn');
+    const btnBets = document.getElementById('dash-tab-bets-btn');
     const btnHist = document.getElementById('dash-tab-history-btn');
     const btnProf = document.getElementById('dash-tab-profile-btn');
 
     const paneDep = document.getElementById('dash-deposit-pane');
     const paneWd = document.getElementById('dash-withdraw-pane');
+    const paneBets = document.getElementById('dash-bets-pane');
     const paneHist = document.getElementById('dash-history-pane');
     const paneProf = document.getElementById('dash-profile-pane');
 
-    [btnDep, btnWd, btnHist, btnProf].forEach(b => b?.classList.remove('active'));
-    [paneDep, paneWd, paneHist, paneProf].forEach(p => p?.classList.add('hidden'));
+    [btnDep, btnWd, btnBets, btnHist, btnProf].forEach(b => b?.classList.remove('active'));
+    [paneDep, paneWd, paneBets, paneHist, paneProf].forEach(p => p?.classList.add('hidden'));
 
     if (tabName === 'withdraw') {
       btnWd?.classList.add('active');
       paneWd?.classList.remove('hidden');
       this.prefillBankDetails();
+    } else if (tabName === 'bets') {
+      btnBets?.classList.add('active');
+      paneBets?.classList.remove('hidden');
+      this.renderCustomerBetsHistory(this.custBetsFilter || 'ALL');
     } else if (tabName === 'history') {
       btnHist?.classList.add('active');
       paneHist?.classList.remove('hidden');
@@ -3097,6 +3165,168 @@ class SpinWheelApp {
       }
 
       this.custRequestsHistoryList.appendChild(card);
+    });
+  }
+
+  renderCustomerBetsHistory(filterType = 'ALL') {
+    this.custBetsFilter = filterType;
+    if (!this.custBetsHistoryList) return;
+    if (!this.currentCustomer) {
+      this.custBetsHistoryList.innerHTML = '<p style="color:var(--text-muted); font-size:0.75rem; text-align:center; padding:1rem;">Please sign in to view your placed and active bets.</p>';
+      return;
+    }
+
+    // Update filter active button
+    document.querySelectorAll('.cust-bet-flt-btn').forEach(btn => {
+      if (btn.getAttribute('data-filter') === filterType) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    const playerId = this.currentCustomer.id;
+    // 1. Gather all active bets for this player
+    const myActive = (this.activeBets || []).filter(b => b && (b.playerId === playerId || b.memberId === playerId || b.userId === playerId));
+    // 2. Gather settled bet history
+    const myHist = Array.isArray(this.currentCustomer.betHistory) ? this.currentCustomer.betHistory : [];
+    
+    // Combine and deduplicate by ID
+    const betMap = new Map();
+    // Historical items
+    myHist.forEach(b => {
+      if (b && b.id) betMap.set(String(b.id), b);
+    });
+    // Active bets take precedence if currently active
+    myActive.forEach(b => {
+      if (b && b.id) {
+        betMap.set(String(b.id), { ...b, status: 'ACTIVE' });
+      }
+    });
+
+    const allMyBets = Array.from(betMap.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    const activeBetsList = allMyBets.filter(b => (b.status || 'ACTIVE').toUpperCase() === 'ACTIVE');
+    const wonBetsList = allMyBets.filter(b => (b.status || '').toUpperCase() === 'WON');
+    const lostBetsList = allMyBets.filter(b => (b.status || '').toUpperCase() === 'LOST');
+
+    const totalActivePool = activeBetsList.reduce((sum, b) => sum + (Number(b.amount || b.coins || 0) || 0), 0);
+    const totalWonAmount = wonBetsList.reduce((sum, b) => sum + (Number(b.payout || (Number(b.amount || b.coins || 0) * 9)) || 0), 0);
+
+    // Update badges
+    if (this.custBetsBadgeCount) this.custBetsBadgeCount.textContent = activeBetsList.length;
+    if (this.chipActiveBetsCount) this.chipActiveBetsCount.textContent = activeBetsList.length;
+    if (this.custBetAllCount) this.custBetAllCount.textContent = allMyBets.length;
+    if (this.custBetActiveCount) this.custBetActiveCount.textContent = activeBetsList.length;
+    if (this.custBetWonCount) this.custBetWonCount.textContent = wonBetsList.length;
+    if (this.custBetLostCount) this.custBetLostCount.textContent = lostBetsList.length;
+    if (this.custActiveBetsTotalPool) this.custActiveBetsTotalPool.textContent = `💰 ${totalActivePool.toLocaleString()} IHD`;
+    if (this.custBetsTotalWonAmount) this.custBetsTotalWonAmount.textContent = `💰 ${totalWonAmount.toLocaleString()} IHD`;
+
+    let filteredBets = allMyBets;
+    if (filterType === 'ACTIVE') {
+      filteredBets = activeBetsList;
+    } else if (filterType === 'WON') {
+      filteredBets = wonBetsList;
+    } else if (filterType === 'LOST') {
+      filteredBets = lostBetsList;
+    }
+
+    if (filteredBets.length === 0) {
+      this.custBetsHistoryList.innerHTML = `
+        <div style="text-align:center; padding:1.5rem 0.5rem; color:var(--text-muted); font-size:0.75rem;">
+          <span style="font-size:1.6rem; display:block; margin-bottom:4px;">🎯</span>
+          No predictions found under "${filterType}" filter.<br>
+          <button type="button" class="btn btn-gold btn-xs" style="margin-top:8px; color:#000; font-weight:800;" onclick="app.closeAuthModal(); const s = document.getElementById('customer-prediction-section'); if (s) s.scrollIntoView({behavior:'smooth'});">
+            🎯 Place Prediction on Wheel
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    this.custBetsHistoryList.innerHTML = '';
+    filteredBets.forEach(b => {
+      const card = document.createElement('div');
+      const st = (b.status || 'ACTIVE').toUpperCase();
+      const numVal = b.number !== undefined ? b.number : (b.no !== undefined ? b.no : '--');
+      const amtVal = Number(b.amount || b.coins || 0);
+      const targetSlot = b.targetSlot || b.slot || b.timeSlot || 'Next Round';
+      const targetDate = b.targetDate || b.date || 'Today';
+      const placedTime = b.placedTime || b.time || 'Recent';
+      const payoutVal = Number(b.payout || b.potentialWin || (amtVal * 9));
+      const winNumVal = b.winningNumber !== undefined ? b.winningNumber : null;
+
+      let statusBorder = 'rgba(0, 240, 255, 0.35)';
+      let statusBg = 'linear-gradient(180deg, rgba(0,240,255,0.06) 0%, rgba(0,0,0,0.3) 100%)';
+      let badgeHtml = '';
+
+      if (st === 'ACTIVE') {
+        statusBorder = 'rgba(0, 240, 255, 0.5)';
+        statusBg = 'linear-gradient(180deg, rgba(0,240,255,0.1) 0%, rgba(0,0,0,0.35) 100%)';
+        badgeHtml = `
+          <span class="status-pill status-pending" style="background:rgba(0,240,255,0.15); color:#00f0ff; border:1px solid rgba(0,240,255,0.4); font-weight:800;">
+            ⏳ ACTIVE / PENDING
+          </span>
+        `;
+      } else if (st === 'WON') {
+        statusBorder = 'rgba(46, 204, 113, 0.6)';
+        statusBg = 'linear-gradient(180deg, rgba(46,204,113,0.12) 0%, rgba(0,0,0,0.35) 100%)';
+        badgeHtml = `
+          <span class="status-pill status-approved" style="background:rgba(46,204,113,0.2); color:#2ecc71; border:1px solid rgba(46,204,113,0.5); font-weight:800;">
+            🏆 WON (+💰${payoutVal.toLocaleString()} IHD)
+          </span>
+        `;
+      } else if (st === 'LOST') {
+        statusBorder = 'rgba(231, 76, 60, 0.4)';
+        statusBg = 'linear-gradient(180deg, rgba(231,76,60,0.08) 0%, rgba(0,0,0,0.35) 100%)';
+        badgeHtml = `
+          <span class="status-pill status-rejected" style="background:rgba(231,76,60,0.15); color:#ff6b6b; border:1px solid rgba(231,76,60,0.4); font-weight:700;">
+            ❌ LOST (Win: #${winNumVal !== null ? winNumVal : '--'})
+          </span>
+        `;
+      } else if (st === 'REFUNDED') {
+        statusBorder = 'rgba(245, 176, 65, 0.4)';
+        badgeHtml = `
+          <span class="status-pill" style="background:rgba(245,176,65,0.15); color:var(--primary-gold-bright); border:1px solid rgba(245,176,65,0.4); font-weight:700;">
+            ↩️ REFUNDED
+          </span>
+        `;
+      }
+
+      card.style.cssText = `border:1px solid ${statusBorder}; background:${statusBg}; border-radius:6px; padding:0.6rem 0.75rem; font-size:0.75rem;`;
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="display:inline-block; background:#ffd700; color:#000; font-weight:900; font-size:0.88rem; padding:2px 8px; border-radius:12px; box-shadow:0 0 8px rgba(255,215,0,0.4);">
+                #${numVal}
+              </span>
+              <strong style="color:var(--primary-gold-bright); font-size:0.92rem;">💰 ${amtVal} IHD Coins</strong>
+            </div>
+            <div style="margin-top:4px; font-size:0.72rem; color:var(--text-secondary);">
+              <span>🕒 Target: <strong style="color:#00f0ff;">${targetSlot}</strong></span>
+              <span style="margin-left:6px;">📅 ${targetDate}</span>
+            </div>
+            <div style="margin-top:2px; font-size:0.68rem; color:var(--text-muted);">
+              ${st === 'WON' 
+                ? `<span style="color:#2ecc71; font-weight:700;">🎉 9x Payout Credited: +💰${payoutVal.toLocaleString()} IHD Coins!</span>` 
+                : (st === 'ACTIVE' 
+                  ? `<span style="color:#2ecc71; font-weight:600;">Potential 9x Win: 💰${(amtVal * 9).toLocaleString()} IHD Coins</span>` 
+                  : (st === 'LOST' 
+                    ? `<span>Winning Number was: <strong style="color:#fff;">#${winNumVal !== null ? winNumVal : '--'}</strong></span>` 
+                    : `<span>Refunded by Master Admin</span>`))}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            ${badgeHtml}
+            <div style="font-size:0.65rem; color:var(--text-muted); margin-top:5px;">
+              Placed: ${placedTime}
+            </div>
+          </div>
+        </div>
+      `;
+      this.custBetsHistoryList.appendChild(card);
     });
   }
 
@@ -6063,9 +6293,6 @@ class SpinWheelApp {
             if (!Array.isArray(this.history)) this.history = [];
             this.history.unshift(entry);
             historyChanged = true;
-
-            // Settle any player prediction bets targeting this round slot
-            this.settleBetsForAutoSlot(slotLabel, dateStr, winningNum);
           }
         }
       });
