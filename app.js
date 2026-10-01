@@ -113,6 +113,66 @@ function getCurrentActiveSlot(now = new Date()) {
   return active;
 }
 
+// 30-MINUTE CUTOFF CHECKER:
+// For any round slot (e.g. 4:00 PM), betting STRICTLY CLOSES 30 minutes before spin time (e.g. 3:30 PM)!
+function isSlotBettingOpen(slotLabel, targetDateObj = new Date(), now = new Date()) {
+  const slot = DAILY_SLOTS.find(s => s.label === slotLabel) || DAILY_SLOTS[0];
+  const spinTime = new Date(targetDateObj);
+  spinTime.setHours(slot.hour, slot.min, 0, 0);
+
+  // Cutoff is exactly 30 minutes before spin time
+  const cutoffTime = new Date(spinTime.getTime() - 30 * 60 * 1000);
+  const nowMs = now.getTime();
+  const isOpen = nowMs < cutoffTime.getTime();
+
+  return {
+    isOpen: isOpen,
+    slot: slot,
+    label: slot.label,
+    spinTime: spinTime,
+    cutoffTime: cutoffTime,
+    cutoffFormatted: formatTime12(cutoffTime),
+    remainingMs: Math.max(0, cutoffTime.getTime() - nowMs),
+    isPastSpin: nowMs >= spinTime.getTime()
+  };
+}
+
+// Compute the next round slot that is CURRENTLY OPEN for betting (before its 30-min cutoff)
+function getNextOpenBettingSlotInfo(now = new Date()) {
+  const currentTotalSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
+  for (let slot of DAILY_SLOTS) {
+    const cutoffSecs = (slot.hour * 3600 + slot.min * 60) - 1800; // 30 mins before
+    if (cutoffSecs > currentTotalSecs) {
+      const targetDate = new Date(now);
+      targetDate.setHours(slot.hour, slot.min, 0, 0);
+      const cutoffDate = new Date(targetDate.getTime() - 30 * 60 * 1000);
+      return {
+        slot: slot,
+        label: slot.label,
+        targetDate: targetDate,
+        cutoffDate: cutoffDate,
+        isTomorrow: false,
+        slotKey: `slot-${targetDate.getFullYear()}-${targetDate.getMonth() + 1}-${targetDate.getDate()}-${slot.label}`
+      };
+    }
+  }
+
+  // If past today's last cutoff (10:30 PM), next open betting slot is Tomorrow 12:00 PM (cutoff 11:30 AM tomorrow)
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(DAILY_SLOTS[0].hour, DAILY_SLOTS[0].min, 0, 0);
+  const cutoffDate = new Date(tomorrow.getTime() - 30 * 60 * 1000);
+  return {
+    slot: DAILY_SLOTS[0],
+    label: DAILY_SLOTS[0].label,
+    targetDate: tomorrow,
+    cutoffDate: cutoffDate,
+    isTomorrow: true,
+    slotKey: `slot-${tomorrow.getFullYear()}-${tomorrow.getMonth() + 1}-${tomorrow.getDate()}-${DAILY_SLOTS[0].label}`
+  };
+}
+
 class AudioController {
   constructor() {
     this.ctx = null;
@@ -624,11 +684,13 @@ class SpinWheelApp {
     this.adminActiveBetsTableBody = document.getElementById('admin-active-bets-table-body');
     this.adminRefreshBetsBtn = document.getElementById('admin-refresh-bets-btn');
     this.adminExportBetsJsonBtn = document.getElementById('admin-export-bets-json-btn');
+    this.adminExportCurrentSlotBtn = document.getElementById('admin-export-current-slot-btn');
     this.adminExportFullLedgerBtn = document.getElementById('admin-export-full-ledger-btn');
     this.adminExportActiveEntriesBtn = document.getElementById('admin-export-active-entries-btn');
     this.adminImportLedgerTriggerBtn = document.getElementById('admin-import-ledger-trigger-btn');
     this.adminImportLedgerFile = document.getElementById('admin-import-ledger-file');
     this.adminLedgerFeedback = document.getElementById('admin-ledger-feedback');
+    this.currentAdminBetSlotFilter = 'ALL';
 
     // Master Full-Page Nav Tabs & Side Live Monitor Elements
     this.adminNavSpinBtn = document.getElementById('admin-nav-spin-btn');
@@ -1410,17 +1472,40 @@ class SpinWheelApp {
   }
 
   loadActiveBets() {
+    const deleted = this.deletedBetIds || this.loadDeletedBetIds();
+    const betMap = new Map();
+
     try {
       const saved = localStorage.getItem(STATE_KEYS.ACTIVE_BETS);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const deleted = this.deletedBetIds || this.loadDeletedBetIds();
-          return parsed.filter(b => b && b.id && !deleted.has(String(b.id)));
+          parsed.forEach(b => {
+            if (b && b.id && !deleted.has(String(b.id))) {
+              betMap.set(String(b.id), b);
+            }
+          });
         }
       }
     } catch (e) {}
-    return [];
+
+    // Fallback recovery from registered players DB active history
+    try {
+      const db = this.customersDb || this.loadCustomersDB();
+      Object.values(db || {}).forEach(player => {
+        if (player && Array.isArray(player.betHistory)) {
+          player.betHistory.forEach(b => {
+            if (b && b.id && (b.status === 'ACTIVE' || !b.status) && !deleted.has(String(b.id))) {
+              if (!betMap.has(String(b.id))) {
+                betMap.set(String(b.id), { ...b, status: 'ACTIVE' });
+              }
+            }
+          });
+        }
+      });
+    } catch (e) {}
+
+    return Array.from(betMap.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   }
 
   saveActiveBets(bets) {
@@ -2281,43 +2366,54 @@ class SpinWheelApp {
   }
 
   // ==========================================================
-  // CUSTOMER UI & PREDICTION LOGIC
+  // CUSTOMER UI & PREDICTION LOGIC - 30-MIN BETTING CUTOFF ENGINE
   // ==========================================================
   getTargetSlotDetails(slotChoice = 'NEXT') {
     const now = new Date();
     const currentTotalSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
     if (!slotChoice || slotChoice === 'NEXT') {
-      const nextInfo = getNextSlotInfo(now);
-      const isTomorrow = nextInfo.targetDate.getDate() !== now.getDate();
+      const nextOpen = getNextOpenBettingSlotInfo(now);
+      const isTomorrow = nextOpen.isTomorrow;
       const dayPrefix = isTomorrow ? 'Tomorrow' : 'Today';
-      const dateFormatted = nextInfo.targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const dateFull = nextInfo.targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const dateFormatted = nextOpen.targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dateFull = nextOpen.targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const cutoffFormatted = formatTime12(nextOpen.cutoffDate);
+
       return {
-        slotLabel: nextInfo.label,
+        slotLabel: nextOpen.label,
         dayPrefix: dayPrefix,
         dateFormatted: dateFormatted,
         dateFull: dateFull,
-        targetDate: nextInfo.targetDate,
-        displayStr: `${dayPrefix}, ${dateFormatted} • ${nextInfo.label} Round`
+        targetDate: nextOpen.targetDate,
+        cutoffDate: nextOpen.cutoffDate,
+        cutoffFormatted: cutoffFormatted,
+        isOpen: true,
+        isTomorrow: isTomorrow,
+        displayStr: `${dayPrefix}, ${dateFormatted} • ${nextOpen.label} Round (Betting Closes: ${cutoffFormatted})`
       };
     }
 
     // Specific slot selected
     const slotObj = DAILY_SLOTS.find(s => s.label === slotChoice) || DAILY_SLOTS[0];
-    const slotTotalSecs = slotObj.hour * 3600 + slotObj.min * 60;
+    const cutoffSecs = (slotObj.hour * 3600 + slotObj.min * 60) - 1800; // 30 mins before spin
     const targetDate = new Date(now);
     let isTomorrow = false;
+    let isCutoffPassedToday = false;
 
-    if (slotTotalSecs <= currentTotalSecs) {
+    if (currentTotalSecs >= cutoffSecs) {
+      // Cutoff passed for today, so bet automatically applies to Tomorrow's round
       targetDate.setDate(targetDate.getDate() + 1);
       isTomorrow = true;
+      isCutoffPassedToday = true;
     }
     targetDate.setHours(slotObj.hour, slotObj.min, 0, 0);
 
+    const cutoffDate = new Date(targetDate.getTime() - 30 * 60 * 1000);
     const dayPrefix = isTomorrow ? 'Tomorrow' : 'Today';
     const dateFormatted = targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const dateFull = targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const cutoffFormatted = formatTime12(cutoffDate);
 
     return {
       slotLabel: slotObj.label,
@@ -2325,7 +2421,12 @@ class SpinWheelApp {
       dateFormatted: dateFormatted,
       dateFull: dateFull,
       targetDate: targetDate,
-      displayStr: `${dayPrefix}, ${dateFormatted} • ${slotObj.label} Round`
+      cutoffDate: cutoffDate,
+      cutoffFormatted: cutoffFormatted,
+      isOpen: true,
+      isTomorrow: isTomorrow,
+      isCutoffPassedToday: isCutoffPassedToday,
+      displayStr: `${dayPrefix}, ${dateFormatted} • ${slotObj.label} Round (Betting Closes: ${cutoffFormatted})`
     };
   }
 
@@ -3463,12 +3564,34 @@ class SpinWheelApp {
       return;
     }
 
+    const slotChoice = this.playerTargetSlotSelect ? this.playerTargetSlotSelect.value : 'NEXT';
+    const slotDetails = this.getTargetSlotDetails(slotChoice);
+
+    // STRICT 30-MINUTE CUTOFF VERIFICATION:
+    // For 4:00 PM spin, after 3:30 PM no bet can be placed for 4:00 PM slot today!
+    const now = new Date();
+    const spinTimestamp = slotDetails.targetDate.getTime();
+    const cutoffTimestamp = spinTimestamp - (30 * 60 * 1000);
+
+    if (now.getTime() >= cutoffTimestamp) {
+      const nextOpen = getNextOpenBettingSlotInfo(now);
+      const errMsg = `❌ Betting for ${slotDetails.slotLabel} (${slotDetails.dayPrefix}) is CLOSED! (Cutoff was ${slotDetails.cutoffFormatted}, strictly 30 mins before spin). Next open round is ${nextOpen.label} (${nextOpen.isTomorrow ? 'Tomorrow' : 'Today'}).`;
+      
+      if (this.predictionFeedbackMsg) {
+        this.predictionFeedbackMsg.style.color = '#ff6b6b';
+        this.predictionFeedbackMsg.textContent = errMsg;
+        setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 6000);
+      }
+      if (this.playerTargetSlotSelect) {
+        this.playerTargetSlotSelect.value = 'NEXT';
+        this.updateTargetSlotDisplay();
+      }
+      return;
+    }
+
     // Deduct coins & track bet history
     this.currentCustomer.coins -= amount;
     this.currentCustomer.totalBets = (this.currentCustomer.totalBets || 0) + 1;
-
-    const slotChoice = this.playerTargetSlotSelect ? this.playerTargetSlotSelect.value : 'NEXT';
-    const slotDetails = this.getTargetSlotDetails(slotChoice);
 
     const playerId = this.currentCustomer.id || 'P_' + Date.now();
     const playerName = this.currentCustomer.name || this.currentCustomer.id || 'Player';
@@ -3569,6 +3692,7 @@ class SpinWheelApp {
     this.saveActiveBets(this.activeBets);
 
     this.updateCustomerUI();
+    this.renderAdminActiveBetsTable(this.currentAdminBetSlotFilter || 'ALL');
     this.pushStateToServer({ customersDb: this.customersDb, activeBets: this.activeBets });
 
     // Send Telegram Notification for new prediction bet
@@ -3809,13 +3933,28 @@ class SpinWheelApp {
 
     this.adminRefreshBetsBtn?.addEventListener('click', () => {
       if (this.cloudSync) this.cloudSync.requestSync();
-      this.pullStateFromServer().then(() => this.renderAdminActiveBetsTable());
+      this.pullStateFromServer().then(() => this.renderAdminActiveBetsTable(this.currentAdminBetSlotFilter || 'ALL'));
       this.showAdminCreditFeedback('🔄 Live bets refreshed!', true);
     });
 
+    // Per-Slot Active Bets Filter Pills
+    document.querySelectorAll('.admin-bet-slot-filter').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.admin-bet-slot-filter').forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        const slot = e.currentTarget.getAttribute('data-slot') || 'ALL';
+        this.currentAdminBetSlotFilter = slot;
+        this.renderAdminActiveBetsTable(slot);
+      });
+    });
+
     // Num Ledger Pro JSON Export / Backup Buttons
+    this.adminExportCurrentSlotBtn?.addEventListener('click', () => {
+      this.exportSlotEntriesJSON(this.currentAdminBetSlotFilter || 'ALL');
+    });
+
     this.adminExportBetsJsonBtn?.addEventListener('click', () => {
-      this.exportNumLedgerProJSON('ACTIVE_ONLY');
+      this.exportSlotEntriesJSON(this.currentAdminBetSlotFilter || 'ALL');
     });
 
     this.adminExportFullLedgerBtn?.addEventListener('click', () => {
@@ -3823,7 +3962,7 @@ class SpinWheelApp {
     });
 
     this.adminExportActiveEntriesBtn?.addEventListener('click', () => {
-      this.exportNumLedgerProJSON('ACTIVE_ONLY');
+      this.exportSlotEntriesJSON(this.currentAdminBetSlotFilter || 'ALL');
     });
 
     this.adminImportLedgerTriggerBtn?.addEventListener('click', () => {
@@ -4700,22 +4839,66 @@ class SpinWheelApp {
     });
   }
 
-  renderAdminActiveBetsTable() {
+  renderAdminActiveBetsTable(slotFilter = null) {
     if (!this.adminActiveBetsTableBody) return;
 
-    const bets = Array.isArray(this.activeBets) ? this.activeBets : [];
-    const totalCount = bets.length;
-    const totalCoins = bets.reduce((sum, b) => sum + (b.amount || 0), 0);
+    const filter = slotFilter || this.currentAdminBetSlotFilter || 'ALL';
+    this.currentAdminBetSlotFilter = filter;
 
-    if (this.adminActiveBetsSummary) {
-      this.adminActiveBetsSummary.textContent = `${totalCount} Active Bet${totalCount === 1 ? '' : 's'} (💰 ${totalCoins.toLocaleString()} IHD Coins Pool)`;
+    const allBets = Array.isArray(this.activeBets) ? this.activeBets : [];
+    
+    // Calculate per-slot counts for pill badges
+    const cntAll = allBets.length;
+    const cnt12 = allBets.filter(b => (b.timeSlot === '12:00 PM' || b.slot === '12:00 PM' || b.round === '12:00 PM' || b.targetSlot === '12:00 PM')).length;
+    const cnt4 = allBets.filter(b => (b.timeSlot === '04:00 PM' || b.slot === '04:00 PM' || b.round === '04:00 PM' || b.targetSlot === '04:00 PM')).length;
+    const cnt8 = allBets.filter(b => (b.timeSlot === '08:00 PM' || b.slot === '08:00 PM' || b.round === '08:00 PM' || b.targetSlot === '08:00 PM')).length;
+    const cnt11 = allBets.filter(b => (b.timeSlot === '11:00 PM' || b.slot === '11:00 PM' || b.round === '11:00 PM' || b.targetSlot === '11:00 PM')).length;
+
+    const elCntAll = document.getElementById('bet-slot-cnt-all');
+    const elCnt12 = document.getElementById('bet-slot-cnt-12');
+    const elCnt4 = document.getElementById('bet-slot-cnt-4');
+    const elCnt8 = document.getElementById('bet-slot-cnt-8');
+    const elCnt11 = document.getElementById('bet-slot-cnt-11');
+
+    if (elCntAll) elCntAll.textContent = cntAll;
+    if (elCnt12) elCnt12.textContent = cnt12;
+    if (elCnt4) elCnt4.textContent = cnt4;
+    if (elCnt8) elCnt8.textContent = cnt8;
+    if (elCnt11) elCnt11.textContent = cnt11;
+
+    // Filter bets based on selected slot
+    let filteredBets = allBets;
+    if (filter !== 'ALL') {
+      filteredBets = allBets.filter(b => (b.timeSlot === filter || b.slot === filter || b.round === filter || b.targetSlot === filter));
     }
 
-    if (bets.length === 0) {
+    const totalCount = filteredBets.length;
+    const totalCoins = filteredBets.reduce((sum, b) => sum + (Number(b.amount) || Number(b.coins) || 0), 0);
+
+    if (this.adminActiveBetsSummary) {
+      if (filter === 'ALL') {
+        this.adminActiveBetsSummary.textContent = `${totalCount} Active Bet${totalCount === 1 ? '' : 's'} (💰 ${totalCoins.toLocaleString()} IHD Coins Pool)`;
+      } else {
+        this.adminActiveBetsSummary.textContent = `${filter}: ${totalCount} Bet${totalCount === 1 ? '' : 's'} (💰 ${totalCoins.toLocaleString()} IHD Pool)`;
+      }
+    }
+
+    // Update active state on filter buttons
+    document.querySelectorAll('.admin-bet-slot-filter').forEach(btn => {
+      if (btn.getAttribute('data-slot') === filter) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    if (filteredBets.length === 0) {
       this.adminActiveBetsTableBody.innerHTML = `
         <tr>
-          <td colspan="7" style="text-align:center; color:var(--text-muted); padding:1rem;">
-            No active player predictions right now.
+          <td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+            ${filter === 'ALL' 
+              ? 'No active player predictions right now.' 
+              : `No active player predictions for <strong>${filter}</strong> round.`}
           </td>
         </tr>
       `;
@@ -4723,7 +4906,7 @@ class SpinWheelApp {
     }
 
     this.adminActiveBetsTableBody.innerHTML = '';
-    bets.forEach(b => {
+    filteredBets.forEach(b => {
       const pid = b.memberId || b.member_id || b.userId || b.playerId || b.partyId || '--';
       const cust = (this.customersDb && this.customersDb[pid]) ? this.customersDb[pid] : null;
       const pName = b.name || b.playerName || b.partyName || b.memberName || (cust ? cust.name : '') || pid || 'Player';
@@ -5338,6 +5521,181 @@ class SpinWheelApp {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  // ==========================================================
+  // PER-SLOT DEDICATED NUM LEDGER PRO JSON EXPORT ENGINE
+  // ==========================================================
+  exportSlotEntriesJSON(slotLabel = 'ALL') {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const allActive = Array.isArray(this.activeBets) ? this.activeBets : [];
+
+    let filtered = allActive;
+    let fileSlotTag = 'all_active';
+    let targetSlotTitle = 'All Slots';
+    let cutoffInfoStr = '--';
+
+    if (slotLabel && slotLabel !== 'ALL') {
+      filtered = allActive.filter(b => {
+        const s = b.timeSlot || b.slot || b.round || b.targetSlot || '';
+        return s === slotLabel;
+      });
+      fileSlotTag = slotLabel.replace(/[\s:]+/g, '-');
+      targetSlotTitle = slotLabel;
+
+      const slotObj = DAILY_SLOTS.find(s => s.label === slotLabel);
+      if (slotObj) {
+        const cutoffD = new Date(now);
+        cutoffD.setHours(slotObj.hour, slotObj.min - 30, 0, 0);
+        cutoffInfoStr = formatTime12(cutoffD);
+      }
+    }
+
+    const totalCoins = filtered.reduce((sum, b) => sum + (Number(b.amount) || Number(b.coins) || 0), 0);
+    const defaultDateFormatted = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const defaultDateFull = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    // Number breakdown summary (liability calculation per number)
+    const numberBreakdown = {};
+    filtered.forEach(b => {
+      const num = b.number !== undefined ? Number(b.number) : 0;
+      const amt = Number(b.amount || b.coins || 0);
+      if (!numberBreakdown[num]) {
+        numberBreakdown[num] = { count: 0, totalAmount: 0, potentialLiability: 0 };
+      }
+      numberBreakdown[num].count++;
+      numberBreakdown[num].totalAmount += amt;
+      numberBreakdown[num].potentialLiability += amt * 9;
+    });
+
+    const entries = filtered.map((b, idx) => {
+      const pid = b.memberId || b.member_id || b.userId || b.playerId || b.partyId || 'PLAYER';
+      const cust = (this.customersDb && this.customersDb[pid]) ? this.customersDb[pid] : null;
+
+      const pName = b.name || b.playerName || b.partyName || b.memberName || b.customerName || b.Name || (cust ? cust.name : '') || pid || 'Player';
+      const pMobile = b.mobile || b.playerMobile || b.partyMobile || b.phone || (cust ? cust.mobile : '') || '';
+      const pDob = b.dob || (cust ? cust.dob : '') || '';
+
+      const dVal = b.date || b.entryDate || b.Date || b.targetDate || defaultDateFormatted;
+      const dFullVal = b.targetDateFull || b.placedDate || defaultDateFull;
+      const sVal = b.timeSlot || b.slot || b.time_slot || b.slotTime || b.round || b.targetSlot || targetSlotTitle;
+      const timeVal = b.placedTime || b.time || formatTime12(new Date(b.timestamp || Date.now()));
+      const displaySlotVal = b.displaySlot || `${dVal} • ${sVal}`;
+
+      const numVal = b.number !== undefined ? Number(b.number) : (b.no !== undefined ? Number(b.no) : (b.num !== undefined ? Number(b.num) : 10));
+      const amtVal = b.amount !== undefined ? Number(b.amount) : (b.coins !== undefined ? Number(b.coins) : (b.betAmount !== undefined ? Number(b.betAmount) : 10));
+      const winVal = b.potentialWin !== undefined ? Number(b.potentialWin) : (b.winAmount !== undefined ? Number(b.winAmount) : amtVal * 9);
+
+      return {
+        entryNo: idx + 1,
+        index: idx + 1,
+        srNo: idx + 1,
+        id: b.id || `bet_${Date.now()}_${idx}`,
+
+        // Date variations for Num Ledger Pro
+        date: dVal,
+        entryDate: dVal,
+        Date: dVal,
+        targetDate: dVal,
+        targetDateFull: dFullVal,
+        placedDate: dFullVal,
+        createdDate: dVal,
+        day: dVal,
+
+        // Time Slot variations for Num Ledger Pro
+        timeSlot: sVal,
+        time_slot: sVal,
+        slot: sVal,
+        slotTime: sVal,
+        round: sVal,
+        targetSlot: sVal,
+        displaySlot: displaySlotVal,
+        time: timeVal,
+        placedTime: timeVal,
+
+        // Member ID variations
+        memberId: pid,
+        member_id: pid,
+        userId: pid,
+        playerId: pid,
+        partyId: pid,
+
+        // Member Name variations
+        name: pName,
+        playerName: pName,
+        partyName: pName,
+        memberName: pName,
+        customerName: pName,
+        Name: pName,
+        userName: pName,
+
+        // Contact info
+        mobile: pMobile,
+        playerMobile: pMobile,
+        partyMobile: pMobile,
+        phone: pMobile,
+        dob: pDob,
+
+        // Prediction Number
+        number: numVal,
+        no: numVal,
+        num: numVal,
+        betNumber: numVal,
+        selectedNumber: numVal,
+
+        // Amount & Payout variations
+        amount: amtVal,
+        betAmount: amtVal,
+        coins: amtVal,
+        multiplier: 9,
+        potentialWin: winVal,
+        winAmount: winVal,
+        payout: winVal,
+
+        timestamp: b.timestamp || Date.now(),
+        status: b.status || 'ACTIVE'
+      };
+    });
+
+    const exportData = {
+      appName: 'Num Ledger Pro',
+      fileType: slotLabel === 'ALL' ? 'NUM_LEDGER_PRO_ALL_ACTIVE_ENTRIES' : 'NUM_LEDGER_PRO_SLOT_ENTRIES',
+      version: '6.0',
+      targetSlot: targetSlotTitle,
+      spinTime: targetSlotTitle,
+      bettingCutoff: cutoffInfoStr,
+      exportDate: now.toISOString(),
+      formattedDate: now.toLocaleString(),
+      totalEntries: entries.length,
+      totalBetPool: totalCoins,
+      numberLiabilityBreakdown: numberBreakdown,
+      entries: entries,
+      activeBets: entries,
+      items: entries,
+      data: entries,
+      bets: entries,
+      records: entries,
+      list: entries,
+      ledgerEntries: entries,
+      ledger: entries
+    };
+
+    const filename = `num_ledger_pro_${fileSlotTag}_entries_${dateStr}_${timeStr}.json`;
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    this.showAdminCreditFeedback(`✅ Exported ${entries.length} entries for ${targetSlotTitle} to ${filename}!`, true);
+    if (this.audio) this.audio.playTick();
   }
 
   exportNumLedgerProJSON(type = 'FULL') {
