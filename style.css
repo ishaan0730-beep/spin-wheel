@@ -2578,4 +2578,211 @@ body {
   }
 }
 
+/* ==========================================================
+   LIVE INSTANT TOAST NOTIFICATIONS SYSTEM
+   ========================================================== */
+#live-toast-container {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+  width: calc(100vw - 36px);
+  pointer-events: none;
+}
+
+.live-toast-card {
+  pointer-events: auto;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 14, 26, 0.98));
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 240, 255, 0.25);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  backdrop-filter: blur(16px);
+  transition: all 0.25s ease;
+}
+
+.live-toast-card.toast-deposit {
+  border-color: #00f0ff;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 240, 255, 0.4);
+}
+
+.live-toast-card.toast-withdrawal {
+  border-color: #ffd700;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8), 0 0 25px rgba(255, 215, 0, 0.35);
+}
+
+.live-toast-card.toast-success {
+  border-color: #2ecc71;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8), 0 0 25px rgba(46, 204, 113, 0.35);
+}
+
+.live-toast-card.toast-bet {
+  border-color: #a78bfa;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(167, 139, 250, 0.35);
+}
+
+.live-toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.live-toast-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+}
+
+.live-toast-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.live-toast-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.live-toast-body {
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.4;
+}
+
+.live-toast-meta {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-toast-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.live-toast-action-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(0, 240, 255, 0.6);
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(0, 160, 255, 0.35));
+  color: #fff;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.live-toast-action-btn:hover {
+  background: linear-gradient(135deg, #00f0ff, #0088ff);
+  color: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+}
+
+.live-toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: #00f0ff;
+  width: 100%;
+  animation: toastProgress 10s linear forwards;
+}
+
+.live-toast-card.toast-withdrawal .live-toast-progress {
+  background: #ffd700;
+}
+
+.live-toast-card.toast-success .live-toast-progress {
+  background: #2ecc71;
+}
+
+@keyframes toastSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(60px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toastSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(80px) scale(0.9);
+  }
+}
+
+@keyframes toastProgress {
+  0% { width: 100%; }
+  100% { width: 0%; }
+}
+
+/* Pulsing Badge for Pending Items */
+.badge-pulse {
+  animation: badgePulsate 1.2s infinite ease-in-out !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8) !important;
+}
+
+@keyframes badgePulsate {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    transform: scale(1.18);
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.95);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+  }
+}
+
+/* Newly added row flash animation */
+.row-flash-new {
+  animation: rowHighlight 3s ease-out forwards;
+}
+
+@keyframes rowHighlight {
+  0% { background: rgba(0, 240, 255, 0.35) !important; }
+  100% { background: transparent; }
+}
+
+
 

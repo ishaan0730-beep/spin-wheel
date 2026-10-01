@@ -177,6 +177,19 @@ class AudioController {
   constructor() {
     this.ctx = null;
     this.muted = localStorage.getItem(STATE_KEYS.SOUND_MUTED) === 'true';
+    this.setupGlobalUnlock();
+  }
+
+  setupGlobalUnlock() {
+    const unlock = () => {
+      this.initContext();
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('click', unlock, { once: true });
+    window.addEventListener('touchstart', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
   }
 
   initContext() {
@@ -242,6 +255,120 @@ class AudioController {
     } catch (e) {}
   }
 
+  playAlert() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const notes = [880, 1320, 1760];
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const start = this.ctx.currentTime + idx * 0.09;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start);
+
+        gain.gain.setValueAtTime(0.35, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.28);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(start);
+        osc.stop(start + 0.28);
+      });
+    } catch (e) {}
+  }
+
+  playUrgentDepositAlarm() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const pulses = [
+        { t: 0.0, freqs: [987.77, 1318.51] },
+        { t: 0.14, freqs: [1318.51, 1975.53] },
+        { t: 0.35, freqs: [987.77, 1318.51] },
+        { t: 0.49, freqs: [1318.51, 1975.53] }
+      ];
+
+      pulses.forEach(p => {
+        p.freqs.forEach(freq => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const start = this.ctx.currentTime + p.t;
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, start);
+
+          gain.gain.setValueAtTime(0.32, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(start);
+          osc.stop(start + 0.18);
+        });
+      });
+    } catch (e) {}
+  }
+
+  playCashChime() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const freqs = [1046.50, 1318.51, 1567.98, 2093.00];
+      freqs.forEach((f, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const start = this.ctx.currentTime + i * 0.06;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, start);
+
+        gain.gain.setValueAtTime(0.28, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(start);
+        osc.stop(start + 0.35);
+      });
+    } catch (e) {}
+  }
+
+  playWarning() {
+    if (this.muted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const start = this.ctx.currentTime;
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300, start);
+      osc.frequency.linearRampToValueAtTime(180, start + 0.22);
+
+      gain.gain.setValueAtTime(0.2, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + 0.22);
+    } catch (e) {}
+  }
+
   toggleMute() {
     this.muted = !this.muted;
     localStorage.setItem(STATE_KEYS.SOUND_MUTED, this.muted);
@@ -271,6 +398,8 @@ class CloudSyncEngine {
           if (e.data) {
             if (e.data.type === 'REQ_SYNC' && e.data.senderId !== this.clientId) {
               this.publishFullState('RES_SYNC');
+            } else if (e.data.type === 'LIVE_EVENT') {
+              this.app.handleIncomingLiveEvent(e.data);
             } else {
               this.app.handleIncomingRealtimeState(e.data);
             }
@@ -331,6 +460,8 @@ class CloudSyncEngine {
                 if (parsed.senderId !== this.clientId) {
                   this.publishFullState('RES_SYNC');
                 }
+              } else if (parsed.type === 'LIVE_EVENT') {
+                this.app.handleIncomingLiveEvent(parsed);
               } else {
                 this.app.handleIncomingRealtimeState(parsed);
               }
@@ -372,6 +503,16 @@ class CloudSyncEngine {
     if (this.mqttClient && this.isConnected) {
       try { this.mqttClient.publish(this.topic, JSON.stringify(reqPayload), { qos: 1, retain: false }); } catch (e) {}
     }
+  }
+
+  broadcastLiveEvent(eventData) {
+    const payload = {
+      type: 'LIVE_EVENT',
+      senderId: this.clientId,
+      timestamp: Date.now(),
+      ...eventData
+    };
+    this.publish(payload);
   }
 
   publishFullState(actionType = 'SYNC_UPDATE') {
@@ -939,6 +1080,232 @@ class SpinWheelApp {
     localStorage.setItem(STATE_KEYS.HANDLED_SPIN_IDS, JSON.stringify(arr));
   }
 
+  openAdminPanelDirectly() {
+    sessionStorage.setItem('admin_auth', this.masterPassword || '00773300');
+    this.openAdminDrawer();
+  }
+
+  showLiveToast(opts = {}) {
+    let container = document.getElementById('live-toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'live-toast-container';
+      document.body.appendChild(container);
+    }
+
+    const type = opts.type || 'deposit'; // 'deposit', 'withdrawal', 'bet', 'success'
+    const title = opts.title || 'Live Notification';
+    const message = opts.message || '';
+    const meta = opts.meta || formatTime12(new Date());
+    const actionText = opts.actionText || '';
+    const actionCallback = opts.actionCallback || null;
+    const duration = opts.duration || 10000;
+
+    const toast = document.createElement('div');
+    toast.className = `live-toast-card toast-${type}`;
+
+    let icon = '🔔';
+    if (type === 'deposit') icon = '🚨 <b>DEPOSIT</b>';
+    else if (type === 'withdrawal') icon = '💸 <b>WITHDRAWAL</b>';
+    else if (type === 'bet') icon = '🎯 <b>LIVE BET</b>';
+    else if (type === 'success') icon = '🎉 <b>CONFIRMED</b>';
+
+    toast.innerHTML = `
+      <div class="live-toast-header">
+        <div class="live-toast-title-wrap">${icon} <span>${title}</span></div>
+        <button class="live-toast-close" title="Dismiss">&times;</button>
+      </div>
+      <div class="live-toast-body">${message}</div>
+      <div class="live-toast-meta">
+        <span>🕒 ${meta}</span>
+      </div>
+      ${actionText ? `<div class="live-toast-actions"><button class="live-toast-action-btn">${actionText}</button></div>` : ''}
+      <div class="live-toast-progress" style="animation-duration: ${duration}ms;"></div>
+    `;
+
+    // Close button
+    toast.querySelector('.live-toast-close')?.addEventListener('click', () => {
+      toast.style.animation = 'toastSlideOut 0.25s forwards';
+      setTimeout(() => toast.remove(), 260);
+    });
+
+    // Action button
+    if (actionText && actionCallback) {
+      toast.querySelector('.live-toast-action-btn')?.addEventListener('click', () => {
+        actionCallback();
+        toast.style.animation = 'toastSlideOut 0.25s forwards';
+        setTimeout(() => toast.remove(), 260);
+      });
+    }
+
+    container.appendChild(toast);
+
+    // Native OS / Browser Notification if permission granted
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try {
+        new Notification(title, {
+          body: message.replace(/<[^>]*>?/gm, ''),
+          icon: '/master-qr.jpg'
+        });
+      } catch (e) {}
+    }
+
+    // Auto-remove after duration
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.style.animation = 'toastSlideOut 0.25s forwards';
+        setTimeout(() => toast.remove(), 260);
+      }
+    }, duration);
+  }
+
+  handleIncomingLiveEvent(event) {
+    if (!event || !event.eventType) return;
+
+    if (event.eventType === 'NEW_DEPOSIT') {
+      const dep = event.deposit;
+      if (!dep || !dep.id) return;
+
+      if (!Array.isArray(this.deposits)) this.deposits = [];
+      const exists = this.deposits.some(d => d.id === dep.id);
+      if (!exists) {
+        this.deposits = [dep, ...this.deposits];
+        this.saveDeposits(this.deposits);
+      }
+
+      // Play loud urgent alarm for Master Admin
+      if (this.audio) this.audio.playUrgentDepositAlarm();
+
+      // Show instant live toast banner on Master screen
+      this.showLiveToast({
+        title: 'NEW DEPOSIT REQUEST RECEIVED!',
+        message: `<b>₹${(dep.amount || 0).toLocaleString()}</b> from <b>${dep.customerName || dep.customerId}</b><br>UTR: <code>${dep.utr || 'N/A'}</code>`,
+        type: 'deposit',
+        actionText: '👉 OPEN DEPOSITS & APPROVE',
+        actionCallback: () => {
+          this.openAdminPanelDirectly();
+          this.setAdminTab('deposits');
+          if (dep.id) this.openReceiptZoomModal(dep.id);
+        }
+      });
+
+      this.updateDepositsCountBadges();
+      this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
+      if (this.adminTabBadgeDeposits) {
+        this.adminTabBadgeDeposits.classList.add('badge-pulse');
+      }
+    }
+
+    else if (event.eventType === 'NEW_WITHDRAWAL') {
+      const wd = event.withdrawal;
+      if (!wd || !wd.id) return;
+
+      if (!Array.isArray(this.withdrawals)) this.withdrawals = [];
+      const exists = this.withdrawals.some(w => w.id === wd.id);
+      if (!exists) {
+        this.withdrawals = [wd, ...this.withdrawals];
+        this.saveWithdrawals(this.withdrawals);
+      }
+
+      if (this.audio) this.audio.playAlert();
+
+      this.showLiveToast({
+        title: 'NEW WITHDRAWAL REQUEST!',
+        message: `<b>💰${(wd.amount || 0).toLocaleString()} IHD</b> by <b>${wd.customerName || wd.customerId}</b><br>Bank A/C: <code>${wd.accountNumber}</code> (${wd.ifscCode || ''})`,
+        type: 'withdrawal',
+        actionText: '👉 VIEW WITHDRAWAL',
+        actionCallback: () => {
+          this.openAdminPanelDirectly();
+          this.setAdminTab('withdrawals');
+        }
+      });
+
+      this.updateWithdrawalsCountBadges();
+      this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+    }
+
+    else if (event.eventType === 'NEW_BET') {
+      const bet = event.bet;
+      if (!bet || !bet.id) return;
+
+      if (!Array.isArray(this.activeBets)) this.activeBets = [];
+      const exists = this.activeBets.some(b => b.id === bet.id);
+      if (!exists) {
+        this.activeBets = [bet, ...this.activeBets];
+        this.saveActiveBets(this.activeBets);
+      }
+
+      if (this.audio) this.audio.playTick();
+      this.renderAdminActiveBetsTable();
+    }
+
+    else if (event.eventType === 'DEPOSIT_STATUS_UPDATED') {
+      const dep = event.deposit;
+      if (!dep || !dep.id) return;
+
+      if (Array.isArray(this.deposits)) {
+        this.deposits = this.deposits.map(d => d.id === dep.id ? { ...d, ...dep } : d);
+        this.saveDeposits(this.deposits);
+        this.renderCustomerRequestsHistory();
+        this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
+      }
+
+      if (this.currentCustomer && this.currentCustomer.id === dep.customerId) {
+        if (dep.status === 'APPROVED') {
+          if (this.audio) this.audio.playCashChime();
+          this.showLiveToast({
+            title: 'DEPOSIT APPROVED & CREDITED!',
+            message: `Your deposit of <b>₹${(dep.amount || 0).toLocaleString()}</b> has been confirmed! <b>💰${(dep.amount || 0).toLocaleString()} IHD Coins</b> added to your wallet.`,
+            type: 'success',
+            duration: 12000
+          });
+        } else if (dep.status === 'REJECTED') {
+          if (this.audio) this.audio.playWarning();
+          this.showLiveToast({
+            title: 'DEPOSIT REJECTED',
+            message: `Deposit of ₹${dep.amount} was rejected: ${dep.rejectionReason || 'Invalid UTR / receipt'}.`,
+            type: 'withdrawal',
+            duration: 10000
+          });
+        }
+        this.pullStateFromServer();
+      }
+    }
+
+    else if (event.eventType === 'WITHDRAWAL_STATUS_UPDATED') {
+      const wd = event.withdrawal;
+      if (!wd || !wd.id) return;
+
+      if (Array.isArray(this.withdrawals)) {
+        this.withdrawals = this.withdrawals.map(w => w.id === wd.id ? { ...w, ...wd } : w);
+        this.saveWithdrawals(this.withdrawals);
+        this.renderCustomerRequestsHistory();
+        this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+      }
+
+      if (this.currentCustomer && this.currentCustomer.id === wd.customerId) {
+        if (wd.status === 'APPROVED') {
+          if (this.audio) this.audio.playCashChime();
+          this.showLiveToast({
+            title: 'WITHDRAWAL APPROVED & TRANSFERRED!',
+            message: `<b>💰${(wd.amount || 0).toLocaleString()} IHD Coins</b> transferred to Bank A/C <code>${wd.accountNumber}</code>.`,
+            type: 'success',
+            duration: 12000
+          });
+        } else if (wd.status === 'REJECTED') {
+          if (this.audio) this.audio.playWarning();
+          this.showLiveToast({
+            title: 'WITHDRAWAL REJECTED',
+            message: `Withdrawal rejected: ${wd.rejectionReason || 'Bank details mismatch'}. 💰${(wd.amount || 0).toLocaleString()} Coins refunded to your balance.`,
+            type: 'withdrawal',
+            duration: 10000
+          });
+        }
+        this.pullStateFromServer();
+      }
+    }
+  }
+
   // ==========================================================
   // REAL-TIME STATE SYNC & DEDUPLICATION ENGINE
   // ==========================================================
@@ -1209,26 +1576,74 @@ class SpinWheelApp {
 
     // 10. Withdrawals Requests Database
     if (Array.isArray(state.withdrawals)) {
+      const prevPendingWdIds = new Set((this.withdrawals || []).filter(w => w.status === 'PENDING').map(w => w.id));
       const wdMap = new Map((this.withdrawals || []).map(w => [w.id, w]));
+      let newPendingWd = null;
+
       state.withdrawals.forEach(w => {
-        if (w && w.id) wdMap.set(w.id, w);
+        if (w && w.id) {
+          wdMap.set(w.id, w);
+          if (w.status === 'PENDING' && !prevPendingWdIds.has(w.id)) {
+            newPendingWd = w;
+          }
+        }
       });
       this.withdrawals = Array.from(wdMap.values()).sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0));
       this.saveWithdrawals(this.withdrawals);
       this.renderCustomerRequestsHistory();
       this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+
+      if (newPendingWd) {
+        if (this.audio) this.audio.playAlert();
+        this.showLiveToast({
+          title: 'NEW WITHDRAWAL REQUEST!',
+          message: `<b>💰${(newPendingWd.amount || 0).toLocaleString()} IHD</b> by <b>${newPendingWd.customerName || newPendingWd.customerId}</b><br>Bank A/C: <code>${newPendingWd.accountNumber}</code> (${newPendingWd.ifscCode || ''})`,
+          type: 'withdrawal',
+          actionText: '👉 VIEW WITHDRAWAL',
+          actionCallback: () => {
+            this.openAdminPanelDirectly();
+            this.setAdminTab('withdrawals');
+          }
+        });
+      }
     }
 
     // 11. Deposits Requests Database
     if (Array.isArray(state.deposits)) {
+      const prevPendingDepIds = new Set((this.deposits || []).filter(d => d.status === 'PENDING').map(d => d.id));
       const depMap = new Map((this.deposits || []).map(d => [d.id, d]));
+      let newPendingDep = null;
+
       state.deposits.forEach(d => {
-        if (d && d.id) depMap.set(d.id, d);
+        if (d && d.id) {
+          depMap.set(d.id, d);
+          if (d.status === 'PENDING' && !prevPendingDepIds.has(d.id)) {
+            newPendingDep = d;
+          }
+        }
       });
       this.deposits = Array.from(depMap.values()).sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0));
       this.saveDeposits(this.deposits);
       this.renderCustomerRequestsHistory();
       this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
+
+      if (newPendingDep) {
+        if (this.audio) this.audio.playUrgentDepositAlarm();
+        this.showLiveToast({
+          title: 'NEW DEPOSIT REQUEST RECEIVED!',
+          message: `<b>₹${(newPendingDep.amount || 0).toLocaleString()}</b> from <b>${newPendingDep.customerName || newPendingDep.customerId}</b><br>UTR: <code>${newPendingDep.utr || 'N/A'}</code>`,
+          type: 'deposit',
+          actionText: '👉 OPEN DEPOSITS & APPROVE',
+          actionCallback: () => {
+            this.openAdminPanelDirectly();
+            this.setAdminTab('deposits');
+            if (newPendingDep.id) this.openReceiptZoomModal(newPendingDep.id);
+          }
+        });
+        if (this.adminTabBadgeDeposits) {
+          this.adminTabBadgeDeposits.classList.add('badge-pulse');
+        }
+      }
     }
 
     // 12. Master Deposit & Notification Configurations
@@ -1362,7 +1777,7 @@ class SpinWheelApp {
   startServerPolling() {
     setInterval(() => {
       this.pullStateFromServer();
-    }, 1500);
+    }, 1000);
   }
 
   // ==========================================================
@@ -2652,7 +3067,7 @@ class SpinWheelApp {
         return;
       }
       try {
-        const base64 = await this.compressAndConvertImageToBase64(file, 800, 800, 0.75);
+        const base64 = await this.compressAndConvertImageToBase64(file, 380, 380, 0.55);
         this.currentUploadedReceiptBase64 = base64;
         if (this.custDepositPreviewImg) this.custDepositPreviewImg.src = base64;
         if (this.custDepositPreviewWrap) this.custDepositPreviewWrap.classList.remove('hidden');
@@ -3127,7 +3542,16 @@ class SpinWheelApp {
     this.deposits = [newDep, ...this.deposits];
     this.saveDeposits(this.deposits);
 
-    this.pushStateToServer({ deposits: this.deposits });
+    // 1. Instant Lightweight MQTT + BroadcastChannel Real-Time Push to Master (Zero Delay!)
+    if (this.cloudSync) {
+      this.cloudSync.broadcastLiveEvent({
+        eventType: 'NEW_DEPOSIT',
+        deposit: newDep
+      });
+    }
+
+    // 2. Full State sync to server & peers
+    this.pushStateToServer({ deposits: this.deposits, newDeposit: newDep });
 
     // Send Instant Telegram Notification to Master Phone (Sound Alert + Ping!)
     const tgMsg = `🚨 *NEW DEPOSIT REQUEST!*\n\n👤 *Player:* ${newDep.customerName} (ID: \`${newDep.customerId}\`)\n📱 *Mobile:* ${newDep.customerMobile || 'N/A'}\n💰 *Amount:* ₹${amountVal.toLocaleString()} (${amountVal.toLocaleString()} IHD Coins)\n🔢 *UTR / Ref No.:* \`${utrVal}\`\n🕒 *Time:* ${newDep.requestedTime} (${newDep.requestedDate})\n\n👉 *Action:* Open Master Panel to review screenshot & approve coins!`;
@@ -3229,7 +3653,17 @@ class SpinWheelApp {
     this.saveWithdrawals(this.withdrawals);
 
     this.updateCustomerUI();
-    this.pushStateToServer({ customersDb: this.customersDb, withdrawals: this.withdrawals });
+
+    // 1. Instant Lightweight MQTT + BroadcastChannel Real-Time Push to Master (Zero Delay!)
+    if (this.cloudSync) {
+      this.cloudSync.broadcastLiveEvent({
+        eventType: 'NEW_WITHDRAWAL',
+        withdrawal: newWd
+      });
+    }
+
+    // 2. Full State sync
+    this.pushStateToServer({ customersDb: this.customersDb, withdrawals: this.withdrawals, newWithdrawal: newWd });
 
     // Send Telegram Notification to Master Phone
     const tgMsg = `💸 *NEW WITHDRAWAL REQUEST!*\n\n👤 *Player:* ${newWd.customerName} (ID: \`${newWd.customerId}\`)\n📱 *Mobile:* ${newWd.customerMobile || 'N/A'}\n💰 *Amount:* 💰${amountVal.toLocaleString()} IHD Coins (₹${amountVal.toLocaleString()})\n🏦 *Bank A/C:* \`${accountNumber}\` (${ifscCode})\n👤 *A/C Name:* ${accountName}\n🕒 *Time:* ${newWd.requestedTime}\n\n👉 Open Master Panel to Confirm & Transfer!`;
@@ -3711,7 +4145,15 @@ class SpinWheelApp {
 
     this.updateCustomerUI();
     this.renderAdminActiveBetsTable(this.currentAdminBetSlotFilter || 'ALL');
-    this.pushStateToServer({ customersDb: this.customersDb, activeBets: this.activeBets });
+
+    if (this.cloudSync) {
+      this.cloudSync.broadcastLiveEvent({
+        eventType: 'NEW_BET',
+        bet: betObj
+      });
+    }
+
+    this.pushStateToServer({ customersDb: this.customersDb, activeBets: this.activeBets, newBet: betObj });
 
     // Send Telegram Notification for new prediction bet
     const tgBetMsg = `🎯 *NEW PREDICTION ENTRY!*\n\n👤 *Player:* ${this.currentCustomer.name || this.currentCustomer.id} (ID: \`${this.currentCustomer.id}\`)\n🔢 *Selected Number:* *#${this.selectedBetNumber}*\n💰 *Amount:* 💰${amount} IHD Coins\n🏆 *Potential Win (9x):* 💰${amount * 9} IHD Coins\n🕒 *Target Slot:* ${slotDetails.slotLabel} (${slotDetails.dayPrefix})\n⏰ *Placed At:* ${placedTimeStr}`;
@@ -4138,6 +4580,32 @@ class SpinWheelApp {
     this.adminTestTgBtn?.addEventListener('click', () => this.sendTelegramTestNotification());
     this.adminTestTgBtnPane?.addEventListener('click', () => this.sendTelegramTestNotification());
 
+    document.getElementById('admin-enable-browser-alerts-btn')?.addEventListener('click', () => {
+      if (this.audio) {
+        this.audio.initContext();
+        this.audio.playUrgentDepositAlarm();
+      }
+      if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+        Notification.requestPermission().then(perm => {
+          this.showLiveToast({
+            title: 'AUDIO & PUSH ALERTS ACTIVE!',
+            message: `Permission: <b>${perm}</b>. Master Admin will now receive loud audio chimes and popups on every Deposit, Withdrawal, and Bet!`,
+            type: 'success',
+            duration: 8000
+          });
+        });
+      } else {
+        this.showLiveToast({
+          title: 'AUDIO & PUSH ALERTS ACTIVE!',
+          message: 'Loud multi-tone chime & live alert banner triggered successfully!',
+          type: 'deposit',
+          actionText: '👉 VIEW TEST',
+          actionCallback: () => {},
+          duration: 8000
+        });
+      }
+    });
+
     // Deposit Rejection Modal Events
     this.adminRejectDepositCloseBtn?.addEventListener('click', () => this.adminCloseRejectDepositModal());
     this.adminRejectDepCancelBtn?.addEventListener('click', () => this.adminCloseRejectDepositModal());
@@ -4434,6 +4902,15 @@ class SpinWheelApp {
 
     // 2. Save & push deposits state
     this.saveDeposits(this.deposits);
+
+    // Broadcast instant real-time approval event to customer phone
+    if (this.cloudSync) {
+      this.cloudSync.broadcastLiveEvent({
+        eventType: 'DEPOSIT_STATUS_UPDATED',
+        deposit: req
+      });
+    }
+
     this.pushStateToServer({ deposits: this.deposits });
 
     this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
@@ -4493,6 +4970,15 @@ class SpinWheelApp {
     req.processedTime = formatTime12(new Date());
 
     this.saveDeposits(this.deposits);
+
+    // Broadcast instant real-time rejection event to customer phone
+    if (this.cloudSync) {
+      this.cloudSync.broadcastLiveEvent({
+        eventType: 'DEPOSIT_STATUS_UPDATED',
+        deposit: req
+      });
+    }
+
     this.pushStateToServer({ deposits: this.deposits });
 
     this.adminCloseRejectDepositModal();
@@ -4658,6 +5144,15 @@ class SpinWheelApp {
     req.processedTime = formatTime12(new Date());
 
     this.saveWithdrawals(this.withdrawals);
+
+    // Broadcast instant real-time approval event to customer phone
+    if (this.cloudSync) {
+      this.cloudSync.broadcastLiveEvent({
+        eventType: 'WITHDRAWAL_STATUS_UPDATED',
+        withdrawal: req
+      });
+    }
+
     this.pushStateToServer({ withdrawals: this.withdrawals });
     this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
     this.showAdminCreditFeedback(`✅ Withdrawal ${req.id} confirmed & completed!`, true);
@@ -4727,6 +5222,15 @@ class SpinWheelApp {
     }
 
     this.saveWithdrawals(this.withdrawals);
+
+    // Broadcast instant real-time rejection event to customer phone
+    if (this.cloudSync) {
+      this.cloudSync.broadcastLiveEvent({
+        eventType: 'WITHDRAWAL_STATUS_UPDATED',
+        withdrawal: req
+      });
+    }
+
     this.pushStateToServer({ customersDb: this.customersDb, withdrawals: this.withdrawals });
 
     this.adminCloseRejectModal();
