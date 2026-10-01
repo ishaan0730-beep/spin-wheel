@@ -2138,12 +2138,13 @@ class SpinWheelApp {
     const p = pass || '';
     const hasLength = p.length > 8; // Strictly greater than 8 characters (min 9)
     const uppercaseMatches = p.match(/[A-Z]/g) || [];
-    const hasTwoUpper = uppercaseMatches.length >= 2;
+    const hasUpper = uppercaseMatches.length >= 1; // At least 1 uppercase letter
     const hasNumber = /\d/.test(p);
     return {
-      isValid: hasLength && hasTwoUpper && hasNumber,
+      isValid: hasLength && hasUpper && hasNumber,
       hasLength,
-      hasTwoUpper,
+      hasUpper,
+      hasTwoUpper: hasUpper, // Backward compatibility
       hasNumber
     };
   }
@@ -2155,8 +2156,8 @@ class SpinWheelApp {
       lenEl.className = `rule-item ${res.hasLength ? 'valid' : ''}`;
     }
     if (upperEl) {
-      upperEl.textContent = res.hasTwoUpper ? '✅ At least 2 Uppercase (A-Z)' : '❌ At least 2 Uppercase (A-Z)';
-      upperEl.className = `rule-item ${res.hasTwoUpper ? 'valid' : ''}`;
+      upperEl.textContent = res.hasUpper ? '✅ At least 1 Uppercase (A-Z)' : '❌ At least 1 Uppercase (A-Z)';
+      upperEl.className = `rule-item ${res.hasUpper ? 'valid' : ''}`;
     }
     if (numEl) {
       numEl.textContent = res.hasNumber ? '✅ Numbers included (0-9)' : '❌ Numbers included (0-9)';
@@ -2600,7 +2601,7 @@ class SpinWheelApp {
     if (!passValidation.isValid) {
       let reason = 'Password does not meet requirements:';
       if (!passValidation.hasLength) reason += ' Min 9 characters (> 8).';
-      if (!passValidation.hasTwoUpper) reason += ' At least 2 uppercase letters (A-Z).';
+      if (!passValidation.hasUpper) reason += ' At least 1 uppercase letter (A-Z).';
       if (!passValidation.hasNumber) reason += ' Must include numbers (0-9).';
       this.showCustomerAuthError(reason, this.custRegError);
       return;
@@ -2688,7 +2689,7 @@ class SpinWheelApp {
     if (!passValidation.isValid) {
       let reason = 'New Password must have:';
       if (!passValidation.hasLength) reason += ' Min 9 characters (> 8).';
-      if (!passValidation.hasTwoUpper) reason += ' At least 2 uppercase letters.';
+      if (!passValidation.hasUpper) reason += ' At least 1 uppercase letter.';
       if (!passValidation.hasNumber) reason += ' Numbers included.';
       this.showCustomerAuthError(reason, this.forgotStep2Error);
       return;
