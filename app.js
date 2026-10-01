@@ -1562,7 +1562,7 @@ class SpinWheelApp {
           return {
             upiId: (parsed.upiId && parsed.upiId !== 'master@upi') ? parsed.upiId : '9041062733@PTSBI',
             accountName: (parsed.accountName && parsed.accountName !== 'Master Admin') ? parsed.accountName : 'DEEP',
-            qrImageUrl: parsed.qrImageUrl || '',
+            qrImageUrl: (parsed.qrImageUrl && parsed.qrImageUrl.length > 5) ? parsed.qrImageUrl : './master-qr.jpg',
             minDeposit: parsed.minDeposit || 100,
             instructions: parsed.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
           };
@@ -1572,7 +1572,7 @@ class SpinWheelApp {
     return {
       upiId: '9041062733@PTSBI',
       accountName: 'DEEP',
-      qrImageUrl: '',
+      qrImageUrl: './master-qr.jpg',
       minDeposit: 100,
       instructions: '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
     };
@@ -1646,18 +1646,10 @@ class SpinWheelApp {
     }
 
     if (this.custDepositQrImg) {
-      if (cfg.qrImageUrl && cfg.qrImageUrl.trim().length > 20) {
-        this.custDepositQrImg.src = cfg.qrImageUrl;
-        this.custDepositQrImg.classList.remove('hidden');
-        if (this.custDepositQrFallback) this.custDepositQrFallback.classList.add('hidden');
-      } else {
-        // Generate high-resolution dynamic UPI payment QR
-        const upiPayUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(accName)}&cu=INR`;
-        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiPayUri)}`;
-        this.custDepositQrImg.src = qrApiUrl;
-        this.custDepositQrImg.classList.remove('hidden');
-        if (this.custDepositQrFallback) this.custDepositQrFallback.classList.add('hidden');
-      }
+      const qrSrc = cfg.qrImageUrl && cfg.qrImageUrl.trim().length > 5 ? cfg.qrImageUrl : './master-qr.jpg';
+      this.custDepositQrImg.src = qrSrc;
+      this.custDepositQrImg.classList.remove('hidden');
+      if (this.custDepositQrFallback) this.custDepositQrFallback.classList.add('hidden');
     }
   }
 

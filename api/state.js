@@ -27,7 +27,7 @@ let globalState = {
   depositConfig: {
     upiId: '9041062733@PTSBI',
     accountName: 'DEEP',
-    qrImageUrl: '',
+    qrImageUrl: './master-qr.jpg',
     minDeposit: 100,
     instructions: '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
   },
@@ -227,7 +227,7 @@ export default function handler(req, res) {
         depositConfig: {
           upiId: globalState.depositConfig?.upiId || '9041062733@PTSBI',
           accountName: globalState.depositConfig?.accountName || 'DEEP',
-          qrImageUrl: globalState.depositConfig?.qrImageUrl || '',
+          qrImageUrl: globalState.depositConfig?.qrImageUrl || './master-qr.jpg',
           minDeposit: globalState.depositConfig?.minDeposit || 100,
           instructions: globalState.depositConfig?.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
         },
