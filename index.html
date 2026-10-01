@@ -224,7 +224,7 @@
 
       <!-- LAST 3 RESULTS SECTION -->
       <section class="last-results-section">
-        <div class="section-header">
+        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
           <div class="section-title-wrap">
             <svg class="history-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 8v4l3 3"></path>
@@ -232,7 +232,12 @@
             </svg>
             <h2 class="section-title">LAST 3 RESULTS</h2>
           </div>
-          <span class="live-dot-tag"><span class="pulse-dot"></span> Live History</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button type="button" id="view-all-spin-history-btn" class="btn btn-secondary btn-xs" style="font-size:0.75rem; padding:4px 9px; font-weight:700; color:var(--primary-gold-bright); border-color:rgba(245,176,65,0.4);">
+              📜 View All History (<span id="all-history-count-badge">0</span>)
+            </button>
+            <span class="live-dot-tag"><span class="pulse-dot"></span> Live History</span>
+          </div>
         </div>
 
         <div class="results-grid" id="last-3-results-grid">
@@ -261,6 +266,54 @@
     <footer class="app-footer">
       <span>Live Daily Rounds at 12:00 PM &bull; 04:00 PM &bull; 08:00 PM &bull; 11:00 PM</span>
     </footer>
+  </div>
+
+  <!-- ALL COMPLETE SPIN HISTORY MODAL (PUBLIC & PLAYER) -->
+  <div id="all-spin-history-modal" class="modal-wrapper hidden">
+    <div class="modal-overlay" id="all-spin-history-overlay"></div>
+    <div class="modal-card" style="max-width: 600px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden;">
+      <div class="modal-header" style="padding:0.75rem 1rem;">
+        <div class="modal-header-title">
+          <span style="font-size:1.2rem;">📜</span>
+          <div>
+            <h3 style="margin:0; font-size:1.05rem; color:var(--primary-gold-bright);">Complete Spin History</h3>
+            <span style="font-size:0.7rem; color:var(--text-muted);"><span id="modal-all-history-count">0</span> Total Auto & Scheduled Rounds Saved</span>
+          </div>
+        </div>
+        <button id="all-spin-history-close-btn" class="icon-btn" aria-label="Close Modal">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding:0.85rem; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:0.6rem;">
+        <!-- Filter & Search Bar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
+          <input type="text" id="all-hist-search" class="admin-input" placeholder="🔍 Search round, date, or number..." style="flex:1; min-width:180px; font-size:0.75rem; padding:5px 8px;">
+          <select id="all-hist-slot-filter" class="admin-select" style="width:auto; font-size:0.75rem; padding:5px 8px;">
+            <option value="ALL">All Slots</option>
+            <option value="12:00 PM">12:00 PM</option>
+            <option value="04:00 PM">04:00 PM</option>
+            <option value="08:00 PM">08:00 PM</option>
+            <option value="11:00 PM">11:00 PM</option>
+          </select>
+        </div>
+
+        <!-- History Table -->
+        <div style="background:rgba(0,0,0,0.35); border:1px solid var(--border-subtle); border-radius:6px; overflow:hidden;">
+          <table class="schedule-table" style="margin:0; font-size:0.78rem;">
+            <thead>
+              <tr>
+                <th>Round Slot</th>
+                <th>Winning #</th>
+                <th>Date & Time</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody id="all-history-table-body">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- HELP & INFO MODAL (PUBLIC RULES ONLY) -->
@@ -863,11 +916,11 @@
               </div>
             </div>
 
-            <!-- SECTION 3: CHANGE MASTER PASSWORD & HISTORY CLEAR -->
+            <!-- SECTION 3: CHANGE MASTER PASSWORD & DATA -->
             <div class="admin-card">
               <div class="admin-card-title">
                 <span class="step-num">3</span>
-                <h4>Change Master Password & Data</h4>
+                <h4>Change Master Password & Security</h4>
               </div>
               <p class="card-desc">Update your Master Authentication password:</p>
               <div class="master-key-change-row">
@@ -875,9 +928,48 @@
                 <button id="save-master-key-btn" class="btn btn-secondary">Update Key</button>
               </div>
               <span id="key-change-msg" class="save-status-msg" style="margin-top: 4px; display: block;"></span>
+            </div>
 
-              <div class="test-buttons-grid" style="margin-top: 1rem;">
-                <button id="reset-history-btn" class="btn btn-danger btn-block">🗑️ Clear Spin History</button>
+            <!-- SECTION 4: FULL LIVE SPIN HISTORY LOG -->
+            <div class="admin-card">
+              <div class="admin-card-header-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <div class="admin-card-title">
+                  <span class="step-num">4</span>
+                  <h4>📜 Complete Spin History Log</h4>
+                </div>
+                <span style="font-size:0.75rem; color:#00f0ff; font-weight:700;"><span id="admin-spin-hist-total-count">0</span> Rounds Saved</span>
+              </div>
+              <p class="card-desc">All auto-rounds, scheduled spins, and live winners are permanently tracked here:</p>
+
+              <div style="display:flex; gap:6px; margin-bottom:0.6rem;">
+                <input type="text" id="admin-spin-hist-search" class="admin-input" placeholder="🔍 Search by round, date, or winner..." style="flex:1; font-size:0.75rem; padding:4px 8px;">
+                <select id="admin-spin-hist-filter" class="admin-select" style="width:auto; font-size:0.75rem; padding:4px 8px;">
+                  <option value="ALL">All Slots</option>
+                  <option value="12:00 PM">12:00 PM</option>
+                  <option value="04:00 PM">04:00 PM</option>
+                  <option value="08:00 PM">08:00 PM</option>
+                  <option value="11:00 PM">11:00 PM</option>
+                </select>
+              </div>
+
+              <div class="schedule-table-wrap" style="max-height:260px; overflow-y:auto;">
+                <table class="schedule-table" style="font-size:0.75rem; margin:0;">
+                  <thead>
+                    <tr>
+                      <th>Slot Round</th>
+                      <th>Winning #</th>
+                      <th>Date & Time</th>
+                      <th>Source Type</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-spin-history-table-body">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="margin-top:0.75rem; display:flex; justify-content:flex-end;">
+                <button id="reset-history-btn" class="btn btn-danger btn-xs" style="padding:4px 10px;">🗑️ Clear Spin History</button>
               </div>
             </div>
 

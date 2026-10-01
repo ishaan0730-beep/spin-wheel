@@ -175,6 +175,19 @@ export default function handler(req, res) {
             globalState.deposits = Array.from(existingMap.values());
             delete body.deposits;
           }
+          if (Array.isArray(body.history)) {
+            const histMap = new Map((globalState.history || []).map(h => [h.id || `${h.date}_${h.round}_${h.time}_${h.number}`, h]));
+            body.history.forEach(h => {
+              if (h) {
+                const k = h.id || `${h.date}_${h.round}_${h.time}_${h.number}`;
+                histMap.set(k, { ...(histMap.get(k) || {}), ...h });
+              }
+            });
+            globalState.history = Array.from(histMap.values())
+              .sort((a, b) => (b.id || (b.timestamp || 0)) - (a.id || (a.timestamp || 0)))
+              .slice(0, 150);
+            delete body.history;
+          }
           if (body.depositConfig && typeof body.depositConfig === 'object') {
             globalState.depositConfig = { ...(globalState.depositConfig || {}), ...body.depositConfig };
             delete body.depositConfig;
@@ -189,7 +202,7 @@ export default function handler(req, res) {
             version: Date.now()
           };
         } else {
-          // Public updates: sync customer registration, merge active bets, merge withdrawals, merge deposits, clear spin triggers, update history
+          // Public updates: sync customer registration, merge active bets, merge withdrawals, merge deposits, clear spin triggers, merge history
           if (body.customersDb && typeof body.customersDb === 'object') {
             const merged = { ...(globalState.customersDb || {}) };
             Object.keys(body.customersDb).forEach(id => {
@@ -229,7 +242,16 @@ export default function handler(req, res) {
             globalState.spinTrigger = null;
           }
           if (Array.isArray(body.history) && body.history.length > 0) {
-            globalState.history = body.history;
+            const histMap = new Map((globalState.history || []).map(h => [h.id || `${h.date}_${h.round}_${h.time}_${h.number}`, h]));
+            body.history.forEach(h => {
+              if (h) {
+                const k = h.id || `${h.date}_${h.round}_${h.time}_${h.number}`;
+                histMap.set(k, { ...(histMap.get(k) || {}), ...h });
+              }
+            });
+            globalState.history = Array.from(histMap.values())
+              .sort((a, b) => (b.id || (b.timestamp || 0)) - (a.id || (a.timestamp || 0)))
+              .slice(0, 150);
           }
           globalState.version = Date.now();
         }

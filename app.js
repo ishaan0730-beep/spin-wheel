@@ -752,6 +752,23 @@ class SpinWheelApp {
     this.adminMiniLatestWin = document.getElementById('admin-mini-latest-win');
     this.adminMiniTestSpinBtn = document.getElementById('admin-mini-test-spin-btn');
 
+    // Complete Spin History Modal Elements (Public & Player)
+    this.viewAllSpinHistoryBtn = document.getElementById('view-all-spin-history-btn');
+    this.allHistoryCountBadge = document.getElementById('all-history-count-badge');
+    this.allSpinHistoryModal = document.getElementById('all-spin-history-modal');
+    this.allSpinHistoryOverlay = document.getElementById('all-spin-history-overlay');
+    this.allSpinHistoryCloseBtn = document.getElementById('all-spin-history-close-btn');
+    this.modalAllHistoryCount = document.getElementById('modal-all-history-count');
+    this.allHistSearch = document.getElementById('all-hist-search');
+    this.allHistSlotFilter = document.getElementById('all-hist-slot-filter');
+    this.allHistoryTableBody = document.getElementById('all-history-table-body');
+
+    // Admin Complete Spin History Elements
+    this.adminSpinHistTotalCount = document.getElementById('admin-spin-hist-total-count');
+    this.adminSpinHistSearch = document.getElementById('admin-spin-hist-search');
+    this.adminSpinHistFilter = document.getElementById('admin-spin-hist-filter');
+    this.adminSpinHistoryTableBody = document.getElementById('admin-spin-history-table-body');
+
     // Section 6 Controls (Master Key & History)
     this.newMasterKeyInput = document.getElementById('new-master-key-input');
     this.saveMasterKeyBtn = document.getElementById('save-master-key-btn');
@@ -772,6 +789,8 @@ class SpinWheelApp {
     this.updateTargetSlotDisplay();
     this.updateCustomerUI();
     this.renderLast3Results();
+    this.renderAllSpinHistoryModalList();
+    this.renderAdminSpinHistoryTable();
     this.populateAdminControls();
     this.startTimerEngine();
 
@@ -897,17 +916,36 @@ class SpinWheelApp {
     this.slices = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     localStorage.setItem(STATE_KEYS.SLICES, JSON.stringify(this.slices));
 
-    // 2. History
+    // 2. History (DEEP MERGE & DEDUPLICATE - NEVER LOSE AUTO ROUNDS)
     if (Array.isArray(state.history)) {
       if (state.history.length > 0) {
+        const histMap = new Map();
+        // Add remote items
+        state.history.forEach(item => {
+          if (!item) return;
+          const key = item.id || `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
+          histMap.set(key, item);
+        });
+        // Merge local items so newly spun local rounds are not wiped
+        (this.history || []).forEach(item => {
+          if (!item) return;
+          const key = item.id || `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
+          if (!histMap.has(key)) {
+            histMap.set(key, item);
+          }
+        });
+        const mergedHist = Array.from(histMap.values())
+          .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
+          .slice(0, 150);
+
         const currHistJson = JSON.stringify(this.history);
-        const newHistJson = JSON.stringify(state.history);
+        const newHistJson = JSON.stringify(mergedHist);
         if (currHistJson !== newHistJson) {
-          this.history = state.history;
+          this.history = mergedHist;
           localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
           historyNeedsRedraw = true;
         }
-      } else if (this.history.length > 0) {
+      } else if (this.history && this.history.length > 0) {
         // Local has history but server state has empty array: push local history to server to restore it
         this.pushStateToServer({ history: this.history });
       }
@@ -1101,6 +1139,8 @@ class SpinWheelApp {
     }
     if (historyNeedsRedraw) {
       this.renderLast3Results();
+      this.renderAllSpinHistoryModalList();
+      this.renderAdminSpinHistoryTable();
     }
     if (this.isDrawerOpen) {
       this.populateAdminControls();
@@ -1890,13 +1930,27 @@ class SpinWheelApp {
     });
 
     // Section 5: Reset History
-    this.resetHistoryBtn.addEventListener('click', () => {
-      if (confirm('Are you sure you want to clear all spin history across all devices?')) {
-        this.history = [];
-        this.renderLast3Results();
-        this.winBanner.classList.add('hidden');
-        this.pushStateToServer();
-      }
+    this.resetHistoryBtn?.addEventListener('click', () => {
+      this.clearSpinHistory();
+    });
+
+    // Complete Spin History Modal (Public & Player)
+    this.viewAllSpinHistoryBtn?.addEventListener('click', () => this.openAllSpinHistoryModal());
+    this.allSpinHistoryCloseBtn?.addEventListener('click', () => this.closeAllSpinHistoryModal());
+    this.allSpinHistoryOverlay?.addEventListener('click', () => this.closeAllSpinHistoryModal());
+    this.allHistSearch?.addEventListener('input', () => {
+      this.renderAllSpinHistoryModalList(this.allHistSearch?.value || '', this.allHistSlotFilter?.value || 'ALL');
+    });
+    this.allHistSlotFilter?.addEventListener('change', () => {
+      this.renderAllSpinHistoryModalList(this.allHistSearch?.value || '', this.allHistSlotFilter?.value || 'ALL');
+    });
+
+    // Admin Spin History Log Search & Filter
+    this.adminSpinHistSearch?.addEventListener('input', () => {
+      this.renderAdminSpinHistoryTable(this.adminSpinHistSearch?.value || '', this.adminSpinHistFilter?.value || 'ALL');
+    });
+    this.adminSpinHistFilter?.addEventListener('change', () => {
+      this.renderAdminSpinHistoryTable(this.adminSpinHistSearch?.value || '', this.adminSpinHistFilter?.value || 'ALL');
     });
   }
 
@@ -5630,32 +5684,44 @@ class SpinWheelApp {
         time: timeStr12,
         date: dateStr,
         round: roundStr12,
-        source: triggerSource
+        source: triggerSource || 'Auto Slot Round',
+        timestamp: Date.now()
       };
 
-      // Update history & immediately save to localStorage
-      this.history = [newResult, ...this.history].slice(0, 10);
+      // Update history & immediately save to localStorage (up to 150 entries retained)
+      const histMap = new Map();
+      histMap.set(newResult.id, newResult);
+      (this.history || []).forEach(item => {
+        if (!item) return;
+        const key = item.id || `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
+        if (!histMap.has(key)) histMap.set(key, item);
+      });
+      this.history = Array.from(histMap.values())
+        .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
+        .slice(0, 150);
+
       localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
       this.renderLast3Results();
+      this.renderAllSpinHistoryModalList();
+      this.renderAdminSpinHistoryTable();
     }
 
-    // Always clear spinTrigger on complete so it never fires again and sync history
-    if (isInitiator) {
-      this.pushStateToServer({
-        spinTrigger: null,
-        history: this.history,
-        customersDb: this.customersDb,
-        activeBets: this.activeBets
-      });
-    }
+    // Always clear spinTrigger on complete and broadcast latest history to server & cloud
+    this.pushStateToServer({
+      spinTrigger: null,
+      history: this.history,
+      customersDb: this.customersDb,
+      activeBets: this.activeBets
+    });
   }
 
   // ==========================================
   // LAST 3 RESULTS RENDERER (100% MATCH)
   // ==========================================
   renderLast3Results() {
+    if (!this.resultsGrid) return;
     this.resultsGrid.innerHTML = '';
-    const last3 = this.history.slice(0, 3);
+    const last3 = (this.history || []).slice(0, 3);
     const ranks = ['1st Previous', '2nd Previous', '3rd Previous'];
 
     for (let i = 0; i < 3; i++) {
@@ -5667,7 +5733,7 @@ class SpinWheelApp {
         card.innerHTML = `
           <div class="result-rank">${i === 0 ? '🏆 Latest Winner' : ranks[i]}</div>
           <div class="result-number">${item.number}</div>
-          <div class="result-meta">${item.time} (${item.round})</div>
+          <div class="result-meta">${item.time} (${item.round || ''})</div>
         `;
       } else {
         card.className = 'result-card empty-card';
@@ -5678,6 +5744,174 @@ class SpinWheelApp {
         `;
       }
       this.resultsGrid.appendChild(card);
+    }
+
+    if (this.allHistoryCountBadge) {
+      this.allHistoryCountBadge.textContent = (this.history || []).length;
+    }
+  }
+
+  // ==========================================================
+  // COMPLETE SPIN HISTORY MODAL & ADMIN LOG RENDERERS
+  // ==========================================================
+  openAllSpinHistoryModal() {
+    if (!this.allSpinHistoryModal) return;
+    this.allSpinHistoryModal.classList.remove('hidden');
+    this.renderAllSpinHistoryModalList(this.allHistSearch?.value || '', this.allHistSlotFilter?.value || 'ALL');
+  }
+
+  closeAllSpinHistoryModal() {
+    if (this.allSpinHistoryModal) {
+      this.allSpinHistoryModal.classList.add('hidden');
+    }
+  }
+
+  renderAllSpinHistoryModalList(searchQuery = '', slotFilter = 'ALL') {
+    const list = Array.isArray(this.history) ? this.history : [];
+    const totalCount = list.length;
+
+    if (this.allHistoryCountBadge) this.allHistoryCountBadge.textContent = totalCount;
+    if (this.modalAllHistoryCount) this.modalAllHistoryCount.textContent = totalCount;
+
+    if (!this.allHistoryTableBody) return;
+
+    const q = (searchQuery || '').toLowerCase().trim();
+    const filtered = list.filter(item => {
+      if (!item) return false;
+      if (slotFilter && slotFilter !== 'ALL') {
+        const itemRound = (item.round || '').trim();
+        const itemTime = (item.time || '').trim();
+        if (itemRound !== slotFilter && !itemTime.includes(slotFilter)) return false;
+      }
+      if (!q) return true;
+      const numStr = String(item.number || '');
+      const roundStr = String(item.round || '').toLowerCase();
+      const dateStr = String(item.date || '').toLowerCase();
+      const timeStr = String(item.time || '').toLowerCase();
+      const sourceStr = String(item.source || '').toLowerCase();
+      return numStr.includes(q) || roundStr.includes(q) || dateStr.includes(q) || timeStr.includes(q) || sourceStr.includes(q);
+    });
+
+    if (filtered.length === 0) {
+      this.allHistoryTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+            ${totalCount === 0 ? 'No spin rounds recorded yet. Auto-rounds will appear here automatically.' : 'No spin results match the search/filter.'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    this.allHistoryTableBody.innerHTML = '';
+    filtered.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      const isLatest = (idx === 0);
+
+      tr.innerHTML = `
+        <td>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <strong style="color:var(--primary-gold-bright); font-size:0.85rem;">${item.round || item.time || 'Round'}</strong>
+            ${isLatest ? '<span class="status-pill status-approved" style="font-size:0.62rem; padding:1px 5px;">Latest</span>' : ''}
+          </div>
+        </td>
+        <td>
+          <span style="background:var(--primary-gold-gradient, linear-gradient(135deg, #ffd700, #f5b041)); color:#000; font-weight:900; padding:2px 9px; border-radius:12px; font-size:0.85rem; display:inline-block; box-shadow:0 0 8px rgba(245,176,65,0.4);">
+            #${item.number}
+          </span>
+        </td>
+        <td>
+          <span style="color:#fff; font-size:0.75rem;">${item.date || ''}</span>
+          <span style="color:var(--text-secondary); font-size:0.68rem; display:block;">${item.time || ''}</span>
+        </td>
+        <td>
+          <span style="font-size:0.68rem; color:#00f0ff; background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.25); padding:2px 6px; border-radius:4px;">
+            ${item.source || 'Live Round'}
+          </span>
+        </td>
+      `;
+      this.allHistoryTableBody.appendChild(tr);
+    });
+  }
+
+  renderAdminSpinHistoryTable(searchQuery = '', slotFilter = 'ALL') {
+    const list = Array.isArray(this.history) ? this.history : [];
+    const totalCount = list.length;
+
+    if (this.adminSpinHistTotalCount) this.adminSpinHistTotalCount.textContent = totalCount;
+    if (this.allHistoryCountBadge) this.allHistoryCountBadge.textContent = totalCount;
+    if (this.modalAllHistoryCount) this.modalAllHistoryCount.textContent = totalCount;
+
+    if (!this.adminSpinHistoryTableBody) return;
+
+    const q = (searchQuery || '').toLowerCase().trim();
+    const filtered = list.filter(item => {
+      if (!item) return false;
+      if (slotFilter && slotFilter !== 'ALL') {
+        const itemRound = (item.round || '').trim();
+        const itemTime = (item.time || '').trim();
+        if (itemRound !== slotFilter && !itemTime.includes(slotFilter)) return false;
+      }
+      if (!q) return true;
+      const numStr = String(item.number || '');
+      const roundStr = String(item.round || '').toLowerCase();
+      const dateStr = String(item.date || '').toLowerCase();
+      const timeStr = String(item.time || '').toLowerCase();
+      const sourceStr = String(item.source || '').toLowerCase();
+      return numStr.includes(q) || roundStr.includes(q) || dateStr.includes(q) || timeStr.includes(q) || sourceStr.includes(q);
+    });
+
+    if (filtered.length === 0) {
+      this.adminSpinHistoryTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+            ${totalCount === 0 ? 'No spin rounds recorded yet.' : 'No spin history records match your search.'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    this.adminSpinHistoryTableBody.innerHTML = '';
+    filtered.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      const isLatest = (idx === 0);
+
+      tr.innerHTML = `
+        <td>
+          <div style="display:flex; align-items:center; gap:5px;">
+            <strong style="color:var(--primary-gold-bright); font-size:0.82rem;">${item.round || item.time || 'Round'}</strong>
+            ${isLatest ? '<span style="background:#2ecc71; color:#000; font-size:0.6rem; font-weight:800; padding:1px 5px; border-radius:8px;">LATEST</span>' : ''}
+          </div>
+        </td>
+        <td>
+          <span style="background:#ffd700; color:#000; font-weight:900; padding:2px 8px; border-radius:10px; font-size:0.82rem; display:inline-block;">
+            #${item.number}
+          </span>
+        </td>
+        <td>
+          <span style="color:#fff; font-size:0.75rem;">${item.date || ''}</span>
+          <span style="color:var(--text-muted); font-size:0.68rem;"> (${item.time || ''})</span>
+        </td>
+        <td>
+          <span style="font-size:0.68rem; color:#00f0ff;">
+            ${item.source || 'Auto Round'}
+          </span>
+        </td>
+      `;
+      this.adminSpinHistoryTableBody.appendChild(tr);
+    });
+  }
+
+  clearSpinHistory() {
+    if (confirm('Are you sure you want to CLEAR all spin history across all devices?')) {
+      this.history = [];
+      localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify([]));
+      this.renderLast3Results();
+      this.renderAllSpinHistoryModalList();
+      this.renderAdminSpinHistoryTable();
+      if (this.winBanner) this.winBanner.classList.add('hidden');
+      this.pushStateToServer({ history: [] });
     }
   }
 
