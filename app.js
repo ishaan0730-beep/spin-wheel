@@ -19,6 +19,85 @@ const DAILY_SLOTS = [
   { label: '11:00 PM', hour: 23, min: 0 }
 ];
 
+// Cross-Platform Month Map & Date Helpers (Resilient for iOS Safari, WebKit, Android, Desktop)
+const MONTH_MAP = {
+  jan: 0, january: 0,
+  feb: 1, february: 1,
+  mar: 2, march: 2,
+  apr: 3, april: 3,
+  may: 4,
+  jun: 5, june: 5,
+  jul: 6, july: 6,
+  aug: 7, august: 7,
+  sep: 8, sept: 8, september: 8,
+  oct: 9, october: 9,
+  nov: 10, november: 10,
+  dec: 11, december: 11
+};
+
+function parseCrossBrowserDate(rawStr, now = new Date()) {
+  if (!rawStr) return new Date(now);
+  if (rawStr instanceof Date && !isNaN(rawStr.getTime())) return new Date(rawStr);
+  if (typeof rawStr === 'number' && !isNaN(rawStr)) return new Date(rawStr);
+
+  const str = String(rawStr).trim();
+  const lower = str.toLowerCase();
+
+  if (lower === 'today' || lower.includes('today')) return new Date(now);
+  if (lower === 'yesterday' || lower.includes('yesterday')) return new Date(now.getTime() - 86400000);
+  if (lower === 'tomorrow' || lower.includes('tomorrow')) return new Date(now.getTime() + 86400000);
+
+  // Check ISO format YYYY-MM-DD
+  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const y = parseInt(isoMatch[1], 10);
+    const m = parseInt(isoMatch[2], 10) - 1;
+    const d = parseInt(isoMatch[3], 10);
+    const dt = new Date(y, m, d);
+    if (!isNaN(dt.getTime())) return dt;
+  }
+
+  // Check Month Day e.g. "Sep 30", "Sep 30, 2026", "September 30", "30 Sep"
+  const parts = str.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+  let month = -1;
+  let day = -1;
+  let year = now.getFullYear();
+
+  for (let p of parts) {
+    const pLow = p.toLowerCase();
+    if (MONTH_MAP[pLow] !== undefined) {
+      month = MONTH_MAP[pLow];
+    } else {
+      const num = parseInt(p, 10);
+      if (!isNaN(num)) {
+        if (num > 1000) year = num;
+        else if (day === -1 && num >= 1 && num <= 31) day = num;
+      }
+    }
+  }
+
+  if (month !== -1 && day !== -1) {
+    const dt = new Date(year, month, day);
+    if (!isNaN(dt.getTime())) return dt;
+  }
+
+  const parsed = Date.parse(str);
+  if (!isNaN(parsed)) {
+    const dt = new Date(parsed);
+    if (!isNaN(dt.getTime())) return dt;
+  }
+
+  return new Date(now);
+}
+
+function formatISODate(d) {
+  if (!d || isNaN(d.getTime())) d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // Local Storage Keys
 const STATE_KEYS = {
   SLICES: 'lucky_spin_slices_v6',
@@ -1030,21 +1109,37 @@ class SpinWheelApp {
     this.renderPredictionChips();
     this.updateTargetSlotDisplay();
     this.updateCustomerUI();
-    this.settleElapsedSlots();
+    
+    // Start countdown timer engine immediately so clock & slot display never get stuck
+    this.startTimerEngine();
+
+    try {
+      this.settleElapsedSlots();
+    } catch (e) {
+      console.warn('Initial settle error:', e);
+    }
+
     this.renderLast3Results();
     this.renderAllSpinHistoryModalList();
     this.renderAdminSpinHistoryTable();
     this.populateAdminControls();
     this.renderCustomerDepositUI();
     this.populateMasterConfigInputs();
-    this.startTimerEngine();
 
     // 1. Start Instant Real-Time Cloud Synchronization
-    this.cloudSync = new CloudSyncEngine(this);
+    try {
+      this.cloudSync = new CloudSyncEngine(this);
+    } catch (e) {
+      console.warn('CloudSyncEngine init error:', e);
+    }
 
     // 2. Pull initial local server state & continuous live polling
-    await this.pullStateFromServer();
-    this.settleElapsedSlots();
+    try {
+      await this.pullStateFromServer();
+    } catch (e) {
+      console.warn('Initial state pull error:', e);
+    }
+
     this.startServerPolling();
   }
 
@@ -1782,7 +1877,7 @@ class SpinWheelApp {
   startServerPolling() {
     setInterval(() => {
       this.pullStateFromServer();
-    }, 1000);
+    }, 3000);
   }
 
   // ==========================================================
@@ -7516,51 +7611,35 @@ class SpinWheelApp {
       else slotObj = DAILY_SLOTS[0];
     }
 
-    // 2. Resolve Target Date
+    // 2. Resolve Target Date using cross-browser parser (handles Safari, Chrome, Android, etc.)
+    const rawDateFull = bet.targetDateFull || bet.placedDate || '';
+    const rawDate = bet.date || bet.targetDate || bet.entryDate || bet.Date || bet.day || '';
+    
     let d = null;
-    const rawDateFull = String(bet.targetDateFull || bet.placedDate || '').trim();
-    const rawDate = String(bet.date || bet.targetDate || bet.entryDate || bet.Date || bet.day || '').trim();
-    const rawDisp = String(bet.displaySlot || '').toLowerCase();
-
-    if (rawDateFull && !isNaN(Date.parse(rawDateFull))) {
-      d = new Date(rawDateFull);
+    if (rawDateFull) {
+      d = parseCrossBrowserDate(rawDateFull, now);
     } else if (rawDate) {
-      const rawLower = rawDate.toLowerCase();
-      if (rawLower === 'today' || rawDisp.includes('today')) {
-        d = new Date(now);
-      } else if (rawLower === 'yesterday' || rawDisp.includes('yesterday')) {
-        d = new Date(now.getTime() - 86400000);
-      } else if (rawLower === 'tomorrow' || rawDisp.includes('tomorrow')) {
-        d = new Date(now.getTime() + 86400000);
-      } else {
-        const parsedWithYear = Date.parse(`${rawDate} ${now.getFullYear()}`);
-        const parsedDirect = Date.parse(rawDate);
-        if (!isNaN(parsedDirect) && rawDate.includes('-')) {
-          d = new Date(parsedDirect);
-        } else if (!isNaN(parsedWithYear)) {
-          d = new Date(parsedWithYear);
-        }
-      }
-    }
-
-    if (!d && bet.timestamp) {
+      d = parseCrossBrowserDate(rawDate, now);
+    } else if (bet.timestamp) {
       d = new Date(bet.timestamp);
     }
 
-    if (!d) {
+    if (!d || isNaN(d.getTime())) {
       d = new Date(now);
     }
 
-    d.setHours(slotObj.hour, slotObj.min, 0, 0);
-    return d.getTime();
+    const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate(), slotObj.hour, slotObj.min, 0, 0);
+    return targetDate.getTime();
   }
 
   isBetUpcoming(bet, now = new Date()) {
-    return this.getBetTargetTimestamp(bet, now) > now.getTime();
+    const ts = this.getBetTargetTimestamp(bet, now);
+    return ts > now.getTime();
   }
 
   isBetExpired(bet, now = new Date()) {
-    return this.getBetTargetTimestamp(bet, now) <= now.getTime();
+    const ts = this.getBetTargetTimestamp(bet, now);
+    return ts <= now.getTime();
   }
 
   settleAllExpiredBets() {
@@ -7589,7 +7668,7 @@ class SpinWheelApp {
       const targetTs = this.getBetTargetTimestamp(bet, now);
       const targetDateObj = new Date(targetTs);
       const dateStr = targetDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const dateISO = targetDateObj.toISOString().split('T')[0];
+      const dateISO = formatISODate(targetDateObj);
       
       const slotLabel = String(bet.targetSlot || bet.slot || bet.timeSlot || bet.round || '12:00 PM').trim();
       const slotObj = DAILY_SLOTS.find(s => s.label === slotLabel) || DAILY_SLOTS[0];
