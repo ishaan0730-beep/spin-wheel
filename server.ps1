@@ -343,6 +343,14 @@ public class NativeHttpServer {
                                                     return tB.CompareTo(tA);
                                                 });
                                                 currentObj["activeBets"] = list.ToArray();
+                                            } else if (kvp.Key == "dailySchedule" && inDep != null) {
+                                                var curSched = (currentObj.ContainsKey("dailySchedule") && currentObj["dailySchedule"] is Dictionary<string, object>) 
+                                                    ? (Dictionary<string, object>)currentObj["dailySchedule"] 
+                                                    : new Dictionary<string, object>();
+                                                foreach (KeyValuePair<string, object> sKvp in inDep) {
+                                                    curSched[sKvp.Key] = sKvp.Value;
+                                                }
+                                                currentObj["dailySchedule"] = curSched;
                                             } else {
                                                 currentObj[kvp.Key] = kvp.Value;
                                             }

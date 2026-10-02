@@ -324,6 +324,10 @@ export default function handler(req, res) {
             globalState.notificationConfig = { ...(globalState.notificationConfig || {}), ...body.notificationConfig };
             delete body.notificationConfig;
           }
+          if (body.dailySchedule && typeof body.dailySchedule === 'object') {
+            globalState.dailySchedule = { ...(globalState.dailySchedule || {}), ...body.dailySchedule };
+            delete body.dailySchedule;
+          }
           globalState = {
             ...globalState,
             ...body,

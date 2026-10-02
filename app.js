@@ -1535,10 +1535,43 @@ class SpinWheelApp {
       localStorage.setItem(STATE_KEYS.UPCOMING_QUEUE, JSON.stringify(this.upcomingQueue));
     }
 
-    // 5. 4-Slot Daily Schedule
+    // 5. 4-Slot Daily Schedule (SMART MERGE - NEVER OVERWRITE LOCKED PRESETS WITH AUTO)
     if (state.dailySchedule && typeof state.dailySchedule === 'object') {
-      this.dailySchedule = { ...this.dailySchedule, ...state.dailySchedule };
-      localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+      const isRemoteStrictlyNewer = Boolean(state.version && state.version > (this.lastVersion || 0));
+      const mergedSchedule = { ...(this.dailySchedule || {}) };
+      let scheduleChanged = false;
+
+      Object.keys(state.dailySchedule).forEach(slot => {
+        const remoteVal = state.dailySchedule[slot];
+        const localVal = mergedSchedule[slot];
+
+        // If remote has a concrete locked number (e.g. 70, 80), always accept it
+        if (remoteVal !== undefined && remoteVal !== null && remoteVal !== 'AUTO') {
+          const numVal = parseInt(remoteVal, 10);
+          if (!isNaN(numVal) && mergedSchedule[slot] !== numVal) {
+            mergedSchedule[slot] = numVal;
+            scheduleChanged = true;
+          }
+        } 
+        // If remote is 'AUTO', only revert local to 'AUTO' if remote is strictly newer OR local was already 'AUTO'
+        else if (remoteVal === 'AUTO') {
+          if (localVal === undefined || localVal === 'AUTO' || isRemoteStrictlyNewer) {
+            if (mergedSchedule[slot] !== 'AUTO') {
+              mergedSchedule[slot] = 'AUTO';
+              scheduleChanged = true;
+            }
+          }
+        }
+      });
+
+      if (scheduleChanged || !this.dailySchedule) {
+        this.dailySchedule = mergedSchedule;
+        localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+        if (this.isDrawerOpen) {
+          this.renderDailyScheduleTable();
+          this.updateSection1BadgeForSelectedSlot();
+        }
+      }
     }
 
     // 6. Timer Mode & Countdown Target
@@ -1795,42 +1828,55 @@ class SpinWheelApp {
       this.renderAdminSpinHistoryTable();
     }
     if (this.isDrawerOpen) {
-      this.populateAdminControls();
+      this.updateSection1BadgeForSelectedSlot();
+      this.renderDailyScheduleTable();
     } else {
       this.updateForcedWinnerUI();
     }
   }
 
   getCompleteStatePayload(additionalFields = {}) {
-    const adminAuth = sessionStorage.getItem('admin_auth') || this.masterPassword || '00773300';
-    return {
+    const adminAuth = sessionStorage.getItem('admin_auth') || (this.isDrawerOpen ? (this.masterPassword || '00773300') : null);
+    const isAdmin = Boolean(adminAuth);
+
+    const payload = {
       slices: this.slices,
       history: this.history,
-      forcedNext: this.forcedNext,
-      upcomingQueue: this.upcomingQueue,
-      dailySchedule: this.dailySchedule,
       timerMode: this.timerMode,
       customSecs: this.customSecs,
       customTimerTarget: this.customTimerTarget,
-      masterPassword: this.masterPassword,
       customersDb: this.customersDb || {},
       activeBets: this.activeBets || [],
       withdrawals: this.withdrawals || [],
       deposits: this.deposits || [],
       depositConfig: this.depositConfig || {},
       notificationConfig: this.notificationConfig || {},
-      adminKey: adminAuth,
       version: this.version || Date.now(),
       ...additionalFields
     };
+
+    // Only include sensitive admin controls if admin is active
+    if (isAdmin) {
+      payload.adminKey = adminAuth;
+      payload.masterPassword = this.masterPassword;
+      payload.forcedNext = this.forcedNext;
+      payload.upcomingQueue = this.upcomingQueue;
+      payload.dailySchedule = this.dailySchedule;
+    }
+
+    return payload;
   }
 
   async pushStateToServer(additionalFields = {}) {
     this.version = Date.now();
     this.lastVersion = this.version;
 
-    const adminAuth = sessionStorage.getItem('admin_auth') || this.masterPassword || '00773300';
-    const payload = this.getCompleteStatePayload({ version: this.version, adminKey: adminAuth, ...additionalFields });
+    const adminAuth = sessionStorage.getItem('admin_auth') || (this.isDrawerOpen ? (this.masterPassword || '00773300') : null);
+    const payload = this.getCompleteStatePayload({ 
+      version: this.version, 
+      ...(adminAuth ? { adminKey: adminAuth } : {}), 
+      ...additionalFields 
+    });
 
     // Save to LocalStorage as instant backup
     localStorage.setItem(STATE_KEYS.SLICES, JSON.stringify(this.slices));
@@ -2606,12 +2652,14 @@ class SpinWheelApp {
         if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) winnerNum = this.slices[0] || 10;
 
         // 1. Lock predetermined winner for this specific slot in daily schedule
-        if (this.dailySchedule && this.dailySchedule[roundTitle] !== undefined) {
-          this.dailySchedule[roundTitle] = winnerNum;
-          this.renderDailyScheduleTable();
-        } else {
-          this.forcedNext = winnerNum;
-        }
+        if (!this.dailySchedule) this.dailySchedule = {};
+        this.dailySchedule[roundTitle] = winnerNum;
+        this.forcedNext = null;
+        this.version = Date.now();
+        this.lastVersion = this.version;
+
+        localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+        this.renderDailyScheduleTable();
 
         // 2. Update Active Timing Badge
         this.updateSection1BadgeForSelectedSlot();
@@ -2624,8 +2672,10 @@ class SpinWheelApp {
         // 4. Broadcast to all devices in real-time
         this.pushStateToServer({
           dailySchedule: this.dailySchedule,
+          forcedNext: null,
           timerMode: 'REAL',
-          customTimerTarget: null
+          customTimerTarget: null,
+          version: this.version
         });
         this.showTimerFeedback(`✅ Locked Winner #${winnerNum} for Slot "${roundTitle}"!`);
       });
@@ -2657,9 +2707,11 @@ class SpinWheelApp {
         this.forcedNext = null;
 
         // Reset ONLY the predetermined winner for this slot back to AUTO in schedule
-        if (this.dailySchedule && this.dailySchedule[selectedSlot] !== undefined) {
-          this.dailySchedule[selectedSlot] = 'AUTO';
-        }
+        if (!this.dailySchedule) this.dailySchedule = {};
+        this.dailySchedule[selectedSlot] = 'AUTO';
+        this.version = Date.now();
+        this.lastVersion = this.version;
+        localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
 
         this.renderDailyScheduleTable();
 
@@ -2683,7 +2735,7 @@ class SpinWheelApp {
           this.quickRoundHourSelect.value = selectedSlot;
         }
 
-        this.pushStateToServer({ dailySchedule: this.dailySchedule, forcedNext: null });
+        this.pushStateToServer({ dailySchedule: this.dailySchedule, forcedNext: null, version: this.version });
         this.showTimerFeedback(`✅ Winner for Round "${selectedSlot}" reset to Auto (Random). Time slot remains ${selectedSlot}!`);
       });
     }
@@ -2697,9 +2749,12 @@ class SpinWheelApp {
           sched[slot.label] = this.slices[randIdx];
         });
         this.dailySchedule = sched;
+        this.version = Date.now();
+        this.lastVersion = this.version;
+        localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
         this.renderDailyScheduleTable();
         this.updateSection1BadgeForSelectedSlot();
-        this.pushStateToServer();
+        this.pushStateToServer({ dailySchedule: this.dailySchedule, version: this.version });
         this.showTimerFeedback('Auto-filled 4 daily slots!');
       });
     }
@@ -4355,6 +4410,7 @@ class SpinWheelApp {
   openAdminDrawer() {
     this.isDrawerOpen = true;
     this.userManuallySelectedRoundSlot = false;
+    sessionStorage.setItem('admin_auth', this.masterPassword || '00773300');
 
     // 1. Immediately open the Admin Fullscreen Dashboard on screen
     if (this.adminDrawer) {
@@ -4492,6 +4548,31 @@ class SpinWheelApp {
   renderDailyScheduleTable() {
     if (!this.scheduleTableBody) return;
     const nextSlot = getNextSlotInfo(new Date());
+
+    // Check if table rows already exist to sync values without re-creating DOM elements
+    const existingRows = this.scheduleTableBody.querySelectorAll('tr');
+    if (existingRows.length === DAILY_SLOTS.length) {
+      DAILY_SLOTS.forEach((slot, idx) => {
+        const tr = existingRows[idx];
+        const isNext = slot.label === nextSlot.label;
+        if (isNext && !tr.classList.contains('current-hour-row')) {
+          tr.classList.add('current-hour-row');
+        } else if (!isNext && tr.classList.contains('current-hour-row')) {
+          tr.classList.remove('current-hour-row');
+        }
+
+        const sel = tr.querySelector('.schedule-select');
+        if (sel) {
+          const currentPreset = (this.dailySchedule && this.dailySchedule[slot.label] !== undefined) ? this.dailySchedule[slot.label] : 'AUTO';
+          const targetVal = currentPreset === 'AUTO' ? 'AUTO' : String(currentPreset);
+          if (sel.value !== targetVal) {
+            sel.value = targetVal;
+          }
+        }
+      });
+      return;
+    }
+
     this.scheduleTableBody.innerHTML = '';
 
     DAILY_SLOTS.forEach(slot => {
@@ -4533,8 +4614,10 @@ class SpinWheelApp {
         const val = e.target.value === 'AUTO' ? 'AUTO' : parseInt(e.target.value, 10);
         if (!this.dailySchedule) this.dailySchedule = {};
         this.dailySchedule[slotLabel] = val;
+        this.version = Date.now();
+        this.lastVersion = this.version;
         localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-        this.pushStateToServer({ dailySchedule: this.dailySchedule });
+        this.pushStateToServer({ dailySchedule: this.dailySchedule, version: this.version });
         this.updateSection1BadgeForSelectedSlot();
         this.showTimerFeedback(`✅ Slot ${slotLabel} winner set to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
       });
@@ -4555,8 +4638,10 @@ class SpinWheelApp {
       const val = select.value === 'AUTO' ? 'AUTO' : parseInt(select.value, 10);
       if (!this.dailySchedule) this.dailySchedule = {};
       this.dailySchedule[slotLabel] = val;
+      this.version = Date.now();
+      this.lastVersion = this.version;
       localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-      this.pushStateToServer({ dailySchedule: this.dailySchedule });
+      this.pushStateToServer({ dailySchedule: this.dailySchedule, version: this.version });
       this.updateSection1BadgeForSelectedSlot();
       this.showTimerFeedback(`✅ Slot ${slotLabel} winner saved to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
 
