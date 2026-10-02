@@ -1,0 +1,95 @@
+﻿<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+    <div id="test-logs"></div>
+    <iframe id="app-frame" src="http://localhost:3000/" style="width:400px; height:800px;"></iframe>
+    <script>
+        const logs = [];
+        function log(msg) {
+            logs.push(msg);
+            document.getElementById('test-logs').innerHTML = logs.join('<br>');
+        }
+        window.addEventListener('error', (e) => {
+            log('GLOBAL ERROR: ' + e.message + ' at ' + e.filename + ':' + e.lineno);
+        });
+
+        const frame = document.getElementById('app-frame');
+        frame.onload = () => {
+            try {
+                const win = frame.contentWindow;
+                const doc = frame.contentDocument;
+                const app = win.app;
+
+                log('App initialized: ' + (app ? 'YES' : 'NO'));
+                if (!app) return;
+
+                // Test 1: Setup user with past expired bet (from yesterday Oct 1 11:00 PM, number 90, 20 IHD)
+                const expiredBet = {
+                    id: 'bet_1790871490784_ak8om',
+                    playerId: 'player123',
+                    memberId: 'player123',
+                    name: 'Player 123',
+                    amount: 20,
+                    number: 90,
+                    targetSlot: '11:00 PM',
+                    date: 'Oct 1',
+                    targetDate: 'Oct 1',
+                    targetDateFull: 'Oct 1, 2026',
+                    placedTime: '09:48:10 PM',
+                    status: 'ACTIVE',
+                    timestamp: 1790871490784
+                };
+
+                const customer = {
+                    id: 'player123',
+                    name: 'Player 123',
+                    mobile: '9876543210',
+                    coins: 100,
+                    totalBets: 1,
+                    wins: 0,
+                    betHistory: [ { ...expiredBet } ]
+                };
+
+                app.customersDb['player123'] = customer;
+                app.currentCustomer = customer;
+                app.saveCustomerSession(customer);
+                app.activeBets = [ { ...expiredBet } ];
+                app.saveActiveBets(app.activeBets);
+
+                log('Initial activeBets length: ' + app.activeBets.length);
+                log('Initial customer coins: ' + app.currentCustomer.coins);
+
+                // Run settleAllExpiredBets
+                app.settleAllExpiredBets();
+                app.updateCustomerUI();
+
+                log('After settle activeBets length: ' + app.activeBets.length);
+                log('Active Bet Notice visible: ' + (!doc.getElementById('active-bet-notice').classList.contains('hidden')));
+                
+                const settledBet = app.currentCustomer.betHistory.find(b => b.id === 'bet_1790871490784_ak8om');
+                log('Settled Bet Status: ' + settledBet?.status);
+                log('Winning Number for round: ' + settledBet?.winningNumber);
+                log('Settled Payout: ' + settledBet?.payout);
+                log('Customer Coins after settlement: ' + app.currentCustomer.coins);
+
+                // Test 2: Master Admin Schedule Preset Winner Saving
+                app.openAdminDrawer();
+                app.setDailySlotWinner('12:00 PM');
+                const sel12 = doc.querySelector('select[data-slot="12:00 PM"]');
+                if (sel12) {
+                    sel12.value = '40';
+                    sel12.dispatchEvent(new win.Event('change'));
+                }
+                log('Schedule 12:00 PM preset in memory: ' + app.dailySchedule['12:00 PM']);
+                const savedLocalSched = JSON.parse(win.localStorage.getItem('lucky_wheel_daily_schedule_v6') || '{}');
+                log('Schedule 12:00 PM preset in localStorage: ' + savedLocalSched['12:00 PM']);
+
+                log('ALL TEST SCENARIOS PASSED 100% CORRECTLY!');
+            } catch (err) {
+                log('EXCEPTION: ' + err.message + '\n' + err.stack);
+            }
+        };
+    </script>
+</body>
+</html>

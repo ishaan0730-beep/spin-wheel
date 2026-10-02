@@ -1108,16 +1108,19 @@ class SpinWheelApp {
     this.renderWheel();
     this.renderPredictionChips();
     this.updateTargetSlotDisplay();
-    this.updateCustomerUI();
-    
-    // Start countdown timer engine immediately so clock & slot display never get stuck
-    this.startTimerEngine();
 
+    // STRICT LIVE REFRESH: Immediately settle all past/elapsed round bets
     try {
+      this.settleAllExpiredBets();
       this.settleElapsedSlots();
     } catch (e) {
       console.warn('Initial settle error:', e);
     }
+
+    this.updateCustomerUI();
+    
+    // Start countdown timer engine immediately so clock & slot display never get stuck
+    this.startTimerEngine();
 
     this.renderLast3Results();
     this.renderAllSpinHistoryModalList();
@@ -1993,6 +1996,7 @@ class SpinWheelApp {
 
   loadActiveBets() {
     const deleted = this.deletedBetIds || this.loadDeletedBetIds();
+    const now = new Date();
     const betMap = new Map();
 
     try {
@@ -2002,27 +2006,13 @@ class SpinWheelApp {
         if (Array.isArray(parsed)) {
           parsed.forEach(b => {
             if (b && b.id && !deleted.has(String(b.id))) {
-              betMap.set(String(b.id), b);
-            }
-          });
-        }
-      }
-    } catch (e) {}
-
-    // Fallback recovery from registered players DB active history
-    try {
-      const db = this.customersDb || this.loadCustomersDB();
-      Object.values(db || {}).forEach(player => {
-        if (player && Array.isArray(player.betHistory)) {
-          player.betHistory.forEach(b => {
-            if (b && b.id && (b.status === 'ACTIVE' || !b.status) && !deleted.has(String(b.id))) {
-              if (!betMap.has(String(b.id))) {
-                betMap.set(String(b.id), { ...b, status: 'ACTIVE' });
+              if (this.isBetUpcoming ? this.isBetUpcoming(b, now) : true) {
+                betMap.set(String(b.id), b);
               }
             }
           });
         }
-      });
+      }
     } catch (e) {}
 
     return Array.from(betMap.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -3984,19 +3974,24 @@ class SpinWheelApp {
       }
     });
 
-    const playerId = this.currentCustomer.id;
-    // 1. Gather all active bets for this player
-    const myActive = (this.activeBets || []).filter(b => b && (b.playerId === playerId || b.memberId === playerId || b.userId === playerId));
+    const playerId = String(this.currentCustomer.id || '').toLowerCase();
+    const now = new Date();
+    // 1. Gather ONLY live upcoming active bets for this player
+    const myActive = (this.activeBets || []).filter(b => {
+      if (!b) return false;
+      if (this.isBetExpired(b, now)) return false;
+      const pId = String(b.playerId || b.memberId || b.userId || b.customerId || '').toLowerCase();
+      return pId === playerId;
+    });
     // 2. Gather settled bet history
     const myHist = Array.isArray(this.currentCustomer.betHistory) ? this.currentCustomer.betHistory : [];
     
-    // Combine and deduplicate by ID
+    // Combine and deduplicate by ID: settled history items maintain their WON/LOST/REFUNDED status
     const betMap = new Map();
-    // Historical items
     myHist.forEach(b => {
       if (b && b.id) betMap.set(String(b.id), b);
     });
-    // Active bets take precedence if currently active
+    // Active upcoming bets take precedence as ACTIVE
     myActive.forEach(b => {
       if (b && b.id) {
         betMap.set(String(b.id), { ...b, status: 'ACTIVE' });
@@ -4479,6 +4474,7 @@ class SpinWheelApp {
   }
 
   renderDailyScheduleTable() {
+    if (!this.scheduleTableBody) return;
     const nextSlot = getNextSlotInfo(new Date());
     this.scheduleTableBody.innerHTML = '';
 
@@ -4487,7 +4483,7 @@ class SpinWheelApp {
       const isNext = slot.label === nextSlot.label;
       if (isNext) tr.className = 'current-hour-row';
 
-      const currentPreset = this.dailySchedule[slot.label] || 'AUTO';
+      const currentPreset = (this.dailySchedule && this.dailySchedule[slot.label] !== undefined) ? this.dailySchedule[slot.label] : 'AUTO';
 
       let selectOptions = `<option value="AUTO" ${currentPreset === 'AUTO' ? 'selected' : ''}>🎲 Auto</option>`;
       const presetNum = currentPreset !== 'AUTO' ? parseInt(currentPreset, 10) : null;
@@ -4502,12 +4498,12 @@ class SpinWheelApp {
           ${isNext ? '<small style="color:#f5b041; margin-left:6px; font-weight:700;">(Next Round)</small>' : ''}
         </td>
         <td>
-          <select class="schedule-select" data-slot="${slot.label}">
+          <select class="schedule-select" data-slot="${slot.label}" id="sched-select-${slot.label.replace(/[^a-zA-Z0-9]/g, '')}">
             ${selectOptions}
           </select>
         </td>
         <td>
-          <button class="btn btn-secondary btn-sm" onclick="app.setDailySlotWinner('${slot.label}')">Set</button>
+          <button type="button" class="btn btn-secondary btn-sm set-slot-btn" data-slot="${slot.label}">Set</button>
         </td>
       `;
 
@@ -4519,22 +4515,49 @@ class SpinWheelApp {
       sel.addEventListener('change', (e) => {
         const slotLabel = e.target.getAttribute('data-slot');
         const val = e.target.value === 'AUTO' ? 'AUTO' : parseInt(e.target.value, 10);
+        if (!this.dailySchedule) this.dailySchedule = {};
         this.dailySchedule[slotLabel] = val;
-        this.pushStateToServer();
+        localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+        this.pushStateToServer({ dailySchedule: this.dailySchedule });
         this.updateSection1BadgeForSelectedSlot();
+        this.showTimerFeedback(`✅ Slot ${slotLabel} winner set to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
+      });
+    });
+
+    const setBtns = this.scheduleTableBody.querySelectorAll('.set-slot-btn');
+    setBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const slotLabel = btn.getAttribute('data-slot');
+        this.setDailySlotWinner(slotLabel);
       });
     });
   }
 
   setDailySlotWinner(slotLabel) {
-    const select = this.scheduleTableBody.querySelector(`select[data-slot="${slotLabel}"]`);
+    const select = this.scheduleTableBody?.querySelector(`select[data-slot="${slotLabel}"]`);
     if (select) {
       const val = select.value === 'AUTO' ? 'AUTO' : parseInt(select.value, 10);
+      if (!this.dailySchedule) this.dailySchedule = {};
       this.dailySchedule[slotLabel] = val;
-      this.pushStateToServer();
-      this.renderDailyScheduleTable();
+      localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+      this.pushStateToServer({ dailySchedule: this.dailySchedule });
       this.updateSection1BadgeForSelectedSlot();
-      this.showTimerFeedback(`Slot ${slotLabel} winner set to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
+      this.showTimerFeedback(`✅ Slot ${slotLabel} winner saved to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
+
+      const btn = this.scheduleTableBody?.querySelector(`button[data-slot="${slotLabel}"]`);
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✅ Saved';
+        btn.style.color = '#2ecc71';
+        btn.style.borderColor = '#2ecc71';
+        setTimeout(() => {
+          if (btn) {
+            btn.textContent = orig;
+            btn.style.color = '';
+            btn.style.borderColor = '';
+          }
+        }, 2000);
+      }
     }
   }
 
@@ -7644,37 +7667,18 @@ class SpinWheelApp {
   }
 
   settleAllExpiredBets() {
-    if (!Array.isArray(this.activeBets) || this.activeBets.length === 0) return;
-
     const now = new Date();
     const slices = Array.isArray(this.slices) && this.slices.length > 0 ? this.slices : [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-    const upcomingBets = [];
-    const expiredBets = [];
-
-    this.activeBets.forEach(b => {
-      if (!b || !b.id) return;
-      if (this.isBetExpired(b, now)) {
-        expiredBets.push(b);
-      } else {
-        upcomingBets.push(b);
-      }
-    });
-
-    if (expiredBets.length === 0) return;
-
+    
     let historyChanged = false;
     let customersChanged = false;
+    let currentCustomerChanged = false;
 
-    expiredBets.forEach(bet => {
-      const targetTs = this.getBetTargetTimestamp(bet, now);
-      const targetDateObj = new Date(targetTs);
-      const dateStr = targetDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const dateISO = formatISODate(targetDateObj);
-      
-      const slotLabel = String(bet.targetSlot || bet.slot || bet.timeSlot || bet.round || '12:00 PM').trim();
+    // Helper to get or generate winning number for an elapsed round datetime
+    const getOrGenWinnerForSlot = (targetTs, slotLabel, dateStr, dateISO) => {
       const slotObj = DAILY_SLOTS.find(s => s.label === slotLabel) || DAILY_SLOTS[0];
+      const targetDateObj = new Date(targetTs);
 
-      // Find winning number from this.history
       let histItem = (this.history || []).find(h => {
         if (!h) return false;
         const hDate = String(h.date || '').toLowerCase();
@@ -7716,71 +7720,150 @@ class SpinWheelApp {
         this.history.unshift(histItem);
         historyChanged = true;
       }
+      return Number(histItem.number);
+    };
 
-      const winningNumber = Number(histItem.number);
+    // 1. Process activeBets list
+    const upcomingBets = [];
+    const expiredBets = [];
+
+    (this.activeBets || []).forEach(b => {
+      if (!b || !b.id) return;
+      if (this.isBetExpired(b, now)) {
+        expiredBets.push(b);
+      } else {
+        upcomingBets.push(b);
+      }
+    });
+
+    expiredBets.forEach(bet => {
+      const targetTs = this.getBetTargetTimestamp(bet, now);
+      const targetDateObj = new Date(targetTs);
+      const dateStr = targetDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dateISO = formatISODate(targetDateObj);
+      const slotLabel = String(bet.targetSlot || bet.slot || bet.timeSlot || bet.round || '12:00 PM').trim();
+
+      const winningNumber = getOrGenWinnerForSlot(targetTs, slotLabel, dateStr, dateISO);
       const betNumber = Number(bet.number !== undefined ? bet.number : (bet.no !== undefined ? bet.no : -1));
       const isWin = (betNumber === winningNumber);
       const betAmt = Number(bet.amount || bet.coins || bet.betAmount || 0);
       const payoutVal = isWin ? (betAmt * 9) : 0;
-      const pid = bet.playerId || bet.memberId || bet.userId || bet.customerId || bet.partyId;
+      const rawPid = bet.playerId || bet.memberId || bet.userId || bet.customerId || bet.partyId || '';
+      const pid = String(rawPid).toLowerCase().trim();
 
-      // Update customersDb
-      if (pid && this.customersDb && this.customersDb[pid]) {
-        const p = this.customersDb[pid];
-        if (isWin) {
-          p.coins = (p.coins || 0) + payoutVal;
-          p.wins = (p.wins || 0) + 1;
+      const settledEntry = {
+        ...bet,
+        status: isWin ? 'WON' : 'LOST',
+        winningNumber: winningNumber,
+        payout: payoutVal,
+        settledAt: slotLabel,
+        settledDate: dateStr,
+        settledTimestamp: Date.now()
+      };
+
+      // Update in customersDb
+      if (this.customersDb) {
+        for (let k of Object.keys(this.customersDb)) {
+          const p = this.customersDb[k];
+          if (k.toLowerCase() === pid || String(p?.id || '').toLowerCase() === pid) {
+            if (isWin) {
+              p.coins = (p.coins || 0) + payoutVal;
+              p.wins = (p.wins || 0) + 1;
+            }
+            if (!Array.isArray(p.betHistory)) p.betHistory = [];
+            const idx = p.betHistory.findIndex(x => String(x.id) === String(bet.id));
+            if (idx >= 0) {
+              p.betHistory[idx] = settledEntry;
+            } else {
+              p.betHistory.unshift(settledEntry);
+            }
+            customersChanged = true;
+            break;
+          }
         }
-        if (!Array.isArray(p.betHistory)) p.betHistory = [];
-        const existingIdx = p.betHistory.findIndex(b => String(b.id) === String(bet.id));
-        const settledEntry = {
-          ...bet,
-          status: isWin ? 'WON' : 'LOST',
-          winningNumber: winningNumber,
-          payout: payoutVal,
-          settledAt: slotObj.label,
-          settledDate: dateStr,
-          settledTimestamp: Date.now()
-        };
-        if (existingIdx >= 0) {
-          p.betHistory[existingIdx] = settledEntry;
-        } else {
-          p.betHistory.unshift(settledEntry);
-        }
-        customersChanged = true;
       }
 
-      // Update current customer session if logged in
-      if (this.currentCustomer && (this.currentCustomer.id === pid || this.currentCustomer.memberId === pid)) {
-        if (isWin) {
-          this.currentCustomer.coins = (this.currentCustomer.coins || 0) + payoutVal;
-          this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+      // Update in currentCustomer session
+      if (this.currentCustomer) {
+        const cId = String(this.currentCustomer.id || this.currentCustomer.memberId || '').toLowerCase().trim();
+        if (cId === pid) {
+          if (isWin) {
+            this.currentCustomer.coins = (this.currentCustomer.coins || 0) + payoutVal;
+            this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+          }
+          if (!Array.isArray(this.currentCustomer.betHistory)) this.currentCustomer.betHistory = [];
+          const idx = this.currentCustomer.betHistory.findIndex(x => String(x.id) === String(bet.id));
+          if (idx >= 0) {
+            this.currentCustomer.betHistory[idx] = settledEntry;
+          } else {
+            this.currentCustomer.betHistory.unshift(settledEntry);
+          }
+          currentCustomerChanged = true;
         }
-        if (!Array.isArray(this.currentCustomer.betHistory)) this.currentCustomer.betHistory = [];
-        const cIdx = this.currentCustomer.betHistory.findIndex(b => String(b.id) === String(bet.id));
-        const settledEntry = {
-          ...bet,
-          status: isWin ? 'WON' : 'LOST',
-          winningNumber: winningNumber,
-          payout: payoutVal,
-          settledAt: slotObj.label,
-          settledDate: dateStr,
-          settledTimestamp: Date.now()
-        };
-        if (cIdx >= 0) {
-          this.currentCustomer.betHistory[cIdx] = settledEntry;
-        } else {
-          this.currentCustomer.betHistory.unshift(settledEntry);
-        }
-        this.saveCustomerSession(this.currentCustomer);
       }
     });
 
-    this.activeBets = upcomingBets;
-    this.saveActiveBets(this.activeBets);
+    // 2. Also scan and settle any un-settled historical bets inside customersDb / currentCustomer
+    if (this.customersDb) {
+      Object.values(this.customersDb).forEach(p => {
+        if (p && Array.isArray(p.betHistory)) {
+          p.betHistory.forEach(b => {
+            if (b && (b.status === 'ACTIVE' || !b.status) && this.isBetExpired(b, now)) {
+              const targetTs = this.getBetTargetTimestamp(b, now);
+              const targetDateObj = new Date(targetTs);
+              const dateStr = targetDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const dateISO = formatISODate(targetDateObj);
+              const slotLabel = String(b.targetSlot || b.slot || b.timeSlot || b.round || '12:00 PM').trim();
+
+              const winningNumber = getOrGenWinnerForSlot(targetTs, slotLabel, dateStr, dateISO);
+              const betNumber = Number(b.number !== undefined ? b.number : (b.no !== undefined ? b.no : -1));
+              const isWin = (betNumber === winningNumber);
+              const betAmt = Number(b.amount || b.coins || b.betAmount || 0);
+              const payoutVal = isWin ? (betAmt * 9) : 0;
+
+              if (isWin) {
+                p.coins = (p.coins || 0) + payoutVal;
+                p.wins = (p.wins || 0) + 1;
+              }
+              b.status = isWin ? 'WON' : 'LOST';
+              b.winningNumber = winningNumber;
+              b.payout = payoutVal;
+              b.settledAt = slotLabel;
+              b.settledDate = dateStr;
+              b.settledTimestamp = Date.now();
+              customersChanged = true;
+
+              if (this.currentCustomer && String(this.currentCustomer.id || '').toLowerCase() === String(p.id || '').toLowerCase()) {
+                if (isWin) {
+                  this.currentCustomer.coins = (this.currentCustomer.coins || 0) + payoutVal;
+                  this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+                }
+                if (Array.isArray(this.currentCustomer.betHistory)) {
+                  const cIdx = this.currentCustomer.betHistory.findIndex(x => String(x.id) === String(b.id));
+                  if (cIdx >= 0) {
+                    this.currentCustomer.betHistory[cIdx] = { ...b };
+                  }
+                }
+                currentCustomerChanged = true;
+              }
+            }
+          });
+        }
+      });
+    }
+
+    if (expiredBets.length > 0 || (this.activeBets && this.activeBets.length !== upcomingBets.length)) {
+      this.activeBets = upcomingBets;
+      this.saveActiveBets(this.activeBets);
+    }
 
     if (customersChanged) {
       this.saveCustomersDB(this.customersDb);
+    }
+
+    if (currentCustomerChanged && this.currentCustomer) {
+      this.saveCustomerSession(this.currentCustomer);
+      this.updateCustomerUI();
     }
 
     if (historyChanged) {
@@ -7799,11 +7882,13 @@ class SpinWheelApp {
       this.renderAdminSpinHistoryTable();
     }
 
-    this.pushStateToServer({
-      activeBets: this.activeBets,
-      customersDb: this.customersDb,
-      history: this.history
-    });
+    if (expiredBets.length > 0 || customersChanged || historyChanged) {
+      this.pushStateToServer({
+        activeBets: this.activeBets,
+        customersDb: this.customersDb,
+        history: this.history
+      });
+    }
 
     this.updateCustomerUI();
   }
@@ -8002,3 +8087,4 @@ class SpinWheelApp {
 window.addEventListener('DOMContentLoaded', () => {
   window.app = new SpinWheelApp();
 });
+
