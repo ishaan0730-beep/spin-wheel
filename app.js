@@ -4209,37 +4209,50 @@ class SpinWheelApp {
     const betObj = {
       id: 'bet_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
       
-      // Member ID aliases (Num Ledger Pro compatibility)
-      memberId: playerId,
-      member_id: playerId,
-      userId: playerId,
-      playerId: playerId,
-      partyId: playerId,
-
-      // Name aliases (Num Ledger Pro compatibility)
+      // Member / Party ID aliases (Num Ledger Pro compatibility)
+      party: playerName,
+      partyName: playerName,
+      Party: playerName,
+      PartyName: playerName,
+      party_name: playerName,
+      accountName: playerName,
+      account: playerName,
       name: playerName,
       playerName: playerName,
-      partyName: playerName,
       memberName: playerName,
       customerName: playerName,
       Name: playerName,
       userName: playerName,
 
+      partyId: playerId,
+      PartyId: playerId,
+      party_id: playerId,
+      partyCode: playerId,
+      memberId: playerId,
+      member_id: playerId,
+      userId: playerId,
+      playerId: playerId,
+
       // Mobile / Contact aliases
       mobile: playerMobile,
+      phone: playerMobile,
+      contact: playerMobile,
+      Contact: playerMobile,
       playerMobile: playerMobile,
       partyMobile: playerMobile,
-      phone: playerMobile,
       dob: this.currentCustomer.dob || '',
 
       // Date aliases (Num Ledger Pro compatibility)
       date: dateFormatted,
+      dateISO: (slotDetails.targetDate ? slotDetails.targetDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+      dateDMY: (slotDetails.targetDate ? `${String(slotDetails.targetDate.getDate()).padStart(2, '0')}-${String(slotDetails.targetDate.getMonth() + 1).padStart(2, '0')}-${slotDetails.targetDate.getFullYear()}` : ''),
       entryDate: dateFormatted,
       Date: dateFormatted,
       targetDate: dateFormatted,
       targetDateFull: dateFull,
       placedDate: dateFull,
       createdDate: dateFormatted,
+      formattedDate: dateFull,
       day: dateFormatted,
 
       // Time Slot aliases (Num Ledger Pro compatibility)
@@ -4264,11 +4277,14 @@ class SpinWheelApp {
       amount: amount,
       betAmount: amount,
       coins: amount,
+      rate: 9,
       multiplier: 9,
       potentialWin: amount * 9,
       winAmount: amount * 9,
       payout: amount * 9,
+      potentialLiability: amount * 9,
 
+      remark: `Prediction #${this.selectedBetNumber} on ${timeSlot} (${playerName})`,
       timestamp: Date.now(),
       status: 'ACTIVE'
     };
@@ -6428,6 +6444,123 @@ class SpinWheelApp {
   }
 
   // ==========================================================
+  // COMPREHENSIVE NUM LEDGER PRO ENTRY FORMATTER
+  // ==========================================================
+  formatLedgerEntry(b, idx = 0, defaultDateFormatted = '', defaultDateFull = '', targetSlotTitle = '12:00 PM', now = new Date()) {
+    const pid = b.memberId || b.member_id || b.userId || b.playerId || b.partyId || b.partyCode || 'PLAYER';
+    const cust = (this.customersDb && this.customersDb[pid]) ? this.customersDb[pid] : null;
+
+    const pName = b.party || b.partyName || b.Party || b.PartyName || b.party_name || b.name || b.playerName || b.memberName || b.customerName || b.accountName || b.account || b.Name || (cust ? (cust.name || cust.partyName) : '') || pid || 'Player';
+    const pMobile = b.mobile || b.phone || b.contact || b.Contact || b.playerMobile || b.partyMobile || (cust ? (cust.mobile || cust.phone) : '') || '';
+    const pDob = b.dob || (cust ? cust.dob : '') || '';
+
+    const targetTs = this.getBetTargetTimestamp ? this.getBetTargetTimestamp(b, now) : (b.timestamp || now.getTime());
+    const dObj = new Date(targetTs);
+    const dISO = dObj.toISOString().split('T')[0];
+    const dDMY = `${String(dObj.getDate()).padStart(2, '0')}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${dObj.getFullYear()}`;
+    const dShort = b.date || b.entryDate || b.Date || b.targetDate || dObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || defaultDateFormatted;
+    const dFullVal = b.targetDateFull || b.placedDate || dObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || defaultDateFull;
+
+    const sVal = b.timeSlot || b.slot || b.time_slot || b.slotTime || b.round || b.targetSlot || targetSlotTitle;
+    const timeVal = b.placedTime || b.time || formatTime12(new Date(b.timestamp || Date.now()));
+    const displaySlotVal = b.displaySlot || `${dShort} • ${sVal}`;
+
+    const numVal = b.number !== undefined ? Number(b.number) : (b.no !== undefined ? Number(b.no) : (b.num !== undefined ? Number(b.num) : 10));
+    const amtVal = b.amount !== undefined ? Number(b.amount) : (b.coins !== undefined ? Number(b.coins) : (b.betAmount !== undefined ? Number(b.betAmount) : 10));
+    const winVal = b.potentialWin !== undefined ? Number(b.potentialWin) : (b.winAmount !== undefined ? Number(b.winAmount) : amtVal * 9);
+
+    return {
+      entryNo: idx + 1,
+      index: idx + 1,
+      srNo: idx + 1,
+      id: b.id || `bet_${Date.now()}_${idx}`,
+
+      // Party Name & Details (Num Ledger Pro standard fields)
+      party: pName,
+      partyName: pName,
+      Party: pName,
+      PartyName: pName,
+      party_name: pName,
+      name: pName,
+      playerName: pName,
+      memberName: pName,
+      customerName: pName,
+      accountName: pName,
+      account: pName,
+      Name: pName,
+      userName: pName,
+
+      // Party & Member ID aliases
+      partyId: pid,
+      PartyId: pid,
+      party_id: pid,
+      partyCode: pid,
+      memberId: pid,
+      member_id: pid,
+      userId: pid,
+      playerId: pid,
+
+      // Contact info
+      mobile: pMobile,
+      phone: pMobile,
+      contact: pMobile,
+      Contact: pMobile,
+      playerMobile: pMobile,
+      partyMobile: pMobile,
+      dob: pDob,
+
+      // Date variations (Date-Wise handling in Num Ledger Pro)
+      date: dShort,
+      dateISO: dISO,
+      dateDMY: dDMY,
+      isoDate: dISO,
+      entryDate: dShort,
+      Date: dShort,
+      targetDate: dShort,
+      targetDateISO: dISO,
+      targetDateDMY: dDMY,
+      targetDateFull: dFullVal,
+      placedDate: dFullVal,
+      createdDate: dShort,
+      formattedDate: dFullVal,
+      day: dShort,
+
+      // Time Slot variations
+      timeSlot: sVal,
+      time_slot: sVal,
+      slot: sVal,
+      slotTime: sVal,
+      round: sVal,
+      targetSlot: sVal,
+      displaySlot: displaySlotVal,
+      time: timeVal,
+      placedTime: timeVal,
+
+      // Prediction Number
+      number: numVal,
+      no: numVal,
+      num: numVal,
+      betNumber: numVal,
+      selectedNumber: numVal,
+
+      // Amount, Rate, Payout & Liability
+      amount: amtVal,
+      betAmount: amtVal,
+      coins: amtVal,
+      rate: 9,
+      multiplier: 9,
+      potentialWin: winVal,
+      winAmount: winVal,
+      payout: winVal,
+      potentialLiability: winVal,
+
+      remark: `Prediction #${numVal} on ${sVal} (${pName})`,
+      timestamp: b.timestamp || Date.now(),
+      status: b.status || 'ACTIVE'
+    };
+  }
+
+  // ==========================================================
   // PER-SLOT DEDICATED NUM LEDGER PRO JSON EXPORT ENGINE
   // ==========================================================
   exportSlotEntriesJSON(slotLabel = 'ALL') {
@@ -6465,111 +6598,99 @@ class SpinWheelApp {
       dateTag = this.currentAdminBetCustomDate;
     }
 
-    const totalCoins = filtered.reduce((sum, b) => sum + (Number(b.amount) || Number(b.coins) || 0), 0);
     const defaultDateFormatted = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const defaultDateFull = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-    // Number breakdown summary (liability calculation per number)
+    // Multi-dimensional breakdown structures for Num Ledger Pro
     const numberBreakdown = {};
-    filtered.forEach(b => {
-      const num = b.number !== undefined ? Number(b.number) : 0;
-      const amt = Number(b.amount || b.coins || 0);
-      if (!numberBreakdown[num]) {
-        numberBreakdown[num] = { count: 0, totalAmount: 0, potentialLiability: 0 };
-      }
-      numberBreakdown[num].count++;
-      numberBreakdown[num].totalAmount += amt;
-      numberBreakdown[num].potentialLiability += amt * 9;
-    });
+    const partyMap = {};
+    const dateMap = {};
+    const slotMap = {};
 
     const entries = filtered.map((b, idx) => {
-      const pid = b.memberId || b.member_id || b.userId || b.playerId || b.partyId || 'PLAYER';
-      const cust = (this.customersDb && this.customersDb[pid]) ? this.customersDb[pid] : null;
+      const entry = this.formatLedgerEntry(b, idx, defaultDateFormatted, defaultDateFull, targetSlotTitle, now);
 
-      const pName = b.name || b.playerName || b.partyName || b.memberName || b.customerName || b.Name || (cust ? cust.name : '') || pid || 'Player';
-      const pMobile = b.mobile || b.playerMobile || b.partyMobile || b.phone || (cust ? cust.mobile : '') || '';
-      const pDob = b.dob || (cust ? cust.dob : '') || '';
+      // Number breakdown update
+      const num = entry.number;
+      if (!numberBreakdown[num]) {
+        numberBreakdown[num] = { number: num, count: 0, totalAmount: 0, potentialLiability: 0 };
+      }
+      numberBreakdown[num].count++;
+      numberBreakdown[num].totalAmount += entry.amount;
+      numberBreakdown[num].potentialLiability += entry.potentialWin;
 
-      const dVal = b.date || b.entryDate || b.Date || b.targetDate || defaultDateFormatted;
-      const dFullVal = b.targetDateFull || b.placedDate || defaultDateFull;
-      const sVal = b.timeSlot || b.slot || b.time_slot || b.slotTime || b.round || b.targetSlot || targetSlotTitle;
-      const timeVal = b.placedTime || b.time || formatTime12(new Date(b.timestamp || Date.now()));
-      const displaySlotVal = b.displaySlot || `${dVal} • ${sVal}`;
+      // Party breakdown update
+      const partyKey = `${entry.partyName}_${entry.partyId}`;
+      if (!partyMap[partyKey]) {
+        partyMap[partyKey] = {
+          party: entry.partyName,
+          partyName: entry.partyName,
+          PartyName: entry.partyName,
+          party_name: entry.partyName,
+          partyId: entry.partyId,
+          memberId: entry.memberId,
+          mobile: entry.mobile,
+          phone: entry.phone,
+          totalEntries: 0,
+          totalAmount: 0,
+          potentialLiability: 0,
+          numbersSummary: {}
+        };
+      }
+      partyMap[partyKey].totalEntries++;
+      partyMap[partyKey].totalAmount += entry.amount;
+      partyMap[partyKey].potentialLiability += entry.potentialWin;
+      partyMap[partyKey].numbersSummary[num] = (partyMap[partyKey].numbersSummary[num] || 0) + entry.amount;
 
-      const numVal = b.number !== undefined ? Number(b.number) : (b.no !== undefined ? Number(b.no) : (b.num !== undefined ? Number(b.num) : 10));
-      const amtVal = b.amount !== undefined ? Number(b.amount) : (b.coins !== undefined ? Number(b.coins) : (b.betAmount !== undefined ? Number(b.betAmount) : 10));
-      const winVal = b.potentialWin !== undefined ? Number(b.potentialWin) : (b.winAmount !== undefined ? Number(b.winAmount) : amtVal * 9);
+      // Date breakdown update
+      const dKey = entry.dateISO || entry.date;
+      if (!dateMap[dKey]) {
+        dateMap[dKey] = {
+          date: entry.date,
+          dateISO: entry.dateISO,
+          dateDMY: entry.dateDMY,
+          dateFull: entry.targetDateFull,
+          totalEntries: 0,
+          totalAmount: 0,
+          potentialLiability: 0,
+          slots: {}
+        };
+      }
+      dateMap[dKey].totalEntries++;
+      dateMap[dKey].totalAmount += entry.amount;
+      dateMap[dKey].potentialLiability += entry.potentialWin;
 
-      return {
-        entryNo: idx + 1,
-        index: idx + 1,
-        srNo: idx + 1,
-        id: b.id || `bet_${Date.now()}_${idx}`,
+      const sKey = entry.timeSlot;
+      if (!dateMap[dKey].slots[sKey]) {
+        dateMap[dKey].slots[sKey] = {
+          slot: sKey,
+          totalEntries: 0,
+          totalAmount: 0,
+          potentialLiability: 0
+        };
+      }
+      dateMap[dKey].slots[sKey].totalEntries++;
+      dateMap[dKey].slots[sKey].totalAmount += entry.amount;
+      dateMap[dKey].slots[sKey].potentialLiability += entry.potentialWin;
 
-        // Date variations for Num Ledger Pro
-        date: dVal,
-        entryDate: dVal,
-        Date: dVal,
-        targetDate: dVal,
-        targetDateFull: dFullVal,
-        placedDate: dFullVal,
-        createdDate: dVal,
-        day: dVal,
+      // Slot breakdown update
+      if (!slotMap[sKey]) {
+        slotMap[sKey] = {
+          slot: sKey,
+          totalEntries: 0,
+          totalAmount: 0,
+          potentialLiability: 0
+        };
+      }
+      slotMap[sKey].totalEntries++;
+      slotMap[sKey].totalAmount += entry.amount;
+      slotMap[sKey].potentialLiability += entry.potentialWin;
 
-        // Time Slot variations for Num Ledger Pro
-        timeSlot: sVal,
-        time_slot: sVal,
-        slot: sVal,
-        slotTime: sVal,
-        round: sVal,
-        targetSlot: sVal,
-        displaySlot: displaySlotVal,
-        time: timeVal,
-        placedTime: timeVal,
-
-        // Member ID variations
-        memberId: pid,
-        member_id: pid,
-        userId: pid,
-        playerId: pid,
-        partyId: pid,
-
-        // Member Name variations
-        name: pName,
-        playerName: pName,
-        partyName: pName,
-        memberName: pName,
-        customerName: pName,
-        Name: pName,
-        userName: pName,
-
-        // Contact info
-        mobile: pMobile,
-        playerMobile: pMobile,
-        partyMobile: pMobile,
-        phone: pMobile,
-        dob: pDob,
-
-        // Prediction Number
-        number: numVal,
-        no: numVal,
-        num: numVal,
-        betNumber: numVal,
-        selectedNumber: numVal,
-
-        // Amount & Payout variations
-        amount: amtVal,
-        betAmount: amtVal,
-        coins: amtVal,
-        multiplier: 9,
-        potentialWin: winVal,
-        winAmount: winVal,
-        payout: winVal,
-
-        timestamp: b.timestamp || Date.now(),
-        status: b.status || 'ACTIVE'
-      };
+      return entry;
     });
+
+    const totalCoins = entries.reduce((sum, e) => sum + e.amount, 0);
+    const totalLiability = entries.reduce((sum, e) => sum + e.potentialWin, 0);
 
     const exportData = {
       appName: 'Num Ledger Pro',
@@ -6583,7 +6704,21 @@ class SpinWheelApp {
       formattedDate: now.toLocaleString(),
       totalEntries: entries.length,
       totalBetPool: totalCoins,
+      totalAmount: totalCoins,
+      totalLiability: totalLiability,
+      
+      // Multi-dimensional breakdown structures
+      parties: Object.values(partyMap),
+      partyWiseSummary: partyMap,
+      partySummary: Object.values(partyMap),
+      dateWiseSummary: dateMap,
+      dateSummary: Object.values(dateMap),
+      slotWiseSummary: slotMap,
+      slotSummary: Object.values(slotMap),
       numberLiabilityBreakdown: numberBreakdown,
+      numberBreakdown: numberBreakdown,
+
+      // Multi-alias entries list for 100% reader compatibility
       entries: entries,
       activeBets: entries,
       items: entries,
@@ -6619,7 +6754,6 @@ class SpinWheelApp {
     const playersList = Object.values(this.customersDb || {});
     const totalCoinsCirculation = playersList.reduce((sum, p) => sum + (p.coins || 0), 0);
     const activeBetsList = Array.isArray(this.activeBets) ? this.activeBets : [];
-    const totalBetPool = activeBetsList.reduce((sum, b) => sum + (Number(b.amount) || Number(b.coins) || 0), 0);
     const depositsList = Array.isArray(this.deposits) ? this.deposits : [];
     const withdrawalsList = Array.isArray(this.withdrawals) ? this.withdrawals : [];
 
@@ -6627,95 +6761,92 @@ class SpinWheelApp {
     const defaultDateFormatted = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const defaultDateFull = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-    // Format entries compatible with Num Ledger Pro / NumPredict Pro
+    // Multi-dimensional breakdown structures
+    const numberBreakdown = {};
+    const partyMap = {};
+    const dateMap = {};
+    const slotMap = {};
+
     const ledgerEntries = activeBetsList.map((b, idx) => {
-      const pid = b.memberId || b.member_id || b.userId || b.playerId || b.partyId || 'PLAYER';
-      const cust = (this.customersDb && this.customersDb[pid]) ? this.customersDb[pid] : null;
+      const entry = this.formatLedgerEntry(b, idx, defaultDateFormatted, defaultDateFull, nextSlot.label || '12:00 PM', now);
 
-      const pName = b.name || b.playerName || b.partyName || b.memberName || b.customerName || b.Name || (cust ? cust.name : '') || pid || 'Player';
-      const pMobile = b.mobile || b.playerMobile || b.partyMobile || b.phone || (cust ? cust.mobile : '') || '';
-      const pDob = b.dob || (cust ? cust.dob : '') || '';
+      const num = entry.number;
+      if (!numberBreakdown[num]) {
+        numberBreakdown[num] = { number: num, count: 0, totalAmount: 0, potentialLiability: 0 };
+      }
+      numberBreakdown[num].count++;
+      numberBreakdown[num].totalAmount += entry.amount;
+      numberBreakdown[num].potentialLiability += entry.potentialWin;
 
-      const dVal = b.date || b.entryDate || b.Date || b.targetDate || defaultDateFormatted;
-      const dFullVal = b.targetDateFull || b.placedDate || defaultDateFull;
-      const slotVal = b.timeSlot || b.slot || b.time_slot || b.slotTime || b.round || b.targetSlot || nextSlot.label || '12:00 PM';
-      const timeVal = b.placedTime || b.time || formatTime12(new Date(b.timestamp || Date.now()));
-      const displaySlotVal = b.displaySlot || `${dVal} • ${slotVal}`;
+      const partyKey = `${entry.partyName}_${entry.partyId}`;
+      if (!partyMap[partyKey]) {
+        partyMap[partyKey] = {
+          party: entry.partyName,
+          partyName: entry.partyName,
+          PartyName: entry.partyName,
+          party_name: entry.partyName,
+          partyId: entry.partyId,
+          memberId: entry.memberId,
+          mobile: entry.mobile,
+          phone: entry.phone,
+          totalEntries: 0,
+          totalAmount: 0,
+          potentialLiability: 0,
+          numbersSummary: {}
+        };
+      }
+      partyMap[partyKey].totalEntries++;
+      partyMap[partyKey].totalAmount += entry.amount;
+      partyMap[partyKey].potentialLiability += entry.potentialWin;
+      partyMap[partyKey].numbersSummary[num] = (partyMap[partyKey].numbersSummary[num] || 0) + entry.amount;
 
-      const numVal = b.number !== undefined ? Number(b.number) : (b.no !== undefined ? Number(b.no) : (b.num !== undefined ? Number(b.num) : 10));
-      const amtVal = b.amount !== undefined ? Number(b.amount) : (b.coins !== undefined ? Number(b.coins) : (b.betAmount !== undefined ? Number(b.betAmount) : 10));
-      const winVal = b.potentialWin !== undefined ? Number(b.potentialWin) : (b.winAmount !== undefined ? Number(b.winAmount) : amtVal * 9);
+      const dKey = entry.dateISO || entry.date;
+      if (!dateMap[dKey]) {
+        dateMap[dKey] = {
+          date: entry.date,
+          dateISO: entry.dateISO,
+          dateDMY: entry.dateDMY,
+          dateFull: entry.targetDateFull,
+          totalEntries: 0,
+          totalAmount: 0,
+          potentialLiability: 0,
+          slots: {}
+        };
+      }
+      dateMap[dKey].totalEntries++;
+      dateMap[dKey].totalAmount += entry.amount;
+      dateMap[dKey].potentialLiability += entry.potentialWin;
 
-      return {
-        entryNo: idx + 1,
-        index: idx + 1,
-        srNo: idx + 1,
-        id: b.id || `bet_${Date.now()}_${idx}`,
+      const sKey = entry.timeSlot;
+      if (!dateMap[dKey].slots[sKey]) {
+        dateMap[dKey].slots[sKey] = {
+          slot: sKey,
+          totalEntries: 0,
+          totalAmount: 0,
+          potentialLiability: 0
+        };
+      }
+      dateMap[dKey].slots[sKey].totalEntries++;
+      dateMap[dKey].slots[sKey].totalAmount += entry.amount;
+      dateMap[dKey].slots[sKey].potentialLiability += entry.potentialWin;
 
-        // Date variations for Num Ledger Pro
-        date: dVal,
-        entryDate: dVal,
-        Date: dVal,
-        targetDate: dVal,
-        targetDateFull: dFullVal,
-        placedDate: dFullVal,
-        createdDate: dVal,
-        day: dVal,
+      if (!slotMap[sKey]) {
+        slotMap[sKey] = {
+          slot: sKey,
+          totalEntries: 0,
+          totalAmount: 0,
+          potentialLiability: 0
+        };
+      }
+      slotMap[sKey].totalEntries++;
+      slotMap[sKey].totalAmount += entry.amount;
+      slotMap[sKey].potentialLiability += entry.potentialWin;
 
-        // Time Slot variations for Num Ledger Pro
-        timeSlot: slotVal,
-        time_slot: slotVal,
-        slot: slotVal,
-        slotTime: slotVal,
-        round: slotVal,
-        targetSlot: slotVal,
-        displaySlot: displaySlotVal,
-        time: timeVal,
-        placedTime: timeVal,
-
-        // Member ID variations for Num Ledger Pro
-        memberId: pid,
-        member_id: pid,
-        userId: pid,
-        playerId: pid,
-        partyId: pid,
-
-        // Member Name variations for Num Ledger Pro
-        name: pName,
-        playerName: pName,
-        partyName: pName,
-        memberName: pName,
-        customerName: pName,
-        Name: pName,
-        userName: pName,
-
-        // Contact info
-        mobile: pMobile,
-        playerMobile: pMobile,
-        partyMobile: pMobile,
-        phone: pMobile,
-        dob: pDob,
-
-        // Prediction Number variations
-        number: numVal,
-        no: numVal,
-        num: numVal,
-        betNumber: numVal,
-        selectedNumber: numVal,
-
-        // Amount & Payout variations
-        amount: amtVal,
-        betAmount: amtVal,
-        coins: amtVal,
-        multiplier: 9,
-        potentialWin: winVal,
-        winAmount: winVal,
-        payout: winVal,
-
-        timestamp: b.timestamp || Date.now(),
-        status: b.status || 'ACTIVE'
-      };
+      return entry;
     });
+
+    const totalBetPool = ledgerEntries.reduce((sum, e) => sum + e.amount, 0);
+    const totalLiability = ledgerEntries.reduce((sum, e) => sum + e.potentialWin, 0);
 
     let exportData = {};
     let filename = '';
@@ -6729,6 +6860,19 @@ class SpinWheelApp {
         formattedDate: now.toLocaleString(),
         totalEntries: ledgerEntries.length,
         totalBetPool: totalBetPool,
+        totalAmount: totalBetPool,
+        totalLiability: totalLiability,
+        
+        parties: Object.values(partyMap),
+        partyWiseSummary: partyMap,
+        partySummary: Object.values(partyMap),
+        dateWiseSummary: dateMap,
+        dateSummary: Object.values(dateMap),
+        slotWiseSummary: slotMap,
+        slotSummary: Object.values(slotMap),
+        numberLiabilityBreakdown: numberBreakdown,
+        numberBreakdown: numberBreakdown,
+
         entries: ledgerEntries,
         activeBets: ledgerEntries,
         items: ledgerEntries,
@@ -6752,14 +6896,25 @@ class SpinWheelApp {
         summary: {
           totalPlayers: playersList.length,
           totalCoinsCirculation: totalCoinsCirculation,
-          totalActiveBets: activeBetsList.length,
+          totalActiveBets: ledgerEntries.length,
           totalActiveBetPool: totalBetPool,
+          totalLiability: totalLiability,
           totalDeposits: depositsList.length,
           pendingDeposits: depositsList.filter(d => d.status === 'PENDING').length,
           totalWithdrawals: withdrawalsList.length,
           pendingWithdrawals: withdrawalsList.filter(w => w.status === 'PENDING').length,
           totalRoundsInHistory: (this.history || []).length
         },
+        parties: Object.values(partyMap),
+        partyWiseSummary: partyMap,
+        partySummary: Object.values(partyMap),
+        dateWiseSummary: dateMap,
+        dateSummary: Object.values(dateMap),
+        slotWiseSummary: slotMap,
+        slotSummary: Object.values(slotMap),
+        numberLiabilityBreakdown: numberBreakdown,
+        numberBreakdown: numberBreakdown,
+
         entries: ledgerEntries,
         activeBets: ledgerEntries,
         items: ledgerEntries,
