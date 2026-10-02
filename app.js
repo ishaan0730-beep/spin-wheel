@@ -3040,6 +3040,7 @@ class SpinWheelApp {
 
     // Render all active prediction bets for the logged-in player (Unlimited Entries)
     if (this.currentCustomer) {
+      const now = new Date();
       const custId = String(this.currentCustomer.id || '').toLowerCase();
       const myBets = (this.activeBets || []).filter(b => {
         if (!b) return false;
