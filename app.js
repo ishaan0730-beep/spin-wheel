@@ -915,7 +915,7 @@ class SpinWheelApp {
     this.adminLedgerFeedback = document.getElementById('admin-ledger-feedback');
     this.adminBetDatePicker = document.getElementById('admin-bet-date-picker');
     this.adminActiveBetsViewingBadge = document.getElementById('admin-active-bets-viewing-badge');
-    this.currentAdminBetDateFilter = 'TODAY'; // Default: TODAY
+    this.currentAdminBetDateFilter = 'ALL'; // Default: ALL (All Upcoming Dates)
     this.currentAdminBetSlotFilter = 'ALL';
     this.currentAdminBetCustomDate = '';
 
@@ -4296,7 +4296,7 @@ class SpinWheelApp {
     this.saveActiveBets(this.activeBets);
 
     this.updateCustomerUI();
-    this.renderAdminActiveBetsTable(this.currentAdminBetSlotFilter || 'ALL');
+    this.renderAdminActiveBetsTable();
 
     if (this.cloudSync) {
       this.cloudSync.broadcastLiveEvent({
@@ -5708,7 +5708,7 @@ class SpinWheelApp {
       this.settleAllExpiredBets();
     }
 
-    const dFilter = dateFilter || this.currentAdminBetDateFilter || 'TODAY';
+    const dFilter = dateFilter || this.currentAdminBetDateFilter || 'ALL';
     const sFilter = slotFilter || this.currentAdminBetSlotFilter || 'ALL';
     this.currentAdminBetDateFilter = dFilter;
     this.currentAdminBetSlotFilter = sFilter;
@@ -6436,7 +6436,7 @@ class SpinWheelApp {
     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
     const allActive = Array.isArray(this.activeBets) ? this.activeBets : [];
 
-    const dFilter = this.currentAdminBetDateFilter || 'TODAY';
+    const dFilter = this.currentAdminBetDateFilter || 'ALL';
     let dateFiltered = allActive.filter(b => this.matchesBetDate(b, dFilter, this.currentAdminBetCustomDate, now));
 
     let filtered = dateFiltered;
