@@ -1521,11 +1521,12 @@ class SpinWheelApp {
       }
     }
 
-    // 3. Forced Next Winner
-    this.forcedNext = (state.forcedNext !== undefined && state.forcedNext !== null) ? state.forcedNext : null;
-    if (this.forcedNext !== null) {
+    // 3. Forced Next Winner (Strict Protected Lock)
+    if (state.forcedNext !== undefined && state.forcedNext !== null) {
+      this.forcedNext = state.forcedNext;
       localStorage.setItem(STATE_KEYS.FORCED_NEXT, this.forcedNext);
-    } else {
+    } else if (state.forcedAction === 'EXPLICIT_CLEAR' || state.spinTrigger === null) {
+      this.forcedNext = null;
       localStorage.removeItem(STATE_KEYS.FORCED_NEXT);
     }
 
@@ -1535,17 +1536,18 @@ class SpinWheelApp {
       localStorage.setItem(STATE_KEYS.UPCOMING_QUEUE, JSON.stringify(this.upcomingQueue));
     }
 
-    // 5. 4-Slot Daily Schedule (SMART MERGE - NEVER OVERWRITE LOCKED PRESETS WITH AUTO)
+    // 5. 4-Slot Daily Schedule (STRICT IMMUTABLE LOCK - NEVER OVERWRITE LOCKED PRESETS WITH AUTO)
     if (state.dailySchedule && typeof state.dailySchedule === 'object') {
-      const isRemoteStrictlyNewer = Boolean(state.version && state.version > (this.lastVersion || 0));
       const mergedSchedule = { ...(this.dailySchedule || {}) };
       let scheduleChanged = false;
+      let pushBackToServer = false;
 
-      Object.keys(state.dailySchedule).forEach(slot => {
+      DAILY_SLOTS.forEach(slotObj => {
+        const slot = slotObj.label;
         const remoteVal = state.dailySchedule[slot];
         const localVal = mergedSchedule[slot];
 
-        // If remote has a concrete locked number (e.g. 70, 80), always accept it
+        // 1. If remote has a valid locked number (e.g. 10, 20, ..., 100), always adopt it
         if (remoteVal !== undefined && remoteVal !== null && remoteVal !== 'AUTO') {
           const numVal = parseInt(remoteVal, 10);
           if (!isNaN(numVal) && mergedSchedule[slot] !== numVal) {
@@ -1553,9 +1555,22 @@ class SpinWheelApp {
             scheduleChanged = true;
           }
         } 
-        // If remote is 'AUTO', only revert local to 'AUTO' if remote is strictly newer OR local was already 'AUTO'
+        // 2. If remote is 'AUTO':
         else if (remoteVal === 'AUTO') {
-          if (localVal === undefined || localVal === 'AUTO' || isRemoteStrictlyNewer) {
+          // If this is an explicit clear request from admin, reset to AUTO
+          if (state.scheduleAction === 'EXPLICIT_CLEAR' && (!state.clearedSlot || state.clearedSlot === slot)) {
+            if (mergedSchedule[slot] !== 'AUTO') {
+              mergedSchedule[slot] = 'AUTO';
+              scheduleChanged = true;
+            }
+          }
+          // If local ALREADY has a locked number, PRESERVE local locked number and flag to push it to server!
+          else if (localVal !== undefined && localVal !== null && localVal !== 'AUTO') {
+            // Keep local locked number (do NOT overwrite with AUTO)
+            pushBackToServer = true;
+          }
+          // Otherwise, if local was already AUTO or undefined, keep AUTO
+          else {
             if (mergedSchedule[slot] !== 'AUTO') {
               mergedSchedule[slot] = 'AUTO';
               scheduleChanged = true;
@@ -1564,13 +1579,19 @@ class SpinWheelApp {
         }
       });
 
-      if (scheduleChanged || !this.dailySchedule) {
-        this.dailySchedule = mergedSchedule;
-        localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-        if (this.isDrawerOpen) {
-          this.renderDailyScheduleTable();
-          this.updateSection1BadgeForSelectedSlot();
-        }
+      this.dailySchedule = mergedSchedule;
+      localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+      if (this.isDrawerOpen) {
+        this.renderDailyScheduleTable();
+        this.updateSection1BadgeForSelectedSlot();
+      }
+
+      // If local had locked numbers that server was missing, push back to server so server stays locked
+      if (pushBackToServer && (sessionStorage.getItem('admin_auth') || this.isDrawerOpen)) {
+        this.pushStateToServer({ 
+          dailySchedule: this.dailySchedule,
+          scheduleAction: 'SET_LOCK'
+        });
       }
     }
 
@@ -2672,6 +2693,9 @@ class SpinWheelApp {
         // 4. Broadcast to all devices in real-time
         this.pushStateToServer({
           dailySchedule: this.dailySchedule,
+          scheduleAction: 'SET_LOCK',
+          lockedSlot: roundTitle,
+          lockedWinner: winnerNum,
           forcedNext: null,
           timerMode: 'REAL',
           customTimerTarget: null,
@@ -2735,7 +2759,13 @@ class SpinWheelApp {
           this.quickRoundHourSelect.value = selectedSlot;
         }
 
-        this.pushStateToServer({ dailySchedule: this.dailySchedule, forcedNext: null, version: this.version });
+        this.pushStateToServer({ 
+          dailySchedule: this.dailySchedule, 
+          scheduleAction: 'EXPLICIT_CLEAR',
+          clearedSlot: selectedSlot,
+          forcedNext: null, 
+          version: this.version 
+        });
         this.showTimerFeedback(`✅ Winner for Round "${selectedSlot}" reset to Auto (Random). Time slot remains ${selectedSlot}!`);
       });
     }
@@ -2754,7 +2784,11 @@ class SpinWheelApp {
         localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
         this.renderDailyScheduleTable();
         this.updateSection1BadgeForSelectedSlot();
-        this.pushStateToServer({ dailySchedule: this.dailySchedule, version: this.version });
+        this.pushStateToServer({ 
+          dailySchedule: this.dailySchedule, 
+          scheduleAction: 'SET_LOCK',
+          version: this.version 
+        });
         this.showTimerFeedback('Auto-filled 4 daily slots!');
       });
     }
@@ -4617,7 +4651,14 @@ class SpinWheelApp {
         this.version = Date.now();
         this.lastVersion = this.version;
         localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-        this.pushStateToServer({ dailySchedule: this.dailySchedule, version: this.version });
+        this.pushStateToServer({ 
+          dailySchedule: this.dailySchedule, 
+          scheduleAction: val === 'AUTO' ? 'EXPLICIT_CLEAR' : 'SET_LOCK',
+          clearedSlot: val === 'AUTO' ? slotLabel : null,
+          lockedSlot: val !== 'AUTO' ? slotLabel : null,
+          lockedWinner: val !== 'AUTO' ? val : null,
+          version: this.version 
+        });
         this.updateSection1BadgeForSelectedSlot();
         this.showTimerFeedback(`✅ Slot ${slotLabel} winner set to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
       });
@@ -4641,7 +4682,14 @@ class SpinWheelApp {
       this.version = Date.now();
       this.lastVersion = this.version;
       localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-      this.pushStateToServer({ dailySchedule: this.dailySchedule, version: this.version });
+      this.pushStateToServer({ 
+        dailySchedule: this.dailySchedule, 
+        scheduleAction: val === 'AUTO' ? 'EXPLICIT_CLEAR' : 'SET_LOCK',
+        clearedSlot: val === 'AUTO' ? slotLabel : null,
+        lockedSlot: val !== 'AUTO' ? slotLabel : null,
+        lockedWinner: val !== 'AUTO' ? val : null,
+        version: this.version 
+      });
       this.updateSection1BadgeForSelectedSlot();
       this.showTimerFeedback(`✅ Slot ${slotLabel} winner saved to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
 

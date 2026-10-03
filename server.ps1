@@ -347,8 +347,19 @@ public class NativeHttpServer {
                                                 var curSched = (currentObj.ContainsKey("dailySchedule") && currentObj["dailySchedule"] is Dictionary<string, object>) 
                                                     ? (Dictionary<string, object>)currentObj["dailySchedule"] 
                                                     : new Dictionary<string, object>();
+                                                string schedAction = incomingObj.ContainsKey("scheduleAction") && incomingObj["scheduleAction"] != null ? incomingObj["scheduleAction"].ToString() : "";
+                                                string clearedSlot = incomingObj.ContainsKey("clearedSlot") && incomingObj["clearedSlot"] != null ? incomingObj["clearedSlot"].ToString() : "";
+
                                                 foreach (KeyValuePair<string, object> sKvp in inDep) {
-                                                    curSched[sKvp.Key] = sKvp.Value;
+                                                    if (sKvp.Value != null && sKvp.Value.ToString() != "AUTO") {
+                                                        curSched[sKvp.Key] = sKvp.Value;
+                                                    } else if (sKvp.Value != null && sKvp.Value.ToString() == "AUTO") {
+                                                        if (schedAction == "EXPLICIT_CLEAR" && (string.IsNullOrEmpty(clearedSlot) || clearedSlot == sKvp.Key)) {
+                                                            curSched[sKvp.Key] = "AUTO";
+                                                        } else if (!curSched.ContainsKey(sKvp.Key)) {
+                                                            curSched[sKvp.Key] = "AUTO";
+                                                        }
+                                                    }
                                                 }
                                                 currentObj["dailySchedule"] = curSched;
                                             } else {

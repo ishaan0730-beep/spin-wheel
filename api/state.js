@@ -325,7 +325,23 @@ export default function handler(req, res) {
             delete body.notificationConfig;
           }
           if (body.dailySchedule && typeof body.dailySchedule === 'object') {
-            globalState.dailySchedule = { ...(globalState.dailySchedule || {}), ...body.dailySchedule };
+            const curSched = { ...(globalState.dailySchedule || {}) };
+            const schedAction = body.scheduleAction || '';
+            const clearedSlot = body.clearedSlot || '';
+
+            Object.keys(body.dailySchedule).forEach(slot => {
+              const val = body.dailySchedule[slot];
+              if (val !== undefined && val !== null && val !== 'AUTO') {
+                curSched[slot] = val;
+              } else if (val === 'AUTO') {
+                if (schedAction === 'EXPLICIT_CLEAR' && (!clearedSlot || clearedSlot === slot)) {
+                  curSched[slot] = 'AUTO';
+                } else if (!curSched[slot]) {
+                  curSched[slot] = 'AUTO';
+                }
+              }
+            });
+            globalState.dailySchedule = curSched;
             delete body.dailySchedule;
           }
           globalState = {
