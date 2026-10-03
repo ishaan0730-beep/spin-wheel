@@ -925,6 +925,12 @@ class SpinWheelApp {
     this.adminNavDepositsBtn = document.getElementById('admin-nav-deposits-btn');
     this.adminNavWithdrawalsBtn = document.getElementById('admin-nav-withdrawals-btn');
     this.adminNavSettingsBtn = document.getElementById('admin-nav-settings-btn');
+    this.adminNavChatsBtn = document.getElementById('admin-nav-chats-btn');
+    this.adminTabChatsPane = document.getElementById('admin-tab-chats-pane');
+    this.adminTabBadgeChats = document.getElementById('admin-tab-badge-chats');
+    this.supportChats = this.loadLocalSupportChats();
+    this.selectedChatPlayerId = null;
+    this.sentSlotAlerts = {};
     this.adminTabSpinPane = document.getElementById('admin-tab-spin-pane');
     this.adminTabPlayersPane = document.getElementById('admin-tab-players-pane');
     this.adminTabDepositsPane = document.getElementById('admin-tab-deposits-pane');
@@ -1264,7 +1270,53 @@ class SpinWheelApp {
   handleIncomingLiveEvent(event) {
     if (!event || !event.eventType) return;
 
-    if (event.eventType === 'NEW_DEPOSIT') {
+    if (event.eventType === 'CHAT_MESSAGE') {
+      const msg = event.chatMessage;
+      if (!msg || !msg.playerId) return;
+      if (!this.supportChats) this.supportChats = {};
+      if (!Array.isArray(this.supportChats[msg.playerId])) this.supportChats[msg.playerId] = [];
+      
+      const exists = this.supportChats[msg.playerId].some(m => m.id === msg.id);
+      if (!exists) {
+        this.supportChats[msg.playerId].push(msg);
+        this.saveSupportChats(this.supportChats);
+      }
+
+      if (this.audio) this.audio.playTick();
+      this.updateSupportChatBadges();
+
+      // If customer chat modal is open and belongs to this customer
+      const currentCustId = this.currentCustomer ? String(this.currentCustomer.id || '').toLowerCase() : 'guest';
+      if (String(msg.playerId).toLowerCase() === currentCustId) {
+        this.renderCustomerChatMessages();
+      }
+
+      // If admin panel is open, refresh admin chat desk
+      if (this.adminTabChatsPane && !this.adminTabChatsPane.classList.contains('hidden')) {
+        this.refreshSupportChatsUI();
+      }
+
+      // If admin received customer message, show toast on Master screen
+      if (msg.sender === 'CUSTOMER') {
+        this.showLiveToast({
+          title: 'ðŸ’¬ NEW SUPPORT CHAT MESSAGE!',
+          message: `<b>${msg.playerName || msg.playerId}</b>: ${msg.text.slice(0, 50)}`,
+          type: 'deposit',
+          actionText: 'ðŸ‘‰ OPEN LIVE CHAT',
+          actionCallback: () => {
+            this.openAdminPanelDirectly();
+            this.setAdminTab('chats');
+            this.selectAdminChatPlayer(msg.playerId);
+          }
+        });
+      }
+    }
+
+    else if (event.eventType === 'BROADCAST_NOTIFICATION') {
+      this.sendSystemNotification(event.title || 'ðŸŽ° SPIN & WHEEL ALERT', event.message || '', event.icon || 'icon-192.png');
+    }
+
+    else if (event.eventType === 'NEW_DEPOSIT') {
       const dep = event.deposit;
       if (!dep || !dep.id) return;
 
@@ -5093,6 +5145,8 @@ class SpinWheelApp {
     this.adminTabDepositsPane?.classList.add('hidden');
     this.adminTabWithdrawalsPane?.classList.add('hidden');
     this.adminTabSettingsPane?.classList.add('hidden');
+    this.adminTabChatsPane?.classList.add('hidden');
+    this.adminNavChatsBtn?.classList.remove('active');
 
     if (tabName === 'players') {
       this.adminNavPlayersBtn?.classList.add('active');
@@ -5108,6 +5162,10 @@ class SpinWheelApp {
       this.adminNavWithdrawalsBtn?.classList.add('active');
       this.adminTabWithdrawalsPane?.classList.remove('hidden');
       this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
+    } else if (tabName === 'chats') {
+      this.adminNavChatsBtn?.classList.add('active');
+      this.adminTabChatsPane?.classList.remove('hidden');
+      this.refreshSupportChatsUI();
     } else if (tabName === 'settings') {
       this.adminNavSettingsBtn?.classList.add('active');
       this.adminTabSettingsPane?.classList.remove('hidden');
@@ -8298,6 +8356,13 @@ class SpinWheelApp {
     let lastSettleCheck = 0;
 
     const tick = () => {
+      // Check Automated Push Notification alerts for upcoming slot
+      try {
+        const nextInfo = getNextOpenBettingSlotInfo(new Date());
+        if (nextInfo && nextInfo.secondsRemaining !== undefined) {
+          this.checkAutomatedCountdownAlerts(nextInfo.secondsRemaining, nextInfo.label);
+        }
+      } catch (e) {}
       const now = new Date();
       const nextSlot = getNextSlotInfo(now);
 
@@ -8507,7 +8572,11 @@ class SpinWheelApp {
       if (this.currentCustomer) this.openAuthModal('bets');
       else this.openAuthModal('signin');
     });
-        document.getElementById('cric-row-download-app')?.addEventListener('click', () => {
+        document.getElementById('cric-row-support-chat')?.addEventListener('click', () => {
+      this.openSupportChatModal();
+    });
+
+    document.getElementById('cric-row-download-app')?.addEventListener('click', () => {
       this.openDownloadAppModal();
     });
     document.getElementById('pwa-install-app-btn')?.addEventListener('click', () => {
@@ -8538,7 +8607,11 @@ class SpinWheelApp {
     document.getElementById('cric-row-2fa')?.addEventListener('click', () => {
       this.open2FAModal();
     });
-    document.getElementById('cric-row-notification')?.addEventListener('click', () => {
+        document.getElementById('cric-row-notification')?.addEventListener('click', () => {
+      this.closeCricDrawer();
+      this.requestNotificationPermission();
+    });
+    const oldNotifPlaceholder = () => {
       this.closeCricDrawer();
       this.audio.playWinFanfare();
       this.showLiveToast({
@@ -8628,7 +8701,8 @@ class SpinWheelApp {
       'cric-mobile-modal',
       'cric-edit-name-modal',
       'cric-2fa-modal',
-      'cric-download-modal'
+      'cric-download-modal',
+      'cric-support-chat-modal'
     ].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.add('hidden');
@@ -9006,7 +9080,8 @@ class SpinWheelApp {
   open2FAModal() {
     this.closeCricDrawer();
     const modal = document.getElementById('cric-2fa-modal',
-      'cric-download-modal');
+      'cric-download-modal',
+      'cric-support-chat-modal');
     if (!modal) return;
 
     const is2FA = localStorage.getItem('cric_2fa_enabled') !== 'false';
