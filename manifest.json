@@ -1,0 +1,26 @@
+{
+  "name": "Spin & Wheel - Live Hourly Predictions",
+  "short_name": "Spin & Wheel",
+  "description": "Live spinning wheel hourly predictions app with 4 daily slots: 12 PM, 4 PM, 8 PM, 11 PM.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#05070c",
+  "theme_color": "#381c19",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["entertainment", "games"]
+}

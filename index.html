@@ -9,7 +9,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=7.1.0">
+    <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#381c19">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Spin & Wheel">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="stylesheet" href="style.css?v=7.2.0">
   <script>
     if (window.location.hostname.includes('vercel.app')) {
       window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
@@ -94,7 +102,7 @@
         </button>
 
         <!-- Hidden Legacy Elements for 100% Backwards Compatibility -->
-        <div id="customer-profile-chip" class="hidden">
+        <div id="customer-profile-chip" class="hidden" style="display:none !important;">
           <span id="chip-player-name"></span>
           <span id="chip-player-coins"></span>
           <button id="customer-deposit-btn" class="hidden"></button>
@@ -2045,7 +2053,15 @@
     </div>
 
     <!-- Menu Items List -->
-    <div class="cric-drawer-menu-list">
+        <div class="cric-drawer-menu-list">
+      <!-- DOWNLOAD MOBILE APP MENU ROW -->
+      <div class="cric-menu-row" id="cric-row-download-app" style="background:linear-gradient(90deg, rgba(0,240,255,0.12), rgba(245,176,65,0.12)); border-left:3px solid #00f0ff;">
+        <span class="cric-row-icon">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#00f0ff" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </span>
+        <span class="cric-row-name" style="color:#00f0ff; font-weight:800;">Download Mobile App</span>
+        <span class="cric-row-badge" style="background:#00f0ff; color:#000; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:8px;">APK/PWA</span>
+      </div>
       <div class="cric-menu-row" id="cric-row-affiliate">
         <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg></span>
         <span class="cric-row-name">Affiliate</span>
@@ -2363,6 +2379,57 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL 8: DOWNLOAD MOBILE APP MODAL -->
+  <div id="cric-download-modal" class="modal-backdrop hidden">
+    <div class="modal-overlay" onclick="app.closeCricModals()"></div>
+    <div class="modal-content cric-popup-content" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 style="color:#00f0ff; font-weight:800; font-size:1.15rem; display:flex; align-items:center; gap:8px;">
+          <span>ðŸ“²</span> Download & Install Mobile App
+        </h3>
+        <button type="button" class="icon-btn" onclick="app.closeCricModals()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:1.2rem;">
+        <p style="font-size:0.84rem; color:var(--text-secondary); margin-bottom:1rem; line-height:1.4;">
+          Install <b style="color:#ffd700;">Spin & Wheel</b> directly onto your Android or iPhone for ultra-fast full-screen gaming, instant sound alerts, and 1-tap launcher access!
+        </p>
+
+        <!-- 1-Tap Install Button for Chrome/Android/PWA -->
+        <button type="button" id="pwa-install-app-btn" class="btn btn-gold btn-block" style="font-size:0.95rem; font-weight:900; padding:12px; margin-bottom:0.85rem; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 0 20px rgba(245,176,65,0.4);">
+          <span>ðŸ“²</span> Install Mobile App (1-Tap)
+        </button>
+
+        <!-- Direct ZIP Source Download Link -->
+        <a href="spin-wheel-files.zip" download="spin-wheel-files.zip" class="btn btn-secondary btn-block" style="text-decoration:none; font-size:0.82rem; font-weight:700; padding:10px; margin-bottom:1rem; display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(255,255,255,0.06);">
+          <span>ðŸ“¦</span> Download App Files Package (.ZIP)
+        </a>
+
+        <!-- Install Instructions Box -->
+        <div style="background:rgba(0,0,0,0.35); border:1px solid var(--border-subtle); border-radius:10px; padding:0.85rem; font-size:0.78rem; line-height:1.5;">
+          <strong style="color:var(--primary-gold-bright); display:block; margin-bottom:4px;">ðŸ“± How to install on your Phone:</strong>
+          <div style="margin-bottom:6px;">
+            <b style="color:#00f0ff;">ðŸ¤– Android (Chrome):</b> Tap the 3 dots <b>(â‹®)</b> at top right âž” Tap <b>"Install app"</b> or <b>"Add to Home screen"</b>.
+          </div>
+          <div>
+            <b style="color:#ff6b6b;">ðŸŽ iPhone (Safari):</b> Tap the Share button <b>(âŽ‹)</b> at bottom âž” Scroll down and tap <b>"Add to Home Screen âž•"</b>.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration error:', err));
+      });
+    }
+  </script>
+  <script src="mqtt.min.js"></script>
+  <script src="https://unpkg.com/mqtt@5.16.0/dist/mqtt.min.js" onerror="console.log('Using local mqtt script')"></script>
+  <script src="confetti.js"></script>
+  <script src="app.js?v=7.2.0"></script>
 </body>
 </html>
 </html>

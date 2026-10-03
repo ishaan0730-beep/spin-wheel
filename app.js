@@ -3100,20 +3100,26 @@ class SpinWheelApp {
     }
   }
 
-  updateCustomerUI() {
+    updateCustomerUI() {
+    const coins = this.currentCustomer ? Number(this.currentCustomer.coins || 0) : 0;
+    const cricBalEl = document.getElementById('cric-balance-val');
+    if (cricBalEl) {
+      cricBalEl.textContent = coins.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
     if (this.currentCustomer) {
       this.customerLoginBtn?.classList.add('hidden');
-      this.customerProfileChip?.classList.remove('hidden');
+      this.customerProfileChip?.classList.add('hidden'); // Strictly keep hidden so coins only display in top payment pill
       if (this.chipPlayerName) this.chipPlayerName.textContent = this.currentCustomer.name || 'Player';
-      if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD`;
-      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD Coins`;
+      if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = `ðŸ’° ${coins.toLocaleString()} IHD`;
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = `ðŸ’° ${coins.toLocaleString()} IHD Coins`;
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
-      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD Coins`;
+      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `ðŸ’° ${coins.toLocaleString()} IHD Coins`;
     } else {
       this.customerLoginBtn?.classList.remove('hidden');
       this.customerProfileChip?.classList.add('hidden');
-      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = '💰 Logged Out (0 IHD Coins)';
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = 'ðŸ’° Logged Out (0 IHD Coins)';
     }
 
     this.updateTargetSlotDisplay();
@@ -8501,6 +8507,14 @@ class SpinWheelApp {
       if (this.currentCustomer) this.openAuthModal('bets');
       else this.openAuthModal('signin');
     });
+        document.getElementById('cric-row-download-app')?.addEventListener('click', () => {
+      this.openDownloadAppModal();
+    });
+    document.getElementById('pwa-install-app-btn')?.addEventListener('click', () => {
+      this.triggerPWAInstall();
+    });
+    this.setupPWAInstallPrompt();
+
     document.getElementById('cric-row-completed-events')?.addEventListener('click', () => {
       this.closeCricDrawer();
       this.openAllSpinHistoryModal();
@@ -8613,7 +8627,8 @@ class SpinWheelApp {
       'cric-button-values-modal',
       'cric-mobile-modal',
       'cric-edit-name-modal',
-      'cric-2fa-modal'
+      'cric-2fa-modal',
+      'cric-download-modal'
     ].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.add('hidden');
@@ -8697,8 +8712,9 @@ class SpinWheelApp {
       else btn.classList.remove('active');
     });
 
-    if (!this.currentCustomer) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:1rem;">Please sign in to view your account passbook.</td></tr>';
+        if (!this.currentCustomer) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:1.5rem;"><div style="margin-bottom:8px; font-size:0.85rem; color:#fff;">Please sign in to view your Account Statement & Passbook.</div><button type="button" class="btn btn-gold btn-sm" onclick="app.closeCricModals(); app.openAuthModal(\\'signin\\');">ðŸ”‘ Sign In to View Passbook</button></td></tr>';
+      if (label) label.textContent = 'Please Sign In';
       return;
     }
 
@@ -8989,7 +9005,8 @@ class SpinWheelApp {
   // 7. 2FA Security Modal
   open2FAModal() {
     this.closeCricDrawer();
-    const modal = document.getElementById('cric-2fa-modal');
+    const modal = document.getElementById('cric-2fa-modal',
+      'cric-download-modal');
     if (!modal) return;
 
     const is2FA = localStorage.getItem('cric_2fa_enabled') !== 'false';
