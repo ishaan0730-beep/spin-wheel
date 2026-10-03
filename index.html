@@ -36,8 +36,8 @@
         <a href="javascript:void(0)" class="cric-home-btn" id="cric-home-btn" title="Home">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
         </a>
-        <div class="cric-logo" id="brand-header" title="CRICBET99">
-          <span class="cric-logo-text">CRICBET99</span>
+        <div class="cric-logo" id="brand-header" title="SPIN & WHEEL">
+          <span class="cric-logo-text">SPIN & WHEEL</span>
         </div>
       </div>
 
@@ -117,14 +117,7 @@
     </div>
 
     <!-- SPORTS & GAME CATEGORY TABS -->
-    <div class="cric-sports-tabs-bar">
-      <button type="button" class="cric-sport-tab" data-tab="inplay"><span>INPLAY</span></button>
-      <button type="button" class="cric-sport-tab" data-tab="sports"><span>SPORTS</span></button>
-      <button type="button" class="cric-sport-tab" data-tab="cricket"><span>ðŸ CRICKET</span></button>
-      <button type="button" class="cric-sport-tab" data-tab="football"><span>âš½ FOOTBALL</span></button>
-      <button type="button" class="cric-sport-tab" data-tab="tennis"><span>ðŸŽ¾ TENNIS</span></button>
-      <button type="button" class="cric-sport-tab active" data-tab="spin"><span>ðŸŽ° SPIN WHEEL</span></button>
-    </div>
+    
 
     <!-- Main Live Screen: Clean Wheel & Last 3 Results -->
     <main class="main-content">
@@ -2014,7 +2007,7 @@
   <script src="https://unpkg.com/mqtt@5.16.0/dist/mqtt.min.js" onerror="console.log('Using local mqtt script')"></script>
   <script src="confetti.js"></script>
   <script src="app.js?v=6.5.0"></script>
-  <!-- CRICBET99 SLIDE-OUT 3-LINE MENU DRAWER -->
+    <!-- SPIN & WHEEL SLIDE-OUT 3-LINE MENU DRAWER -->
   <div id="cric-drawer-overlay" class="cric-drawer-overlay hidden"></div>
   <aside id="cric-menu-drawer" class="cric-menu-drawer hidden">
     <!-- Top User Profile Box -->
@@ -2054,79 +2047,79 @@
     <!-- Menu Items List -->
     <div class="cric-drawer-menu-list">
       <div class="cric-menu-row" id="cric-row-affiliate">
-        <span class="cric-row-icon">ðŸ§¬</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg></span>
         <span class="cric-row-name">Affiliate</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-my-market">
-        <span class="cric-row-icon">ðŸ“‘</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span>
         <span class="cric-row-name">My Market</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-unsettled-bets">
-        <span class="cric-row-icon">ðŸ’¾</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg></span>
         <span class="cric-row-name">Unsettled Bets</span>
         <span class="cric-row-count" id="cric-unsettled-count">0</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-bet-history">
-        <span class="cric-row-icon">ðŸ•’</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
         <span class="cric-row-name">Bet History</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-completed-events">
-        <span class="cric-row-icon">ðŸ•’</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
         <span class="cric-row-name">Completed Events</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-account-statement">
-        <span class="cric-row-icon">ðŸ›ï¸</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="21" x2="21" y2="21"></line><line x1="3" y1="10" x2="21" y2="10"></line><polyline points="5 6 12 3 19 6"></polyline><line x1="4" y1="10" x2="4" y2="21"></line><line x1="20" y1="10" x2="20" y2="21"></line><line x1="8" y1="14" x2="8" y2="17"></line><line x1="12" y1="14" x2="12" y2="17"></line><line x1="16" y1="14" x2="16" y2="17"></line></svg></span>
         <span class="cric-row-name">Account Statement</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-profit-loss">
-        <span class="cric-row-icon">â“</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
         <span class="cric-row-name">Profit Loss Report</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-set-button-values">
-        <span class="cric-row-icon">âš™ï¸</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>
         <span class="cric-row-name">Set Button Values</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-update-mobile">
-        <span class="cric-row-icon">ðŸ“±</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></span>
         <span class="cric-row-name">Update Mobile Number</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-change-password">
-        <span class="cric-row-icon">ðŸ”’</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
         <span class="cric-row-name">Change Password</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-2fa">
-        <span class="cric-row-icon">ðŸ›¡ï¸</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></span>
         <span class="cric-row-name">2FA</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-notification">
-        <span class="cric-row-icon">ðŸ””</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>
         <span class="cric-row-name">Notification</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-language">
-        <span class="cric-row-icon">ðŸŒ</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></span>
         <span class="cric-row-name">Language</span>
         <span class="cric-row-badge" id="cric-current-lang">English</span>
       </div>
 
       <div class="cric-menu-row" id="cric-row-rules">
-        <span class="cric-row-icon">ðŸ“œ</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span>
         <span class="cric-row-name">Rules</span>
       </div>
 
       <div class="cric-menu-row cric-row-logout" id="cric-row-logout">
-        <span class="cric-row-icon">ðŸšª</span>
+        <span class="cric-row-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#b71c1c" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></span>
         <span class="cric-row-name">Logout</span>
       </div>
     </div>
@@ -2148,7 +2141,7 @@
         <div class="cric-box" style="background:rgba(0,0,0,0.3); padding:0.8rem; border-radius:8px; border:1px solid var(--border-subtle); margin-bottom:1rem;">
           <label class="field-label" style="font-size:0.75rem; color:var(--text-muted);">Your Referral Code:</label>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-            <strong id="cric-refer-code-val" style="font-size:1.1rem; color:var(--primary-gold-bright); font-family:monospace; letter-spacing:1px;">CRIC99-PLAYER</strong>
+            <strong id="cric-refer-code-val" style="font-size:1.1rem; color:var(--primary-gold-bright); font-family:monospace; letter-spacing:1px;">SPIN-PLAYER</strong>
             <button type="button" class="btn btn-secondary btn-xs" onclick="app.copyReferralCode()">ðŸ“‹ Copy</button>
           </div>
         </div>
@@ -2225,7 +2218,7 @@
     <div class="modal-overlay" onclick="app.closeCricModals()"></div>
     <div class="modal-content cric-popup-content" style="max-width:480px;">
       <div class="modal-header">
-        <h3 style="color:var(--primary-gold-bright); font-weight:800; font-size:1.15rem;">â“ Profit & Loss Report</h3>
+        <h3 style="color:var(--primary-gold-bright); font-weight:800; font-size:1.15rem;">ðŸ“Š Profit & Loss Report</h3>
         <button type="button" class="icon-btn" onclick="app.closeCricModals()">&times;</button>
       </div>
       <div class="modal-body" style="padding:1.25rem;">
@@ -2335,7 +2328,7 @@
       <div class="modal-body" style="padding:1.25rem;">
         <div class="form-group" style="margin-bottom:0.75rem;">
           <label class="field-label">Your New Display Name:</label>
-          <input type="text" id="cric-new-display-name-input" class="admin-input" placeholder="e.g. GlowingFirefly7258">
+          <input type="text" id="cric-new-display-name-input" class="admin-input" placeholder="e.g. LuckyPlayer777">
         </div>
         <p id="cric-name-feedback" class="save-status-msg" style="display:block; margin-bottom:0.6rem;"></p>
         <button type="button" class="btn btn-gold btn-block" onclick="app.saveUpdatedDisplayName()">
@@ -2371,4 +2364,5 @@
     </div>
   </div>
 </body>
+</html>
 </html>
