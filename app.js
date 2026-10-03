@@ -8391,7 +8391,11 @@ class SpinWheelApp {
 
     balancePill?.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.toggleCricDrawer();
+      if (this.currentCustomer) {
+        this.toggleCricDrawer();
+      } else {
+        this.openAuthModal('signin');
+      }
     });
 
     drawerOverlay?.addEventListener('click', () => {
