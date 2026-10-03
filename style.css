@@ -129,43 +129,35 @@ body {
 .ambient-nebula {
   position: fixed;
   border-radius: 50%;
-  filter: blur(140px);
   pointer-events: none;
   z-index: 0;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .nebula-gold {
-  width: 520px;
-  height: 520px;
-  background: radial-gradient(circle, #f5b041, #ea580c);
+  width: 440px;
+  height: 440px;
+  background: radial-gradient(circle, rgba(245, 176, 65, 0.22) 0%, rgba(234, 88, 12, 0.08) 50%, transparent 75%);
   top: 15%;
   left: 50%;
-  transform: translateX(-50%);
-  opacity: 0.22;
-  animation: pulseNebula 8s infinite alternate ease-in-out;
+  transform: translateX(-50%) translateZ(0);
 }
 
 .nebula-cyan {
-  width: 480px;
-  height: 480px;
-  background: radial-gradient(circle, #00f0ff, #3b82f6);
-  bottom: -60px;
-  right: -80px;
-  opacity: 0.2;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.18) 0%, rgba(59, 130, 246, 0.06) 50%, transparent 75%);
+  bottom: -40px;
+  right: -60px;
 }
 
 .nebula-purple {
-  width: 420px;
-  height: 420px;
-  background: radial-gradient(circle, #a855f7, #f43f5e);
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.16) 0%, rgba(244, 63, 94, 0.05) 50%, transparent 75%);
   top: 30%;
-  left: -100px;
-  opacity: 0.18;
-}
-
-@keyframes pulseNebula {
-  0% { transform: translateX(-50%) scale(0.95); opacity: 0.18; }
-  100% { transform: translateX(-50%) scale(1.1); opacity: 0.26; }
+  left: -80px;
 }
 
 /* Confetti Overlay */
