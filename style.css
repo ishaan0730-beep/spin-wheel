@@ -179,16 +179,19 @@ body {
   z-index: 999;
 }
 
-/* App Container */
+/* App Container - Mobile App Form Factor (Max-Width 480px, Centered & Flush Header) */
 .app-container {
   width: 100%;
-  max-width: 680px;
+  max-width: 480px;
+  margin: 0 auto;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 1rem 1.25rem 2rem 1.25rem;
+  padding: 0 0 2.5rem 0;
   position: relative;
   z-index: 1;
+  background: rgba(5, 7, 12, 0.96);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 /* Header */
@@ -3318,4 +3321,223 @@ input:checked + .cric-slider:before {
   color: #ffffff !important;
   border: 1.5px solid var(--border-subtle) !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* ==========================================================
+   MOBILE-FIRST APP VIEW & TOUCH OPTIMIZATIONS
+   ========================================================== */
+
+/* Main content padding on mobile */
+.main-content {
+  width: 100%;
+  padding: 0.65rem 0.75rem 2rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Header styling in mobile view */
+.cric-header {
+  padding: 0.45rem 0.6rem;
+  gap: 4px;
+}
+
+.cric-logo-text {
+  font-size: 1.05rem;
+  letter-spacing: 0.8px;
+}
+
+.cric-top-deposit-btn {
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  border-radius: 12px;
+}
+
+.cric-balance-pill {
+  padding: 3px 8px;
+  font-size: 0.76rem;
+  gap: 4px;
+}
+
+.cric-icon-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.cric-icon-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cric-hamburger-btn {
+  width: 26px;
+  height: 24px;
+  padding: 2px;
+}
+
+/* Promo Code Strip in mobile view */
+.cric-promo-strip {
+  padding: 0.4rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.cric-promo-label {
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.cric-promo-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cric-promo-input {
+  width: 130px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+}
+
+.cric-promo-apply-btn {
+  padding: 4px 10px;
+  font-size: 0.74rem;
+}
+
+/* Hourly Status Bar in mobile view */
+.hourly-status-bar {
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 0.75rem;
+  gap: 0.35rem;
+}
+
+.status-label {
+  font-size: 0.62rem;
+}
+
+.status-value {
+  font-size: 0.88rem;
+}
+
+.countdown-digits {
+  font-size: 1.15rem;
+}
+
+/* Wheel Stage in mobile view */
+.wheel-stage {
+  padding: 4px 0;
+  margin: 0.4rem 0 0.85rem 0;
+  overflow: visible;
+}
+
+.wheel-container {
+  width: min(82vw, 340px);
+  height: min(82vw, 340px);
+  padding: 6px;
+}
+
+.spin-backdrop-glow {
+  width: min(86vw, 360px);
+  height: min(86vw, 360px);
+}
+
+.spin-rays-ring {
+  width: min(85vw, 350px);
+  height: min(85vw, 350px);
+}
+
+.ring-outer {
+  width: min(92vw, 380px);
+  height: min(92vw, 380px);
+}
+
+.ring-middle {
+  width: min(86vw, 355px);
+  height: min(86vw, 355px);
+}
+
+.ring-inner {
+  width: min(80vw, 330px);
+  height: min(80vw, 330px);
+}
+
+.wheel-center-hub {
+  width: 64px;
+  height: 64px;
+}
+
+.hub-star {
+  font-size: 1.3rem;
+}
+
+/* Prediction Card & Number Chips in mobile view */
+.customer-pred-card {
+  width: 100%;
+  padding: 0.85rem;
+  margin-top: 0.6rem;
+}
+
+.prediction-number-chips {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  width: 100%;
+  margin: 0.6rem 0;
+}
+
+.predict-num-btn {
+  padding: 8px 2px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  border-radius: 8px;
+}
+
+.quick-bet-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 0.6rem;
+}
+
+.chip-btn {
+  padding: 5px 9px;
+  font-size: 0.74rem;
+  border-radius: 6px;
+}
+
+/* Last 3 Results Card in mobile view */
+.last-results-card {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  margin-top: 0.4rem;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+}
+
+.result-item {
+  padding: 0.45rem 0.35rem;
+}
+
+.result-number {
+  font-size: 1.15rem;
+}
+
+/* Drawer width on mobile */
+.cric-menu-drawer {
+  width: min(85vw, 320px);
+}
+
+/* Modals mobile responsive fit */
+.modal-content {
+  width: 94vw !important;
+  max-width: 440px !important;
+  margin: 1rem auto !important;
+  border-radius: 12px !important;
 }
