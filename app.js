@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ==========================================================
  * LUCKY HOURLY SPIN WHEEL APPLICATION - 4 DAILY SLOTS ENGINE
  * ==========================================================
@@ -8356,15 +8356,15 @@ class SpinWheelApp {
     let lastSettleCheck = 0;
 
     const tick = () => {
-      // Check Automated Push Notification alerts for upcoming slot
-      try {
-        const nextInfo = getNextOpenBettingSlotInfo(new Date());
-        if (nextInfo && nextInfo.secondsRemaining !== undefined) {
-          this.checkAutomatedCountdownAlerts(nextInfo.secondsRemaining, nextInfo.label);
-        }
-      } catch (e) {}
       const now = new Date();
       const nextSlot = getNextSlotInfo(now);
+      const diffMs = Math.max(0, nextSlot.targetDate.getTime() - now.getTime());
+      const totalSec = Math.floor(diffMs / 1000);
+
+      // Check Automated Push Notification alerts for upcoming slot
+      try {
+        this.checkAutomatedCountdownAlerts(totalSec, nextSlot.label);
+      } catch (e) {}
 
       // Settle any elapsed slot rounds and expired bets automatically every 5 seconds
       if (Date.now() - lastSettleCheck > 5000) {
@@ -8607,19 +8607,9 @@ class SpinWheelApp {
     document.getElementById('cric-row-2fa')?.addEventListener('click', () => {
       this.open2FAModal();
     });
-        document.getElementById('cric-row-notification')?.addEventListener('click', () => {
+    document.getElementById('cric-row-notification')?.addEventListener('click', () => {
       this.closeCricDrawer();
       this.requestNotificationPermission();
-    });
-    const oldNotifPlaceholder = () => {
-      this.closeCricDrawer();
-      this.audio.playWinFanfare();
-      this.showLiveToast({
-        title: 'NOTIFICATIONS ACTIVE',
-        message: 'ðŸ”” Sound & Telegram notifications are 100% active and running.',
-        type: 'success',
-        duration: 3500
-      });
     });
     document.getElementById('cric-row-language')?.addEventListener('click', () => {
       this.toggleCricLanguage();
@@ -8787,7 +8777,7 @@ class SpinWheelApp {
     });
 
         if (!this.currentCustomer) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:1.5rem;"><div style="margin-bottom:8px; font-size:0.85rem; color:#fff;">Please sign in to view your Account Statement & Passbook.</div><button type="button" class="btn btn-gold btn-sm" onclick="app.closeCricModals(); app.openAuthModal(\\'signin\\');">ðŸ”‘ Sign In to View Passbook</button></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:1.5rem;"><div style="margin-bottom:8px; font-size:0.85rem; color:#fff;">Please sign in to view your Account Statement &amp; Passbook.</div><button type="button" class="btn btn-gold btn-sm" onclick="app.closeCricModals(); app.openAuthModal(\x27signin\x27);">🔑 Sign In to View Passbook</button></td></tr>';
       if (label) label.textContent = 'Please Sign In';
       return;
     }
@@ -9079,9 +9069,7 @@ class SpinWheelApp {
   // 7. 2FA Security Modal
   open2FAModal() {
     this.closeCricDrawer();
-    const modal = document.getElementById('cric-2fa-modal',
-      'cric-download-modal',
-      'cric-support-chat-modal');
+    const modal = document.getElementById('cric-2fa-modal');
     if (!modal) return;
 
     const is2FA = localStorage.getItem('cric_2fa_enabled') !== 'false';
@@ -9155,9 +9143,561 @@ class SpinWheelApp {
     const promoInp = document.getElementById('cric-promo-input');
     if (promoInp) promoInp.value = '';
   }
+
+  // ==========================================
+  // DRAWER HELPERS & PWA INSTALL ENGINE
+  // ==========================================
+  openHelpModal() {
+    this.closeCricDrawer();
+    if (this.helpModal) this.helpModal.classList.remove('hidden');
+    if (this.helpOverlay) this.helpOverlay.classList.remove('hidden');
+  }
+
+  openDownloadAppModal() {
+    this.closeCricDrawer();
+    const modal = document.getElementById('cric-download-modal');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  setupPWAInstallPrompt() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.deferredPWAInstallPrompt = e;
+      const btn = document.getElementById('pwa-install-app-btn');
+      if (btn) btn.classList.remove('hidden');
+    });
+  }
+
+  triggerPWAInstall() {
+    if (this.deferredPWAInstallPrompt) {
+      this.deferredPWAInstallPrompt.prompt();
+      this.deferredPWAInstallPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult && choiceResult.outcome === 'accepted') {
+          this.showLiveToast({
+            title: '📱 APP INSTALLED',
+            message: 'Spin & Wheel app added to your home screen!',
+            type: 'success',
+            duration: 4000
+          });
+        }
+        this.deferredPWAInstallPrompt = null;
+      });
+    } else {
+      this.showLiveToast({
+        title: '📱 INSTALL INSTRUCTIONS',
+        message: 'Tap the 3 dots (⋮) in Chrome and select "Install app" or "Add to Home screen".',
+        type: 'info',
+        duration: 5000
+      });
+    }
+  }
+
+  escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // ==========================================
+  // LIVE SUPPORT CHAT & NOTIFICATION METHODS
+  // ==========================================
+  loadLocalSupportChats() {
+    try {
+      const raw = localStorage.getItem('lucky_spin_support_chats_v6');
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  saveSupportChats(chats) {
+    try {
+      localStorage.setItem('lucky_spin_support_chats_v6', JSON.stringify(chats || {}));
+    } catch (e) {}
+  }
+
+  openSupportChatModal() {
+    this.closeCricDrawer();
+    this.closeCricModals();
+    const modal = document.getElementById('cric-support-chat-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const nameInp = document.getElementById('chat-customer-name-display');
+    const custId = this.currentCustomer ? (this.currentCustomer.name || this.currentCustomer.id) : 'Guest Player';
+    if (nameInp) nameInp.textContent = custId;
+
+    this.renderCustomerChatMessages();
+    setTimeout(() => {
+      const feed = document.getElementById('chat-customer-messages-feed');
+      if (feed) feed.scrollTop = feed.scrollHeight;
+    }, 100);
+  }
+
+  handleCustomerSendChat() {
+    this.sendCustomerChatMessage();
+  }
+
+  sendQuickChatQuery(text) {
+    this.sendCustomerChatMessage(text);
+  }
+
+  shareOnWhatsApp() {
+    const text = encodeURIComponent('Hello Master Admin, I need help with Spin & Wheel application.');
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  }
+
+  openTelegramSupport() {
+    window.open('https://t.me/', '_blank');
+  }
+
+  sendCustomerChatMessage(customText = null) {
+    const inp = document.getElementById('cust-chat-input') || document.getElementById('chat-customer-input');
+    const text = (customText || (inp ? inp.value : '')).trim();
+    if (!text) return;
+
+    let guestUid = localStorage.getItem('guest_chat_uid');
+    if (!guestUid) {
+      guestUid = 'g' + Math.floor(1000 + Math.random() * 9000);
+      localStorage.setItem('guest_chat_uid', guestUid);
+    }
+    const playerId = this.currentCustomer ? String(this.currentCustomer.id || '').toLowerCase() : guestUid;
+    const playerName = this.currentCustomer ? (this.currentCustomer.name || this.currentCustomer.id) : ('Guest (' + playerId + ')');
+
+    const msgObj = {
+      id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      playerId: playerId,
+      playerName: playerName,
+      playerMobile: this.currentCustomer ? (this.currentCustomer.mobile || 'N/A') : 'N/A',
+      sender: 'CUSTOMER',
+      text: text,
+      timestamp: Date.now(),
+      timeFormatted: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+    };
+
+    if (!this.supportChats) this.supportChats = {};
+    if (!Array.isArray(this.supportChats[playerId])) this.supportChats[playerId] = [];
+    this.supportChats[playerId].push(msgObj);
+    this.saveSupportChats(this.supportChats);
+
+    if (inp) inp.value = '';
+    this.renderCustomerChatMessages();
+
+    // Broadcast over live cloud sync to Master ID
+    if (this.syncEngine) {
+      this.syncEngine.broadcastLiveEvent({
+        eventType: 'CHAT_MESSAGE',
+        chatMessage: msgObj
+      });
+    }
+
+    if (this.audio) this.audio.playTick();
+  }
+
+  renderCustomerChatMessages() {
+    const feed = document.getElementById('cust-chat-messages-wrap') || document.getElementById('chat-customer-messages-feed');
+    if (!feed) return;
+
+    const guestUid = localStorage.getItem('guest_chat_uid') || 'guest';
+    const playerId = this.currentCustomer ? String(this.currentCustomer.id || '').toLowerCase() : guestUid;
+    const msgs = (this.supportChats && this.supportChats[playerId]) || [];
+
+    if (msgs.length === 0) {
+      feed.innerHTML = `
+        <div class="chat-msg msg-admin">
+          <div class="chat-msg-bubble">
+            👋 <b>Welcome to Spin & Wheel 24/7 Live Support!</b><br>
+            Directly connected to Master Admin. If you have any questions about deposits, withdrawals, predictions, or coin credits, please message us below for instant assistance!
+          </div>
+          <div class="chat-msg-meta">
+            <span>👑 Master Support</span> &bull; <span>Live</span>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    feed.innerHTML = msgs.map(m => {
+      const isCustomer = m.sender === 'CUSTOMER';
+      return `
+        <div class="chat-msg ${isCustomer ? 'msg-user' : 'msg-admin'}">
+          <div class="chat-msg-bubble">
+            ${this.escapeHTML(m.text)}
+          </div>
+          <div class="chat-msg-meta">
+            <span>${isCustomer ? '👤 You' : '👑 Master Support'}</span> &bull; <span>${m.timeFormatted || new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  refreshSupportChatsUI() {
+    const listEl = document.getElementById('admin-chat-threads-list');
+    const feedEl = document.getElementById('admin-chat-messages-wrap') || document.getElementById('admin-chat-messages-feed');
+    const nameEl = document.getElementById('admin-selected-chat-name');
+    const subEl = document.getElementById('admin-selected-chat-sub');
+    const actionsEl = document.getElementById('admin-selected-chat-actions');
+    const countEl = document.getElementById('admin-active-chats-count');
+    if (!listEl) return;
+
+    const chats = this.supportChats || {};
+    const playerIds = Object.keys(chats);
+
+    if (countEl) countEl.textContent = playerIds.length;
+
+    if (playerIds.length === 0) {
+      listEl.innerHTML = `<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.78rem;">No active support inquiries yet. New customer messages will appear here instantly.</div>`;
+      if (feedEl) feedEl.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.8rem;">Select a player on the left to start live messaging.</div>`;
+      if (nameEl) nameEl.textContent = 'Select a conversation';
+      if (subEl) subEl.textContent = 'Click any player from the list to view and reply';
+      if (actionsEl) actionsEl.classList.add('hidden');
+      return;
+    }
+
+    // Auto-select first thread if none selected
+    if (!this.selectedChatPlayerId || !chats[this.selectedChatPlayerId]) {
+      this.selectedChatPlayerId = playerIds[0];
+    }
+
+    // Render thread list on left
+    listEl.innerHTML = playerIds.map(pid => {
+      const thread = chats[pid] || [];
+      const lastMsg = thread[thread.length - 1] || {};
+      const isSel = this.selectedChatPlayerId === pid;
+      const unreadCount = thread.filter(m => m.sender === 'CUSTOMER' && !m.readByAdmin).length;
+
+      return `
+        <div class="admin-chat-thread-item ${isSel ? 'active' : ''}" style="padding:10px 12px; border-bottom:1px solid var(--border-subtle); cursor:pointer; background:${isSel ? 'rgba(217,119,6,0.18)' : 'transparent'}; border-left:${isSel ? '3px solid #f59e0b' : '3px solid transparent'};" onclick="window.app.selectAdminChatPlayer('${pid}')">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-weight:700; color:#f8fafc; font-size:0.85rem;">👤 ${lastMsg.playerName || pid}</span>
+            <span style="font-size:0.7rem; color:var(--text-muted);">${lastMsg.timeFormatted || ''}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:0.75rem; color:#cbd5e1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">
+              ${lastMsg.sender === 'ADMIN' ? '👑 You: ' : ''}${this.escapeHTML(lastMsg.text || 'No messages')}
+            </div>
+            ${unreadCount > 0 ? `<span style="background:#e11d48; color:#fff; font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px;">${unreadCount}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // If active player selected, render feed on right
+    if (this.selectedChatPlayerId && chats[this.selectedChatPlayerId]) {
+      const selThread = chats[this.selectedChatPlayerId];
+      const firstMsg = selThread[0] || {};
+
+      if (nameEl) nameEl.textContent = `👤 ${firstMsg.playerName || this.selectedChatPlayerId}`;
+      if (subEl) subEl.textContent = `Player ID: ${this.selectedChatPlayerId} • Mobile: ${firstMsg.playerMobile || 'N/A'}`;
+      if (actionsEl) actionsEl.classList.remove('hidden');
+
+      if (feedEl) {
+        feedEl.innerHTML = selThread.map(m => {
+          const isAdmin = m.sender === 'ADMIN';
+          return `
+            <div class="chat-msg ${isAdmin ? 'chat-msg-admin' : 'chat-msg-user'}" style="margin-bottom:8px; display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-end' : 'flex-start'};">
+              <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:2px;">${isAdmin ? '👑 You (Master Admin)' : '👤 ' + (m.playerName || m.playerId)}</div>
+              <div style="background:${isAdmin ? 'linear-gradient(135deg, #d97706, #b45309)' : 'rgba(255,255,255,0.08)'}; color:#fff; padding:8px 12px; border-radius:10px; max-width:80%; word-break:break-word; font-size:0.85rem;">
+                ${this.escapeHTML(m.text)}
+              </div>
+              <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">${m.timeFormatted || new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          `;
+        }).join('');
+        feedEl.scrollTop = feedEl.scrollHeight;
+      }
+    }
+  }
+
+  selectAdminChatPlayer(playerId) {
+    this.selectedChatPlayerId = playerId;
+    if (this.supportChats && this.supportChats[playerId]) {
+      this.supportChats[playerId].forEach(m => {
+        if (m.sender === 'CUSTOMER') m.readByAdmin = true;
+      });
+      this.saveSupportChats(this.supportChats);
+      this.updateSupportChatBadges();
+    }
+    this.refreshSupportChatsUI();
+  }
+
+  handleAdminSendChat() {
+    this.sendAdminChatMessage();
+  }
+
+  insertAdminReplyTemplate(templateText) {
+    const inp = document.getElementById('admin-chat-input');
+    if (inp) {
+      inp.value = templateText;
+      inp.focus();
+    }
+  }
+
+  broadcastNotificationPrompt() {
+    const msg = prompt('Enter message to broadcast as Push Notification to ALL active users:');
+    if (!msg || !msg.trim()) return;
+
+    if (this.syncEngine) {
+      this.syncEngine.broadcastLiveEvent({
+        eventType: 'BROADCAST_NOTIFICATION',
+        title: '📢 MASTER ANNOUNCEMENT',
+        message: msg.trim(),
+        icon: 'icon-192.png'
+      });
+    }
+
+    this.showLiveToast({
+      title: '📢 NOTIFICATION BROADCASTED',
+      message: `Sent to all active users: "${msg.trim()}"`,
+      type: 'success',
+      duration: 4000
+    });
+  }
+
+  quickCreditSelectedPlayer() {
+    if (!this.selectedChatPlayerId) {
+      alert('Please select a customer conversation from the list first!');
+      return;
+    }
+    const amtStr = prompt(`Enter coin amount to credit instantly to ${this.selectedChatPlayerId}:`);
+    const amt = parseFloat(amtStr);
+    if (isNaN(amt) || amt <= 0) return;
+
+    if (this.customersDb && this.customersDb[this.selectedChatPlayerId]) {
+      this.customersDb[this.selectedChatPlayerId].coins = (this.customersDb[this.selectedChatPlayerId].coins || 0) + amt;
+      this.saveCustomersDB(this.customersDb);
+      this.pushStateToServer({ customersDb: this.customersDb });
+      this.sendAdminChatMessage(`🎉 Master Admin has credited +₹${amt.toFixed(2)} IHD Coins to your balance!`);
+      this.showLiveToast({
+        title: '💰 COINS CREDITED',
+        message: `+₹${amt.toFixed(2)} credited to ${this.selectedChatPlayerId}!`,
+        type: 'success',
+        duration: 3500
+      });
+    } else {
+      alert(`Customer ${this.selectedChatPlayerId} not found in database.`);
+    }
+  }
+
+  sendAdminChatMessage(customText = null) {
+    if (!this.selectedChatPlayerId) {
+      alert('Please select a customer chat thread from the left first!');
+      return;
+    }
+
+    const inp = document.getElementById('admin-chat-input');
+    const text = (customText || (inp ? inp.value : '')).trim();
+    if (!text) return;
+
+    const msgObj = {
+      id: 'msg_adm_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      playerId: this.selectedChatPlayerId,
+      sender: 'ADMIN',
+      text: text,
+      timestamp: Date.now(),
+      timeFormatted: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+      readByAdmin: true
+    };
+
+    if (!this.supportChats[this.selectedChatPlayerId]) this.supportChats[this.selectedChatPlayerId] = [];
+    this.supportChats[this.selectedChatPlayerId].push(msgObj);
+    this.saveSupportChats(this.supportChats);
+
+    if (inp) inp.value = '';
+    this.refreshSupportChatsUI();
+
+    // Broadcast over cloud sync
+    if (this.syncEngine) {
+      this.syncEngine.broadcastLiveEvent({
+        eventType: 'CHAT_MESSAGE',
+        chatMessage: msgObj
+      });
+    }
+
+    if (this.audio) this.audio.playTick();
+  }
+
+  updateSupportChatBadges() {
+    let totalUnread = 0;
+    if (this.supportChats) {
+      Object.keys(this.supportChats).forEach(pid => {
+        const msgs = this.supportChats[pid] || [];
+        totalUnread += msgs.filter(m => m.sender === 'CUSTOMER' && !m.readByAdmin).length;
+      });
+    }
+
+    const badge = document.getElementById('admin-tab-badge-chats');
+    if (badge) {
+      if (totalUnread > 0) {
+        badge.textContent = totalUnread;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+  }
+
+  requestNotificationPermission() {
+    if (!('Notification' in window)) {
+      this.showLiveToast({
+        title: '🔔 NOTIFICATIONS ENABLED',
+        message: 'In-app countdown alerts (1 hr, 30m, 5m left) are active on this device!',
+        type: 'success',
+        duration: 5000
+      });
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      this.showLiveToast({
+        title: '🔔 NOTIFICATIONS ACTIVE',
+        message: 'Push alerts for upcoming spins are active!',
+        type: 'success',
+        duration: 4000
+      });
+      this.sendSystemNotification('🎰 Spin & Wheel Notifications', 'Upcoming spin countdown alerts are active!');
+      return;
+    }
+
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        this.showLiveToast({
+          title: '🔔 NOTIFICATIONS GRANTED',
+          message: 'You will receive alerts 1 hour, 30 min, and 5 min before each round!',
+          type: 'success',
+          duration: 5000
+        });
+        this.sendSystemNotification('🎰 Spin & Wheel Alerts Active', 'You will be notified before every upcoming spin!');
+      } else {
+        this.showLiveToast({
+          title: '🔔 IN-APP ALERTS ACTIVE',
+          message: 'In-app toasts will notify you before each spin round!',
+          type: 'info',
+          duration: 4000
+        });
+      }
+    });
+  }
+
+  checkAutomatedCountdownAlerts(secondsRemaining, slotLabel) {
+    if (secondsRemaining === undefined || secondsRemaining === null || !slotLabel) return;
+    if (!this.sentSlotAlerts) this.sentSlotAlerts = {};
+
+    const todayStr = new Date().toDateString();
+    const key1h = `${todayStr}_${slotLabel}_1h`;
+    const key30m = `${todayStr}_${slotLabel}_30m`;
+    const key15m = `${todayStr}_${slotLabel}_15m`;
+    const key5m = `${todayStr}_${slotLabel}_5m`;
+    const keyNow = `${todayStr}_${slotLabel}_now`;
+
+    // 1 Hour Left (3540 - 3600 seconds)
+    if (secondsRemaining <= 3600 && secondsRemaining >= 3540 && !this.sentSlotAlerts[key1h]) {
+      this.sentSlotAlerts[key1h] = true;
+      this.sendSystemNotification(
+        `⏳ UPCOMING SPIN: 1 HOUR LEFT!`,
+        `The ${slotLabel} Spin is coming in 1 hour! Place your predictions before 30-minute cutoff!`,
+        'icon-192.png'
+      );
+      this.showLiveToast({
+        title: `⏳ 1 HOUR LEFT FOR ${slotLabel}!`,
+        message: `Next spin round is in 1 hour. Get your predictions placed in time!`,
+        type: 'info',
+        duration: 7000
+      });
+      if (this.audio) this.audio.playWinFanfare();
+    }
+
+    // 30 Minutes Left (1740 - 1800 seconds - Cutoff time)
+    else if (secondsRemaining <= 1800 && secondsRemaining >= 1740 && !this.sentSlotAlerts[key30m]) {
+      this.sentSlotAlerts[key30m] = true;
+      this.sendSystemNotification(
+        `⚠️ 30 MINUTES LEFT - BETTING CLOSING!`,
+        `Betting for ${slotLabel} round is closing NOW! Only 30 minutes until spin!`,
+        'icon-192.png'
+      );
+      this.showLiveToast({
+        title: `⚠️ 30 MIN LEFT: ${slotLabel} ROUND`,
+        message: `Betting window is locking! Spin begins in 30 minutes!`,
+        type: 'warning',
+        duration: 8000
+      });
+      if (this.audio) this.audio.playAlert();
+    }
+
+    // 15 Minutes Left (840 - 900 seconds)
+    else if (secondsRemaining <= 900 && secondsRemaining >= 840 && !this.sentSlotAlerts[key15m]) {
+      this.sentSlotAlerts[key15m] = true;
+      this.sendSystemNotification(
+        `⏳ 15 MINUTES TO ${slotLabel} SPIN!`,
+        `The live spin wheel starts in 15 minutes! Get ready to watch the winning outcome!`,
+        'icon-192.png'
+      );
+      this.showLiveToast({
+        title: `⏳ 15 MIN TO ${slotLabel} SPIN!`,
+        message: `Live spin starts soon. Check your active bets!`,
+        type: 'info',
+        duration: 6000
+      });
+    }
+
+    // 5 Minutes Left (240 - 300 seconds)
+    else if (secondsRemaining <= 300 && secondsRemaining >= 240 && !this.sentSlotAlerts[key5m]) {
+      this.sentSlotAlerts[key5m] = true;
+      this.sendSystemNotification(
+        `🚨 5 MINUTES TO ${slotLabel} SPIN!`,
+        `Live spin starts in 5 minutes! Open the app to watch the wheel spin live!`,
+        'icon-192.png'
+      );
+      this.showLiveToast({
+        title: `🚨 5 MINUTES TO LIVE SPIN!`,
+        message: `The ${slotLabel} round wheel will spin in 5 minutes!`,
+        type: 'warning',
+        duration: 6000
+      });
+      if (this.audio) this.audio.playAlert();
+    }
+
+    // Spin Starting Now (0 - 5 seconds)
+    else if (secondsRemaining <= 5 && secondsRemaining >= 0 && !this.sentSlotAlerts[keyNow]) {
+      this.sentSlotAlerts[keyNow] = true;
+      this.sendSystemNotification(
+        `🎰 ${slotLabel} SPIN STARTING NOW!`,
+        `The wheel is spinning! Watch the live winning number!`,
+        'icon-192.png'
+      );
+    }
+  }
+
+  sendSystemNotification(title, body, icon = 'icon-192.png') {
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, {
+          body: body,
+          icon: icon,
+          badge: icon,
+          vibrate: [200, 100, 200]
+        });
+      }
+    } catch (e) {}
+  }
 }
 
 // Global App Instance
-window.addEventListener('DOMContentLoaded', () => {
-  window.app = new SpinWheelApp();
-});
+function initSpinWheelApp() {
+  if (!window.app) {
+    window.app = new SpinWheelApp();
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSpinWheelApp);
+} else {
+  initSpinWheelApp();
+}
