@@ -1389,8 +1389,47 @@ class SpinWheelApp {
         this.saveActiveBets(this.activeBets);
       }
 
+      // Deduct coins & sync player balance in customersDb
+      const pid = bet.playerId || bet.memberId || bet.partyId || event.playerId;
+      if (pid && this.customersDb) {
+        if (this.customersDb[pid]) {
+          if (event.remainingCoins !== undefined) {
+            this.customersDb[pid].coins = event.remainingCoins;
+          } else if (!exists) {
+            this.customersDb[pid].coins = Math.max(0, (this.customersDb[pid].coins || 0) - (bet.amount || 0));
+          }
+          this.customersDb[pid].totalBets = (this.customersDb[pid].totalBets || 0) + 1;
+          this.customersDb[pid].lastUpdated = Date.now();
+          if (!Array.isArray(this.customersDb[pid].betHistory)) this.customersDb[pid].betHistory = [];
+          if (!this.customersDb[pid].betHistory.some(b => b.id === bet.id)) {
+            this.customersDb[pid].betHistory.unshift(bet);
+          }
+          this.saveCustomersDB(this.customersDb);
+        } else if (event.customer) {
+          this.customersDb[pid] = event.customer;
+          this.saveCustomersDB(this.customersDb);
+        }
+      }
+
+      // If this browser is logged into this customer account, update session & UI immediately
+      if (this.currentCustomer && (this.currentCustomer.id === pid || this.currentCustomer.id === bet.playerId)) {
+        if (this.customersDb && this.customersDb[pid]) {
+          this.currentCustomer = this.customersDb[pid];
+        } else if (event.remainingCoins !== undefined) {
+          this.currentCustomer.coins = event.remainingCoins;
+        }
+        this.saveCustomerSession(this.currentCustomer);
+        this.updateCustomerUI();
+      }
+
       if (this.audio) this.audio.playTick();
       this.renderAdminActiveBetsTable();
+      this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+
+      // If Master Admin has this player's modal open, refresh it live immediately!
+      if (this.currentAphPlayerId === pid && this.adminPlayerHistoryModal && !this.adminPlayerHistoryModal.classList.contains('hidden')) {
+        this.openPlayerHistoryModal(pid);
+      }
     }
 
     else if (event.eventType === 'DEPOSIT_STATUS_UPDATED') {
@@ -4342,8 +4381,9 @@ class SpinWheelApp {
     }
 
     // Deduct coins & track bet history
-    this.currentCustomer.coins -= amount;
+    this.currentCustomer.coins = Math.max(0, (Number(this.currentCustomer.coins) || 0) - amount);
     this.currentCustomer.totalBets = (this.currentCustomer.totalBets || 0) + 1;
+    this.currentCustomer.lastUpdated = Date.now();
 
     const playerId = this.currentCustomer.id || 'P_' + Date.now();
     const playerName = this.currentCustomer.name || this.currentCustomer.id || 'Player';
@@ -4444,6 +4484,7 @@ class SpinWheelApp {
     if (this.customersDb && this.customersDb[this.currentCustomer.id]) {
       this.customersDb[this.currentCustomer.id].coins = this.currentCustomer.coins;
       this.customersDb[this.currentCustomer.id].totalBets = this.currentCustomer.totalBets;
+      this.customersDb[this.currentCustomer.id].lastUpdated = Date.now();
       if (!Array.isArray(this.customersDb[this.currentCustomer.id].betHistory)) {
         this.customersDb[this.currentCustomer.id].betHistory = [];
       }
@@ -4461,11 +4502,15 @@ class SpinWheelApp {
 
     this.updateCustomerUI();
     this.renderAdminActiveBetsTable();
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
 
     if (this.cloudSync) {
       this.cloudSync.broadcastLiveEvent({
         eventType: 'NEW_BET',
-        bet: betObj
+        bet: betObj,
+        playerId: playerId,
+        remainingCoins: this.currentCustomer.coins,
+        customer: this.customersDb ? this.customersDb[this.currentCustomer.id] : null
       });
     }
 
