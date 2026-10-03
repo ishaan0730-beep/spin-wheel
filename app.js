@@ -8370,11 +8370,6 @@ class SpinWheelApp {
     tick();
     setInterval(tick, 1000);
   }
-}
-
-// Global App Instance
-window.addEventListener('DOMContentLoaded', () => {
-  window.app = new SpinWheelApp();
 
   // ==========================================================
   // CRICBET99 LUXURY INTERFACE & 3-LINE DRAWER CONTROLLER
@@ -8423,27 +8418,7 @@ window.addEventListener('DOMContentLoaded', () => {
       this.toggleCricLanguage();
     });
 
-    // 2. Category Sports Tabs
-    document.querySelectorAll('.cric-sport-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.cric-sport-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        const tabType = tab.getAttribute('data-tab');
-        if (tabType === 'spin' || tabType === 'inplay') {
-          const predSec = document.getElementById('customer-prediction-section');
-          if (predSec) predSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-          this.showLiveToast({
-            title: 'SPORTS BETTING MARKET',
-            message: `<b>${tab.textContent.trim()}</b> matches live feed is active. Place your live predictions on the 10-Slot Spin Wheel!`,
-            type: 'bet',
-            duration: 4000
-          });
-        }
-      });
-    });
-
-    // 3. Promo Code Redeem Bar
+    // 2. Promo Code Redeem Bar
     const promoInput = document.getElementById('cric-promo-input');
     const promoApplyBtn = document.getElementById('cric-promo-apply-btn');
 
@@ -8461,7 +8436,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Enter') applyPromo();
     });
 
-    // 4. Drawer Top Controls (Copy ID, One-Click Switch, Edit Name, Refer & Earn)
+    // 3. Drawer Top Controls (Copy ID, One-Click Switch, Edit Name, Refer & Earn)
     const drawerCopyBtn = document.getElementById('cric-drawer-copy-btn');
     drawerCopyBtn?.addEventListener('click', () => {
       const userId = this.currentCustomer ? this.currentCustomer.id : 'Guest';
@@ -8505,7 +8480,7 @@ window.addEventListener('DOMContentLoaded', () => {
       this.openReferEarnModal();
     });
 
-    // 5. 15 Drawer Menu Rows
+    // 4. 15 Drawer Menu Rows
     document.getElementById('cric-row-affiliate')?.addEventListener('click', () => this.openReferEarnModal());
     document.getElementById('cric-row-my-market')?.addEventListener('click', () => {
       this.closeCricDrawer();
@@ -8695,7 +8670,7 @@ window.addEventListener('DOMContentLoaded', () => {
   shareOnWhatsApp() {
     const code = document.getElementById('cric-refer-code-val')?.textContent || 'CRIC99-PLAYER';
     const url = encodeURIComponent(`${window.location.origin}${window.location.pathname}?ref=${code}`);
-    const text = encodeURIComponent(`ðŸŽ° Play Cricbet99 Lucky Hourly Spin Wheel! Use my referral code *${code}* to get Free Bonus Coins: `);
+    const text = encodeURIComponent(`ðŸŽ° Play Spin & Wheel Hourly Spin! Use my referral code *${code}* to get Free Bonus Coins: `);
     window.open(`https://api.whatsapp.com/send?text=${text}${url}`, '_blank');
   }
 
@@ -9084,5 +9059,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const promoInp = document.getElementById('cric-promo-input');
     if (promoInp) promoInp.value = '';
   }
-});
+}
 
+// Global App Instance
+window.addEventListener('DOMContentLoaded', () => {
+  window.app = new SpinWheelApp();
+});
