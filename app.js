@@ -1136,7 +1136,73 @@ class SpinWheelApp {
     this.startTimerEngine();
 
     this.renderLast3Results();
-    this.renderAllSpinHistoryModalList();
+  renderAllSpinHistoryModalList(searchQuery = '', slotFilter = 'ALL') {
+    const list = Array.isArray(this.history) ? this.history : [];
+    const totalCount = list.length;
+
+    if (this.allHistoryCountBadge) this.allHistoryCountBadge.textContent = totalCount;
+    if (this.modalAllHistoryCount) this.modalAllHistoryCount.textContent = totalCount;
+
+    if (!this.allHistoryTableBody) return;
+
+    const q = (searchQuery || '').toLowerCase().trim();
+    const filtered = list.filter(item => {
+      if (!item) return false;
+      if (slotFilter && slotFilter !== 'ALL') {
+        const itemRound = (item.round || '').trim();
+        const itemTime = (item.time || '').trim();
+        if (itemRound !== slotFilter && !itemTime.includes(slotFilter)) return false;
+      }
+      if (!q) return true;
+      const numStr = String(item.number || '');
+      const roundStr = String(item.round || '').toLowerCase();
+      const dateStr = String(item.date || '').toLowerCase();
+      const timeStr = String(item.time || '').toLowerCase();
+      const sourceStr = String(item.source || '').toLowerCase();
+      return numStr.includes(q) || roundStr.includes(q) || dateStr.includes(q) || timeStr.includes(q) || sourceStr.includes(q);
+    });
+
+    if (filtered.length === 0) {
+      this.allHistoryTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+            ${totalCount === 0 ? 'No spin rounds recorded yet.' : 'No spin results match the search/filter.'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    this.allHistoryTableBody.innerHTML = '';
+    filtered.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      const isLatest = (idx === 0);
+
+      tr.innerHTML = `
+        <td style="white-space:nowrap;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <strong style="color:var(--primary-gold-bright); font-size:0.84rem;">${item.round || item.time || 'Round'}</strong>
+            ${isLatest ? '<span class="status-pill status-approved" style="font-size:0.60rem; padding:1px 5px;">Latest</span>' : ''}
+          </div>
+        </td>
+        <td style="text-align:center; white-space:nowrap;">
+          <span style="background:var(--primary-gold-gradient, linear-gradient(135deg, #ffd700, #f5b041)); color:#000; font-weight:900; padding:3px 10px; border-radius:12px; font-size:0.86rem; display:inline-block; box-shadow:0 0 8px rgba(245,176,65,0.4);">
+            #${item.number}
+          </span>
+        </td>
+        <td style="white-space:nowrap;">
+          <span style="color:#f8fafc; font-weight:600; font-size:0.78rem;">${item.date || ''}</span>
+        </td>
+        <td style="white-space:nowrap;">
+          <span style="font-size:0.68rem; color:#00f0ff; background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.25); padding:2px 7px; border-radius:4px; font-weight:700;">
+            ${item.source || 'Live Round'}
+          </span>
+        </td>
+      `;
+      this.allHistoryTableBody.appendChild(tr);
+    });
+  }
+
     this.renderAdminSpinHistoryTable();
     this.populateAdminControls();
     this.renderCustomerDepositUI();
@@ -7860,10 +7926,12 @@ class SpinWheelApp {
 
       if (item) {
         card.className = `result-card ${i === 0 ? 'latest-win' : ''}`;
+        const displayDate = item.date ? `${item.date} â€¢ ` : '';
+        const displayTime = item.time || item.round || 'Completed';
         card.innerHTML = `
-          <div class="result-rank">${i === 0 ? '🏆 Latest Winner' : ranks[i]}</div>
+          <div class="result-rank">${i === 0 ? 'ðŸ† Latest Winner' : ranks[i]}</div>
           <div class="result-number">${item.number}</div>
-          <div class="result-meta">${item.time} (${item.round || ''})</div>
+          <div class="result-meta">${displayDate}${displayTime}</div>
         `;
       } else {
         card.className = 'result-card empty-card';
@@ -7881,9 +7949,6 @@ class SpinWheelApp {
     }
   }
 
-  // ==========================================================
-  // COMPLETE SPIN HISTORY MODAL & ADMIN LOG RENDERERS
-  // ==========================================================
   openAllSpinHistoryModal() {
     if (!this.allSpinHistoryModal) return;
     this.allSpinHistoryModal.classList.remove('hidden');

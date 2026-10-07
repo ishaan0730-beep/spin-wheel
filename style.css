@@ -4298,3 +4298,14 @@ input:checked + .cric-slider:before {
     font-size: 0.78rem !important;
   }
 }
+
+/* Complete Spin History Table Enhancements */
+#all-spin-history-modal .schedule-table th,
+#all-spin-history-modal .schedule-table td {
+  white-space: nowrap !important;
+  padding: 8px 10px !important;
+}
+
+#all-spin-history-modal .modal-card {
+  max-width: 520px !important;
+}
