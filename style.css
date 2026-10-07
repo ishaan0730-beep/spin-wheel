@@ -4309,3 +4309,51 @@ input:checked + .cric-slider:before {
 #all-spin-history-modal .modal-card {
   max-width: 520px !important;
 }
+/* ==========================================================
+   RELOAD / REFRESH BUTTON & TOAST STYLES (v7.4.7)
+   ========================================================== */
+.cric-reload-btn {
+  background: rgba(255, 215, 0, 0.12) !important;
+  border: 1px solid rgba(255, 215, 0, 0.35) !important;
+  color: #ffd700 !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.cric-reload-btn:hover {
+  background: rgba(255, 215, 0, 0.25) !important;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+.cric-reload-btn.spinning .reload-spin-icon,
+.cric-reload-btn:active .reload-spin-icon {
+  animation: spinReload 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes spinReload {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.status-reload-badge {
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: #00f0ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+.status-reload-badge:hover {
+  background: rgba(0, 240, 255, 0.25);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+}

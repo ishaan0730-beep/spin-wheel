@@ -1136,6 +1136,28 @@ class SpinWheelApp {
     this.startTimerEngine();
 
     this.renderLast3Results();
+    this.renderAdminSpinHistoryTable();
+    this.populateAdminControls();
+    this.renderCustomerDepositUI();
+    this.populateMasterConfigInputs();
+
+    // 1. Start Instant Real-Time Cloud Synchronization
+    try {
+      this.cloudSync = new CloudSyncEngine(this);
+    } catch (e) {
+      console.warn('CloudSyncEngine init error:', e);
+    }
+
+    // 2. Pull initial local server state & continuous live polling
+    try {
+      await this.pullStateFromServer();
+    } catch (e) {
+      console.warn('Initial state pull error:', e);
+    }
+
+    this.startServerPolling();
+  }
+
   renderAllSpinHistoryModalList(searchQuery = '', slotFilter = 'ALL') {
     const list = Array.isArray(this.history) ? this.history : [];
     const totalCount = list.length;
@@ -1177,11 +1199,12 @@ class SpinWheelApp {
     filtered.forEach((item, idx) => {
       const tr = document.createElement('tr');
       const isLatest = (idx === 0);
+      const cleanTime = String(item.time || item.round || '').replace(/\s*\([^)]*\)/g, '').trim();
 
       tr.innerHTML = `
         <td style="white-space:nowrap;">
           <div style="display:flex; align-items:center; gap:6px;">
-            <strong style="color:var(--primary-gold-bright); font-size:0.84rem;">${item.round || item.time || 'Round'}</strong>
+            <strong style="color:var(--primary-gold-bright); font-size:0.84rem;">${item.round || cleanTime || 'Round'}</strong>
             ${isLatest ? '<span class="status-pill status-approved" style="font-size:0.60rem; padding:1px 5px;">Latest</span>' : ''}
           </div>
         </td>
@@ -1202,29 +1225,6 @@ class SpinWheelApp {
       this.allHistoryTableBody.appendChild(tr);
     });
   }
-
-    this.renderAdminSpinHistoryTable();
-    this.populateAdminControls();
-    this.renderCustomerDepositUI();
-    this.populateMasterConfigInputs();
-
-    // 1. Start Instant Real-Time Cloud Synchronization
-    try {
-      this.cloudSync = new CloudSyncEngine(this);
-    } catch (e) {
-      console.warn('CloudSyncEngine init error:', e);
-    }
-
-    // 2. Pull initial local server state & continuous live polling
-    try {
-      await this.pullStateFromServer();
-    } catch (e) {
-      console.warn('Initial state pull error:', e);
-    }
-
-    this.startServerPolling();
-  }
-
   setupCanvasDPI() {
     const dpr = window.devicePixelRatio || 1;
     const size = 460;
@@ -1241,6 +1241,53 @@ class SpinWheelApp {
         this.adminMiniCtx.scale(dpr, dpr);
       }
     }
+  }
+
+  async handleReload(btnEl) {
+    const btn = btnEl || document.getElementById('cric-reload-btn');
+    if (btn) btn.classList.add('spinning');
+
+    try {
+      // 1. Pull latest server state
+      await this.pullStateFromServer();
+
+      // 2. Re-settle any expired bets and elapsed daily slots
+      this.settleAllExpiredBets();
+      this.settleElapsedSlots();
+
+      // 3. Align wheel to latest winner and redraw
+      this.alignWheelToLatestResult();
+      this.renderWheel();
+      this.renderPredictionChips();
+      this.updateTargetSlotDisplay();
+      this.renderLast3Results();
+      this.updateCustomerUI();
+
+      // 4. Show friendly toast indicator
+      this.showToastNotification('🔄 Live state refreshed & synced!');
+    } catch (e) {
+      console.warn('Reload sync error:', e);
+    } finally {
+      setTimeout(() => {
+        if (btn) btn.classList.remove('spinning');
+      }, 600);
+    }
+  }
+
+  showToastNotification(msg) {
+    let toast = document.getElementById('app-reload-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'app-reload-toast';
+      toast.style.cssText = 'position:fixed; top:70px; left:50%; transform:translateX(-50%); background:rgba(20,27,45,0.95); color:#ffd700; border:1px solid rgba(255,215,0,0.5); padding:6px 16px; border-radius:20px; font-size:0.8rem; font-weight:700; z-index:99999; box-shadow:0 0 15px rgba(255,215,0,0.3); pointer-events:none; transition:opacity 0.3s ease;';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(this._toastTimeout);
+    this._toastTimeout = setTimeout(() => {
+      toast.style.opacity = '0';
+    }, 2000);
   }
 
   loadHandledSpinIds() {
@@ -1998,6 +2045,7 @@ class SpinWheelApp {
       this.renderAllSpinHistoryModalList();
       this.renderAdminSpinHistoryTable();
       if (!this.isSpinning) this.alignWheelToLatestResult();
+    }
     if (this.isDrawerOpen) {
       this.updateSection1BadgeForSelectedSlot();
       this.renderDailyScheduleTable();
@@ -2132,7 +2180,7 @@ class SpinWheelApp {
         timestamp: item.timestamp || item.id || Date.now()
       };
 
-      const key = ${dateStr}_;
+      const key = `${dateStr}_${cleanRound}`;
       if (!histMap.has(key)) {
         histMap.set(key, cleanItem);
       }
@@ -7971,6 +8019,7 @@ class SpinWheelApp {
   }
 
   // ==========================================
+  // ==========================================
   // LAST 3 RESULTS RENDERER (100% MATCH)
   // ==========================================
   renderLast3Results() {
@@ -7984,21 +8033,21 @@ class SpinWheelApp {
       const item = last3[i];
 
       if (item) {
-        card.className = esult-card ${i === 0 ? 'latest-win' : ''};
+        card.className = `result-card ${i === 0 ? 'latest-win' : ''}`;
         const cleanTime = String(item.time || item.round || 'Completed').replace(/\s*\([^)]*\)/g, '').trim();
-        const displayDate = item.date ? ${item.date} •  : '';
-        card.innerHTML = 
-          <div class="result-rank"></div>
-          <div class="result-number"></div>
-          <div class="result-meta"></div>
-        ;
+        const displayDate = item.date ? `${item.date} • ` : '';
+        card.innerHTML = `
+          <div class="result-rank">${i === 0 ? '🏆 Latest Winner' : ranks[i]}</div>
+          <div class="result-number">${item.number}</div>
+          <div class="result-meta">${displayDate}${cleanTime}</div>
+        `;
       } else {
         card.className = 'result-card empty-card';
-        card.innerHTML = 
-          <div class="result-rank"></div>
+        card.innerHTML = `
+          <div class="result-rank">${ranks[i]}</div>
           <div class="result-number">--</div>
           <div class="result-meta">Awaiting Spin</div>
-        ;
+        `;
       }
       this.resultsGrid.appendChild(card);
     }
@@ -8007,7 +8056,6 @@ class SpinWheelApp {
       this.allHistoryCountBadge.textContent = (this.history || []).length;
     }
   }
-
   openAllSpinHistoryModal() {
     if (!this.allSpinHistoryModal) return;
     this.allSpinHistoryModal.classList.remove('hidden');
@@ -8241,7 +8289,7 @@ class SpinWheelApp {
             winningNum = 90;
           } else {
             let hash = 0;
-            const seedStr = ${dateStr}__lucky_salt_v9;
+                const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;
             for (let k = 0; k < seedStr.length; k++) {
               hash = ((hash << 5) - hash) + seedStr.charCodeAt(k);
               hash |= 0;
@@ -8478,7 +8526,7 @@ class SpinWheelApp {
                 winningNum = 90;
               } else {
                 let hash = 0;
-                const seedStr = ${dateStr}__lucky_salt_v9;
+                const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;
                 for (let i = 0; i < seedStr.length; i++) {
                   hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
                   hash |= 0;
