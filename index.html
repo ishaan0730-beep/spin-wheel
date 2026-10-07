@@ -715,12 +715,20 @@
 
             <!-- Step 2: Enter Login OTP -->
             <div id="cust-signin-otp-step2" class="hidden">
-              <div class="admin-badge-notice" style="margin-bottom:0.65rem; background:rgba(0,240,255,0.08); border-color:rgba(0,240,255,0.35);">
-                <span style="font-size: 1.3rem;">&#128242;</span>
+              <div class="admin-badge-notice" style="margin-bottom:0.65rem; background:rgba(37,211,102,0.1); border-color:rgba(37,211,102,0.4);">
+                <span style="font-size: 1.3rem;">📲</span>
                 <div>
-                  <strong style="color:#00f0ff; font-size:0.85rem;">Login OTP Sent</strong>
-                  <p style="font-size:0.72rem; color:var(--text-secondary); margin:2px 0 0 0;">Enter 4-digit code sent for <b id="cust-login-otp-mobile-display" style="color:#fff;">+91 ----------</b></p>
+                  <strong style="color:#25D366; font-size:0.85rem;">WhatsApp OTP Sent</strong>
+                  <p style="font-size:0.72rem; color:var(--text-secondary); margin:2px 0 0 0;">Check your WhatsApp for <b id="cust-login-otp-mobile-display" style="color:#fff;">+91 ----------</b></p>
                 </div>
+              </div>
+
+              <!-- Direct WhatsApp 1-Click Action -->
+              <div style="margin-bottom:0.65rem; text-align:center;">
+                <button type="button" id="cust-login-open-wa-btn" class="btn btn-block" style="background:#25D366; color:#fff; font-size:0.78rem; font-weight:800; padding:0.45rem 0.75rem; border-radius:6px; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 0 10px rgba(37,211,102,0.3);">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+                  <span>Open WhatsApp to Check OTP</span>
+                </button>
               </div>
 
               <div class="form-group" style="text-align:center;">
@@ -730,7 +738,7 @@
 
               <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.4rem; font-size:0.72rem;">
                 <span id="cust-login-otp-timer" style="color:var(--text-muted);">Resend in <b style="color:var(--primary-gold);">60s</b></span>
-                <button type="button" id="cust-login-resend-otp-btn" class="link-btn hidden" style="background:none; border:none; color:var(--primary-gold); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">&#128260; Resend OTP</button>
+                <button type="button" id="cust-login-resend-otp-btn" class="link-btn hidden" style="background:none; border:none; color:#25D366; font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">📲 Resend via WhatsApp</button>
               </div>
 
               <div class="form-actions" style="margin-top: 0.75rem; display:flex; gap:6px;">
@@ -795,12 +803,20 @@
 
           <!-- Registration OTP Verification Step -->
           <div id="cust-signup-otp-step" class="hidden">
-            <div class="admin-badge-notice" style="margin-bottom:0.75rem; background:rgba(0,240,255,0.08); border-color:rgba(0,240,255,0.35);">
-              <span style="font-size: 1.3rem;">&#128273;</span>
+            <div class="admin-badge-notice" style="margin-bottom:0.75rem; background:rgba(37,211,102,0.1); border-color:rgba(37,211,102,0.4);">
+              <span style="font-size: 1.3rem;">📲</span>
               <div>
-                <strong style="color:#00f0ff; font-size:0.85rem;">Verify Mobile Number</strong>
-                <p style="font-size:0.72rem; color:var(--text-secondary); margin:2px 0 0 0;">Enter 4-digit code sent for <b id="cust-reg-otp-mobile-display" style="color:#fff;">+91 ----------</b></p>
+                <strong style="color:#25D366; font-size:0.85rem;">WhatsApp Verification Code Sent</strong>
+                <p style="font-size:0.72rem; color:var(--text-secondary); margin:2px 0 0 0;">Check your WhatsApp for <b id="cust-reg-otp-mobile-display" style="color:#fff;">+91 ----------</b></p>
               </div>
+            </div>
+
+            <!-- Direct WhatsApp 1-Click Action -->
+            <div style="margin-bottom:0.65rem; text-align:center;">
+              <button type="button" id="cust-reg-open-wa-btn" class="btn btn-block" style="background:#25D366; color:#fff; font-size:0.78rem; font-weight:800; padding:0.45rem 0.75rem; border-radius:6px; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 0 10px rgba(37,211,102,0.3);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+                <span>Open WhatsApp to Check OTP</span>
+              </button>
             </div>
 
             <div class="form-group" style="text-align:center;">
@@ -810,7 +826,7 @@
 
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.4rem; font-size:0.72rem;">
               <span id="cust-reg-otp-timer" style="color:var(--text-muted);">Resend in <b style="color:var(--primary-gold);">60s</b></span>
-              <button type="button" id="cust-reg-resend-otp-btn" class="link-btn hidden" style="background:none; border:none; color:var(--primary-gold); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">&#128260; Resend OTP</button>
+              <button type="button" id="cust-reg-resend-otp-btn" class="link-btn hidden" style="background:none; border:none; color:#25D366; font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">📲 Resend via WhatsApp</button>
             </div>
 
             <div class="form-actions" style="margin-top: 0.75rem; display:flex; gap:6px;">
