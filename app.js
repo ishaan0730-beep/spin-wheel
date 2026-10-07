@@ -2946,6 +2946,16 @@ class SpinWheelApp {
       });
     }
 
+    // Manual Round Winner Dropdown change
+    if (this.manualRoundWinnerSelect) {
+      this.manualRoundWinnerSelect.addEventListener('change', () => {
+        const nextSlot = getNextSlotInfo(new Date());
+        const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
+        const val = parseInt(this.manualRoundWinnerSelect.value, 10);
+        if (this.badgeTimingText) this.badgeTimingText.textContent = roundTitle;
+      });
+    }
+
     // Section 1: Set Round Time & Lock Predetermined Winner (Real Round)
     if (this.applyTimeWinnerBtn) {
       this.applyTimeWinnerBtn.addEventListener('click', () => {
@@ -2954,18 +2964,20 @@ class SpinWheelApp {
         let winnerNum = parseInt(this.manualRoundWinnerSelect?.value, 10);
         if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) winnerNum = this.slices[0] || 10;
 
-        // 1. Lock predetermined winner for this specific slot in daily schedule
+        // 1. Lock predetermined winner for this specific slot in daily schedule & forcedNext
         if (!this.dailySchedule) this.dailySchedule = {};
         this.dailySchedule[roundTitle] = winnerNum;
-        this.forcedNext = null;
+        this.forcedNext = winnerNum;
         this.version = Date.now();
         this.lastVersion = this.version;
 
         localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+        localStorage.setItem(STATE_KEYS.FORCED_NEXT, String(winnerNum));
         this.renderDailyScheduleTable();
 
-        // 2. Update Active Timing Badge
+        // 2. Update Active Timing Badge & UI
         this.updateSection1BadgeForSelectedSlot();
+        this.updateForcedWinnerUI();
 
         // 3. Switch to REAL schedule mode
         this.timerMode = 'REAL';
@@ -2978,7 +2990,7 @@ class SpinWheelApp {
           scheduleAction: 'SET_LOCK',
           lockedSlot: roundTitle,
           lockedWinner: winnerNum,
-          forcedNext: null,
+          forcedNext: winnerNum,
           timerMode: 'REAL',
           customTimerTarget: null,
           version: this.version
@@ -2995,10 +3007,12 @@ class SpinWheelApp {
         const nextSlot = getNextSlotInfo(new Date());
         const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
 
+        this.isSpinning = false;
+        this.spinLockoutUntil = 0;
         this.closeAdminDrawer();
         setTimeout(() => {
-          this.dispatchSynchronizedSpin(`Test Spin (${roundTitle})`, true, winnerNum);
-        }, 200);
+          this.dispatchSynchronizedSpin(`Test Spin (${roundTitle})`, true, winnerNum, roundTitle);
+        }, 150);
       });
     }
 
@@ -5225,7 +5239,7 @@ class SpinWheelApp {
     }
 
     // Populate Section 1 Winning Number dropdown with the 10 permanent fixed slices
-    if (this.manualRoundWinnerSelect) {
+    if (this.manualRoundWinnerSelect && this.manualRoundWinnerSelect.children.length === 0) {
       this.manualRoundWinnerSelect.innerHTML = '';
       this.slices.forEach((num, idx) => {
         const opt = document.createElement('option');
@@ -8055,14 +8069,15 @@ class SpinWheelApp {
   // TARGET NUMBER DETERMINATION & SINGLE ROTATION PHYSICS
   // ==========================================================
   determineTargetNumber(targetSlotLabel = null) {
-    const currentSlot = getCurrentActiveSlot(new Date());
     const nextSlot = getNextSlotInfo(new Date());
-    const slotToCheck = targetSlotLabel || currentSlot.label || nextSlot.label;
+    const currentSlot = getCurrentActiveSlot(new Date());
+    const slotToCheck = targetSlotLabel || nextSlot.label || currentSlot.label;
 
-    // 1. Highest Priority: Forced Next Winner (if manually set)
-    if (this.forcedNext !== null && this.forcedNext !== undefined) {
+    // 1. Highest Priority: Forced Next Winner (if manually set or locked in Section 1)
+    if (this.forcedNext !== null && this.forcedNext !== undefined && this.forcedNext !== 'AUTO') {
       const forced = parseInt(this.forcedNext, 10);
       this.forcedNext = null;
+      try { localStorage.removeItem(STATE_KEYS.FORCED_NEXT); } catch (e) {}
       this.updateForcedWinnerUI();
       if (this.slices.includes(forced)) {
         return forced;
@@ -8070,11 +8085,22 @@ class SpinWheelApp {
     }
 
     // 2. 4-Slot Predetermined Schedule for this specific round slot
-    const scheduledVal = this.dailySchedule ? this.dailySchedule[slotToCheck] : null;
-    if (scheduledVal && scheduledVal !== 'AUTO') {
-      const schedNum = parseInt(scheduledVal, 10);
-      if (this.slices.includes(schedNum)) {
-        return schedNum;
+    if (this.dailySchedule) {
+      // Check requested slot first
+      let scheduledVal = this.dailySchedule[slotToCheck];
+      // If not set, check next upcoming slot
+      if ((!scheduledVal || scheduledVal === 'AUTO') && nextSlot && nextSlot.label) {
+        scheduledVal = this.dailySchedule[nextSlot.label];
+      }
+      // If still not set, check current slot
+      if ((!scheduledVal || scheduledVal === 'AUTO') && currentSlot && currentSlot.label) {
+        scheduledVal = this.dailySchedule[currentSlot.label];
+      }
+      if (scheduledVal && scheduledVal !== 'AUTO') {
+        const schedNum = parseInt(scheduledVal, 10);
+        if (this.slices.includes(schedNum)) {
+          return schedNum;
+        }
       }
     }
 
@@ -8084,7 +8110,7 @@ class SpinWheelApp {
   }
 
   dispatchSynchronizedSpin(triggerSource = 'Live Slot Round', isTestSpin = false, overrideTargetNumber = null, targetSlotLabel = null) {
-    if (this.isSpinning || Date.now() < this.spinLockoutUntil) return;
+    if (this.isSpinning || (!isTestSpin && Date.now() < this.spinLockoutUntil)) return;
 
     let targetNumber = overrideTargetNumber;
     if (targetNumber === null || isNaN(targetNumber) || targetNumber < 1) {
