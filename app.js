@@ -2961,18 +2961,26 @@ class SpinWheelApp {
       this.applyTimeWinnerBtn.addEventListener('click', () => {
         const nextSlot = getNextSlotInfo(new Date());
         const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
-        let winnerNum = parseInt(this.manualRoundWinnerSelect?.value, 10);
-        if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) winnerNum = this.slices[0] || 10;
+        const rawVal = this.manualRoundWinnerSelect?.value;
+        const winnerNum = rawVal === 'AUTO' ? 'AUTO' : (parseInt(rawVal, 10) || 10);
 
         // 1. Lock predetermined winner for this specific slot in daily schedule & forcedNext
         if (!this.dailySchedule) this.dailySchedule = {};
         this.dailySchedule[roundTitle] = winnerNum;
-        this.forcedNext = winnerNum;
+        if (winnerNum !== 'AUTO') {
+          this.forcedNext = winnerNum;
+        } else {
+          this.forcedNext = null;
+        }
         this.version = Date.now();
         this.lastVersion = this.version;
 
         localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-        localStorage.setItem(STATE_KEYS.FORCED_NEXT, String(winnerNum));
+        if (this.forcedNext !== null) {
+          localStorage.setItem(STATE_KEYS.FORCED_NEXT, String(this.forcedNext));
+        } else {
+          try { localStorage.removeItem(STATE_KEYS.FORCED_NEXT); } catch (e) {}
+        }
         this.renderDailyScheduleTable();
 
         // 2. Update Active Timing Badge & UI
@@ -2987,15 +2995,31 @@ class SpinWheelApp {
         // 4. Broadcast to all devices in real-time
         this.pushStateToServer({
           dailySchedule: this.dailySchedule,
-          scheduleAction: 'SET_LOCK',
+          scheduleAction: winnerNum !== 'AUTO' ? 'SET_LOCK' : 'EXPLICIT_CLEAR',
           lockedSlot: roundTitle,
-          lockedWinner: winnerNum,
-          forcedNext: winnerNum,
+          lockedWinner: winnerNum !== 'AUTO' ? winnerNum : null,
+          forcedNext: this.forcedNext,
           timerMode: 'REAL',
           customTimerTarget: null,
           version: this.version
         });
-        this.showTimerFeedback(`✅ Locked Winner #${winnerNum} for Slot "${roundTitle}"!`);
+
+        // 5. Visual button feedback
+        const origBtnText = this.applyTimeWinnerBtn.innerHTML;
+        this.applyTimeWinnerBtn.innerHTML = `✓ ${winnerNum !== 'AUTO' ? 'Locked #' + winnerNum : 'Reset to Auto'} Successfully!`;
+        this.applyTimeWinnerBtn.style.background = '#2ecc71';
+        this.applyTimeWinnerBtn.style.borderColor = '#27ae60';
+        this.applyTimeWinnerBtn.style.color = '#000';
+        setTimeout(() => {
+          if (this.applyTimeWinnerBtn) {
+            this.applyTimeWinnerBtn.innerHTML = origBtnText;
+            this.applyTimeWinnerBtn.style.background = '';
+            this.applyTimeWinnerBtn.style.borderColor = '';
+            this.applyTimeWinnerBtn.style.color = '';
+          }
+        }, 2200);
+
+        this.showTimerFeedback(`✅ ${winnerNum !== 'AUTO' ? 'Locked Winner #' + winnerNum : 'Set to Auto'} for Slot "${roundTitle}"!`);
       });
     }
 
@@ -5179,13 +5203,13 @@ class SpinWheelApp {
 
       if (preset && preset !== 'AUTO') {
         if (this.badgeTimingWinner) {
-          this.badgeTimingWinner.textContent = `${preset}`;
+          this.badgeTimingWinner.textContent = `Number ${preset} (LOCKED 🔒)`;
           this.badgeTimingWinner.className = 'highlight-gold';
           this.badgeTimingWinner.style.color = '#ffd700';
         }
-      } else if (this.forcedNext !== null) {
+      } else if (this.forcedNext !== null && this.forcedNext !== undefined && this.forcedNext !== 'AUTO') {
         if (this.badgeTimingWinner) {
-          this.badgeTimingWinner.textContent = `${this.forcedNext}`;
+          this.badgeTimingWinner.textContent = `Number ${this.forcedNext} (LOCKED 🔒)`;
           this.badgeTimingWinner.className = 'highlight-gold';
           this.badgeTimingWinner.style.color = '#ffd700';
         }
@@ -5202,18 +5226,12 @@ class SpinWheelApp {
     if (this.manualRoundWinnerSelect) {
       if (preset && preset !== 'AUTO') {
         const numVal = parseInt(preset, 10);
-        if (this.slices.includes(numVal)) {
-          this.manualRoundWinnerSelect.value = numVal;
-        }
-      } else if (this.forcedNext !== null) {
+        this.manualRoundWinnerSelect.value = String(numVal);
+      } else if (this.forcedNext !== null && this.forcedNext !== undefined && this.forcedNext !== 'AUTO') {
         const forcedNum = parseInt(this.forcedNext, 10);
-        if (this.slices.includes(forcedNum)) {
-          this.manualRoundWinnerSelect.value = forcedNum;
-        }
+        this.manualRoundWinnerSelect.value = String(forcedNum);
       } else {
-        if (this.slices && this.slices.length > 0) {
-          this.manualRoundWinnerSelect.value = this.slices[0];
-        }
+        this.manualRoundWinnerSelect.value = 'AUTO';
       }
     }
   }
@@ -5238,9 +5256,14 @@ class SpinWheelApp {
       }
     }
 
-    // Populate Section 1 Winning Number dropdown with the 10 permanent fixed slices
+    // Populate Section 1 Winning Number dropdown with Auto + 10 permanent fixed slices
     if (this.manualRoundWinnerSelect && this.manualRoundWinnerSelect.children.length === 0) {
       this.manualRoundWinnerSelect.innerHTML = '';
+      const autoOpt = document.createElement('option');
+      autoOpt.value = 'AUTO';
+      autoOpt.textContent = '🎲 Auto (Random)';
+      this.manualRoundWinnerSelect.appendChild(autoOpt);
+
       this.slices.forEach((num, idx) => {
         const opt = document.createElement('option');
         opt.value = num;
