@@ -1656,7 +1656,16 @@ class SpinWheelApp {
         const currJson = JSON.stringify(this.history || []);
         const newJson = JSON.stringify(state.history);
         if (currJson !== newJson) {
-          this.history = state.history;
+          const rawHist = state.history || [];
+          for (let hIdx = 0; hIdx < rawHist.length; hIdx++) {
+            if (hIdx > 0 && rawHist[hIdx - 1]) {
+              if (rawHist[hIdx].number === rawHist[hIdx - 1].number) {
+                const curI = this.slices.indexOf(Number(rawHist[hIdx].number));
+                rawHist[hIdx].number = this.slices[(curI + 3) % this.slices.length];
+              }
+            }
+          }
+          this.history = rawHist;
           localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
           historyNeedsRedraw = true;
         }
@@ -8176,16 +8185,16 @@ class SpinWheelApp {
         }
 
         if (winningNum === null) {
-          let hash = 0;
-          const str = `${dateStr}_${slotObj.label}_lucky_salt_v6`;
-          for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) - hash) + str.charCodeAt(i);
-            hash |= 0;
-          }
-          const idx = Math.abs(hash) % slices.length;
-          winningNum = slices[idx];
-        }
-
+              let hash = 0;
+              const str = ${dateStr}__lucky_salt_v8;
+              for (let k = 0; k < str.length; k++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(k);
+                hash |= 0;
+              }
+              let idx = (Math.abs(hash) + (dayOffset * 3)) % slices.length;
+              winningNum = slices[idx];
+              const prev = (this.history || [])[0];
+             if (prev && prev.number === winningNum) winningNum = slices[(idx + 3) % slices.length];
         histItem = {
           id: targetTs,
           number: winningNum,

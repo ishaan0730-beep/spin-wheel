@@ -1,4 +1,4 @@
-// Vercel Serverless Function: Shared Central State API (/api/state)
+﻿// Vercel Serverless Function: Shared Central State API (/api/state)
 // Secure Central State Management: Protects predetermined winners and admin password from public view!
 
 let globalState = {
@@ -168,15 +168,15 @@ function settleServerElapsedSlots() {
 
           if (winningNum === null) {
             let hash = 0;
-            const str = `${dateStr}_${slotLabel}_lucky_salt_v6`;
-            for (let i = 0; i < str.length; i++) {
-              hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            const str = ${dateStr}__lucky_salt_v8;
+            for (let k = 0; k < str.length; k++) {
+              hash = ((hash << 5) - hash) + str.charCodeAt(k);
               hash |= 0;
             }
-            const idx = Math.abs(hash) % slices.length;
+            let idx = (Math.abs(hash) + (dayOffset * 3)) % slices.length;
             winningNum = slices[idx];
-          }
-
+            const prev = (globalState.history || [])[0];
+           if (prev && prev.number === winningNum) winningNum = slices[(idx + 3) % slices.length];
           const entry = {
             id: slotTime.getTime(),
             number: winningNum,
@@ -205,14 +205,14 @@ function settleServerElapsedSlots() {
     globalState.history = Array.from(histMap.values())
       .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
       .slice(0, 150);
-  }
-}
-
-export default function handler(req, res) {
-  // Settle any elapsed slot rounds automatically so history is always current
-  settleServerElapsedSlots();
-
-  // Enable full CORS for cross-device access
+    for (let hIdx = 0; hIdx < globalState.history.length; hIdx++) {
+      if (hIdx > 0 && globalState.history[hIdx - 1]) {
+        if (globalState.history[hIdx].number === globalState.history[hIdx - 1].number) {
+          const curI = slices.indexOf(Number(globalState.history[hIdx].number));
+          globalState.history[hIdx].number = slices[(curI + 3) % slices.length];
+        }
+      }
+    }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
