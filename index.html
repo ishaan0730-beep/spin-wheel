@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 
@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="Spin & Wheel">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="icon" type="image/png" href="icon-192.png">
-  <link rel="stylesheet" href="style.css?v=7.4.0">
+  <link rel="stylesheet" href="style.css?v=7.4.1">
   <script>
     if (window.location.hostname.includes('vercel.app')) {
       window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
@@ -2614,17 +2614,6 @@
             </div>
           </div>
         </div>
-
-        <!-- External Quick Links (WhatsApp & Telegram) -->
-        <div style="display:flex; gap:6px; margin-bottom:0.6rem;">
-          <button type="button" class="btn btn-xs btn-secondary" style="flex:1; background:#25D366; color:#fff; font-weight:700; border:none;" onclick="app.shareOnWhatsApp()">
-            📲 WhatsApp Support
-          </button>
-          <button type="button" class="btn btn-xs btn-secondary" style="flex:1; background:#0088cc; color:#fff; font-weight:700; border:none;" onclick="app.openTelegramSupport()">
-            ✈️ Telegram Support
-          </button>
-        </div>
-
         <!-- Input Bar -->
         <div class="chat-input-bar">
           <input type="text" id="cust-chat-input" class="chat-input" placeholder="Type message to Master Admin..." onkeydown="if(event.key==='Enter'){event.preventDefault(); app.handleCustomerSendChat();}">
@@ -2693,7 +2682,7 @@
   </script>
   <script src="mqtt.min.js"></script>
   <script src="confetti.js"></script>
-  <script src="app.js?v=7.4.0"></script>
+  <script src="app.js?v=7.4.1"></script>
   <script>
     if (typeof window.app !== 'undefined') {
       window.app = window.app;
