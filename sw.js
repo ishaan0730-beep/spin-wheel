@@ -1,5 +1,5 @@
 // Spin & Wheel - Service Worker for PWA Mobile App Support
-const CACHE_NAME = 'spin-wheel-v7.5.1';
+const CACHE_NAME = 'spin-wheel-v7.5.3';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -8,7 +8,9 @@ const STATIC_ASSETS = [
   './confetti.js',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './logo.png',
+  './favicon.png'
 ];
 
 self.addEventListener('install', (e) => {
