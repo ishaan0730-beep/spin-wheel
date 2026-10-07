@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 
@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="Spin & Wheel">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="icon" type="image/png" href="icon-192.png">
-  <link rel="stylesheet" href="style.css?v=7.4.9">
+  <link rel="stylesheet" href="style.css?v=7.5.0">
   <script>
     if (window.location.hostname.includes('vercel.app')) {
       window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
@@ -475,7 +475,7 @@
               <div class="cust-upi-copy-row" style="margin-top:0.4rem; background:rgba(0,0,0,0.45); border:1px dashed rgba(0,240,255,0.4); border-radius:6px; padding:0.4rem 0.6rem; display:flex; justify-content:space-between; align-items:center; gap:6px;">
                 <div style="text-align:left; overflow:hidden;">
                   <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Master UPI ID (Account: <span id="cust-deposit-acc-name" style="color:#fff; font-weight:700;">DEEP</span>)</span>
-                  <strong id="cust-deposit-upi-id" style="font-family:monospace; color:#00f0ff; font-size:0.85rem; word-break:break-all;">9041062733@PTSBI</strong>
+                  <strong id="cust-deposit-upi-id" style="font-family:monospace; color:#00f0ff; font-size:0.85rem; word-break:break-all;">00000000</strong>
                 </div>
                 <button type="button" id="cust-copy-upi-btn" class="btn btn-secondary btn-xs" style="color:#ffd700; border-color:rgba(245,176,65,0.4); white-space:nowrap;">📋 Copy UPI</button>
               </div>
@@ -662,81 +662,165 @@
             </div>
 
             <div style="margin-top:0.75rem;">
-              <button id="dash-logout-btn" class="btn btn-secondary btn-block">🚪 Sign Out</button>
+              <button id="dash-logout-btn" class="btn btn-secondary btn-block">&#128682; Sign Out</button>
             </div>
           </div>
         </div>
 
         <!-- Sign In Form -->
         <form id="customer-signin-form" class="auth-form" onsubmit="return false;">
-          <div class="form-group">
-            <label class="field-label">User ID:</label>
-            <input type="text" id="cust-login-id" class="admin-input" placeholder="e.g. Rahul9876" autocomplete="username">
+          <!-- Mode Switch: Password vs Mobile OTP -->
+          <div style="display:flex; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:3px; margin-bottom:0.75rem; gap:3px;">
+            <button type="button" id="cust-signin-mode-pass-btn" class="subtab-btn active" style="flex:1; padding:6px 4px; font-size:0.74rem; font-weight:700;">&#128273; User ID Login</button>
+            <button type="button" id="cust-signin-mode-otp-btn" class="subtab-btn" style="flex:1; padding:6px 4px; font-size:0.74rem; font-weight:700; color:#00f0ff;">&#128241; Mobile OTP Login</button>
           </div>
 
-          <div class="form-group" style="margin-top: 0.5rem;">
-            <label class="field-label">Password:</label>
-            <input type="password" id="cust-login-pin" class="admin-input" placeholder="Enter Password" autocomplete="current-password">
+          <!-- Option A: User ID & Password -->
+          <div id="cust-signin-pass-pane">
+            <div class="form-group">
+              <label class="field-label">User ID or Mobile Number:</label>
+              <input type="text" id="cust-login-id" class="admin-input" placeholder="e.g. Rahul9876 or 9876543210" autocomplete="username">
+            </div>
+
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">Password:</label>
+              <input type="password" id="cust-login-pin" class="admin-input" placeholder="Enter Password" autocomplete="current-password">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-top:0.35rem;">
+              <button type="button" id="cust-forgot-link" class="link-btn" style="background:none; border:none; color:var(--primary-gold); font-size:0.75rem; font-weight:600; cursor:pointer; text-decoration:underline;">Forgot Password?</button>
+            </div>
+
+            <div class="form-actions" style="margin-top: 0.75rem;">
+              <button id="cust-signin-btn" class="btn btn-gold btn-block">&#128640; Sign In with Password</button>
+            </div>
           </div>
 
-          <div style="display:flex; justify-content:flex-end; margin-top:0.35rem;">
-            <button type="button" id="cust-forgot-link" class="link-btn" style="background:none; border:none; color:var(--primary-gold); font-size:0.75rem; font-weight:600; cursor:pointer; text-decoration:underline;">Forgot Password?</button>
+          <!-- Option B: Mobile OTP Login -->
+          <div id="cust-signin-otp-pane" class="hidden">
+            <div id="cust-signin-otp-step1">
+              <div class="form-group">
+                <label class="field-label">Registered Mobile (10 Digits):</label>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.3); color:#00f0ff; font-weight:700; font-size:0.85rem; padding:0.45rem 0.6rem; border-radius:6px;">+91</span>
+                  <input type="tel" id="cust-login-mobile-input" maxlength="10" class="admin-input" placeholder="e.g. 9876543210" style="flex:1;">
+                </div>
+                <small style="font-size:0.68rem; color:var(--text-muted); display:block; margin-top:3px;">We will send a 4-digit verification code to your phone.</small>
+              </div>
+
+              <div class="form-actions" style="margin-top: 0.75rem;">
+                <button type="button" id="cust-login-send-otp-btn" class="btn btn-primary btn-block">&#128232; Send Login OTP</button>
+              </div>
+            </div>
+
+            <!-- Step 2: Enter Login OTP -->
+            <div id="cust-signin-otp-step2" class="hidden">
+              <div class="admin-badge-notice" style="margin-bottom:0.65rem; background:rgba(0,240,255,0.08); border-color:rgba(0,240,255,0.35);">
+                <span style="font-size: 1.3rem;">&#128242;</span>
+                <div>
+                  <strong style="color:#00f0ff; font-size:0.85rem;">Login OTP Sent</strong>
+                  <p style="font-size:0.72rem; color:var(--text-secondary); margin:2px 0 0 0;">Enter 4-digit code sent for <b id="cust-login-otp-mobile-display" style="color:#fff;">+91 ----------</b></p>
+                </div>
+              </div>
+
+              <div class="form-group" style="text-align:center;">
+                <label class="field-label" style="text-align:center;">Enter 4-Digit OTP:</label>
+                <input type="text" id="cust-login-otp-code-input" maxlength="4" class="admin-input" placeholder="• • • •" style="text-align:center; font-size:1.35rem; letter-spacing:8px; font-weight:900; color:#00f0ff; width:150px; margin:0 auto; display:block;" autocomplete="one-time-code">
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.4rem; font-size:0.72rem;">
+                <span id="cust-login-otp-timer" style="color:var(--text-muted);">Resend in <b style="color:var(--primary-gold);">60s</b></span>
+                <button type="button" id="cust-login-resend-otp-btn" class="link-btn hidden" style="background:none; border:none; color:var(--primary-gold); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">&#128260; Resend OTP</button>
+              </div>
+
+              <div class="form-actions" style="margin-top: 0.75rem; display:flex; gap:6px;">
+                <button type="button" id="cust-login-otp-back-btn" class="btn btn-secondary" style="flex:0.7;">&#8592; Back</button>
+                <button type="button" id="cust-login-verify-otp-btn" class="btn btn-gold" style="flex:1.3;">&#128640; Verify & Sign In</button>
+              </div>
+            </div>
           </div>
 
           <p id="cust-login-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
           <p id="cust-login-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
-
-          <div class="form-actions" style="margin-top: 0.75rem;">
-            <button id="cust-signin-btn" class="btn btn-gold btn-block">🚀 Sign In</button>
-          </div>
-
-          
         </form>
 
         <!-- New Account Registration Form -->
         <form id="customer-signup-form" class="auth-form hidden" onsubmit="return false;">
-          <div class="form-group">
-            <label class="field-label">Full Name:</label>
-            <input type="text" id="cust-reg-name" class="admin-input" placeholder="e.g. Rahul Sharma" autocomplete="name">
-          </div>
+          <!-- Registration Fields Step -->
+          <div id="cust-signup-fields-step">
+            <div class="form-group">
+              <label class="field-label">Full Name:</label>
+              <input type="text" id="cust-reg-name" class="admin-input" placeholder="e.g. Rahul Sharma" autocomplete="name">
+            </div>
 
-          <div class="form-group" style="margin-top: 0.5rem;">
-            <label class="field-label">Mobile Number (10 Digits):</label>
-            <input type="tel" id="cust-reg-mobile" maxlength="10" class="admin-input" placeholder="e.g. 9876543210" autocomplete="tel">
-          </div>
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">Mobile Number (10 Digits):</label>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.3); color:#00f0ff; font-weight:700; font-size:0.85rem; padding:0.45rem 0.6rem; border-radius:6px;">+91</span>
+                <input type="tel" id="cust-reg-mobile" maxlength="10" class="admin-input" placeholder="e.g. 9876543210" autocomplete="tel" style="flex:1;">
+              </div>
+              <small style="font-size:0.68rem; color:#2ecc71; display:block; margin-top:2px;">&#128737; Required: OTP verification ensures no fake numbers!</small>
+            </div>
 
-          <div class="form-group" style="margin-top: 0.5rem;">
-            <label class="field-label">User ID (Name + Numbers):</label>
-            <input type="text" id="cust-reg-id" class="admin-input" placeholder="e.g. Rahul9876" autocomplete="username">
-            <small style="font-size:0.68rem; color:var(--text-muted); display:block; margin-top:2px;">User ID must contain Name + Numbers (e.g. Aman21)</small>
-          </div>
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">User ID (Name + Numbers):</label>
+              <input type="text" id="cust-reg-id" class="admin-input" placeholder="e.g. Rahul9876" autocomplete="username">
+              <small style="font-size:0.68rem; color:var(--text-muted); display:block; margin-top:2px;">User ID must contain Name + Numbers (e.g. Aman21)</small>
+            </div>
 
-          <div class="form-group" style="margin-top: 0.5rem;">
-            <label class="field-label">Date of Birth (DOB):</label>
-            <input type="date" id="cust-reg-dob" class="admin-input" style="color-scheme: dark;">
-          </div>
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">Date of Birth (DOB):</label>
+              <input type="date" id="cust-reg-dob" class="admin-input" style="color-scheme: dark;">
+            </div>
 
-          <div class="form-group" style="margin-top: 0.5rem;">
-            <label class="field-label">Password:</label>
-            <input type="password" id="cust-reg-pin" class="admin-input" placeholder="Create Password" autocomplete="new-password">
-            <div class="password-rules-box">
-              <span id="rule-len" class="rule-item">❌ Min 9 characters (&gt; 8)</span>
-              <span id="rule-upper" class="rule-item">❌ At least 1 Uppercase (A-Z)</span>
-              <span id="rule-num" class="rule-item">❌ Numbers included (0-9)</span>
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">Password:</label>
+              <input type="password" id="cust-reg-pin" class="admin-input" placeholder="Create Password" autocomplete="new-password">
+              <div class="password-rules-box">
+                <span id="rule-len" class="rule-item">❌ Min 9 characters (&gt; 8)</span>
+                <span id="rule-upper" class="rule-item">❌ At least 1 Uppercase (A-Z)</span>
+                <span id="rule-num" class="rule-item">❌ Numbers included (0-9)</span>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 0.5rem;">
+              <label class="field-label">Confirm Password:</label>
+              <input type="password" id="cust-reg-confirmpin" class="admin-input" placeholder="Confirm Password" autocomplete="new-password">
+            </div>
+
+            <div class="form-actions" style="margin-top: 0.75rem;">
+              <button id="cust-register-btn" class="btn btn-gold btn-block">&#128241; Verify Mobile & Create Account</button>
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 0.5rem;">
-            <label class="field-label">Confirm Password:</label>
-            <input type="password" id="cust-reg-confirmpin" class="admin-input" placeholder="Confirm Password" autocomplete="new-password">
+          <!-- Registration OTP Verification Step -->
+          <div id="cust-signup-otp-step" class="hidden">
+            <div class="admin-badge-notice" style="margin-bottom:0.75rem; background:rgba(0,240,255,0.08); border-color:rgba(0,240,255,0.35);">
+              <span style="font-size: 1.3rem;">&#128273;</span>
+              <div>
+                <strong style="color:#00f0ff; font-size:0.85rem;">Verify Mobile Number</strong>
+                <p style="font-size:0.72rem; color:var(--text-secondary); margin:2px 0 0 0;">Enter 4-digit code sent for <b id="cust-reg-otp-mobile-display" style="color:#fff;">+91 ----------</b></p>
+              </div>
+            </div>
+
+            <div class="form-group" style="text-align:center;">
+              <label class="field-label" style="text-align:center;">Enter 4-Digit OTP:</label>
+              <input type="text" id="cust-reg-otp-code-input" maxlength="4" class="admin-input" placeholder="• • • •" style="text-align:center; font-size:1.35rem; letter-spacing:8px; font-weight:900; color:#00f0ff; width:150px; margin:0 auto; display:block;" autocomplete="one-time-code">
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.4rem; font-size:0.72rem;">
+              <span id="cust-reg-otp-timer" style="color:var(--text-muted);">Resend in <b style="color:var(--primary-gold);">60s</b></span>
+              <button type="button" id="cust-reg-resend-otp-btn" class="link-btn hidden" style="background:none; border:none; color:var(--primary-gold); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline;">&#128260; Resend OTP</button>
+            </div>
+
+            <div class="form-actions" style="margin-top: 0.75rem; display:flex; gap:6px;">
+              <button type="button" id="cust-reg-otp-back-btn" class="btn btn-secondary" style="flex:0.7;">&#8592; Edit Info</button>
+              <button type="button" id="cust-reg-verify-otp-btn" class="btn btn-gold" style="flex:1.3;">&#127873; Verify & Claim 10 Coins</button>
+            </div>
           </div>
 
           <p id="cust-reg-error" class="login-error hidden" style="margin-top:0.4rem;"></p>
           <p id="cust-reg-success" class="save-status-msg hidden" style="margin-top:0.4rem;"></p>
-
-          <div class="form-actions" style="margin-top: 0.75rem;">
-            <button id="cust-register-btn" class="btn btn-gold btn-block">🎁 Create Account & Claim 10 IHD Coins</button>
-          </div>
         </form>
 
         <!-- Forgot Password Pane -->
@@ -2685,7 +2769,7 @@
   </script>
   <script src="mqtt.min.js"></script>
   <script src="confetti.js"></script>
-  <script src="app.js?v=7.4.9"></script>
+  <script src="app.js?v=7.5.0"></script>
   <script>
     if (typeof window.app !== 'undefined') {
       window.app = window.app;

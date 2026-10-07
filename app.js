@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * ==========================================================
  * LUCKY HOURLY SPIN WHEEL APPLICATION - 4 DAILY SLOTS ENGINE
  * ==========================================================
@@ -784,8 +784,22 @@ class SpinWheelApp {
     this.dashProfMobile = document.getElementById('dash-prof-mobile');
     this.dashProfDob = document.getElementById('dash-prof-dob');
 
-    // Customer Sign In Form
+    // Customer Sign In Form & OTP Elements
     this.customerSigninForm = document.getElementById('customer-signin-form');
+    this.custSigninModePassBtn = document.getElementById('cust-signin-mode-pass-btn');
+    this.custSigninModeOtpBtn = document.getElementById('cust-signin-mode-otp-btn');
+    this.custSigninPassPane = document.getElementById('cust-signin-pass-pane');
+    this.custSigninOtpPane = document.getElementById('cust-signin-otp-pane');
+    this.custSigninOtpStep1 = document.getElementById('cust-signin-otp-step1');
+    this.custLoginMobileInput = document.getElementById('cust-login-mobile-input');
+    this.custLoginSendOtpBtn = document.getElementById('cust-login-send-otp-btn');
+    this.custSigninOtpStep2 = document.getElementById('cust-signin-otp-step2');
+    this.custLoginOtpMobileDisplay = document.getElementById('cust-login-otp-mobile-display');
+    this.custLoginOtpCodeInput = document.getElementById('cust-login-otp-code-input');
+    this.custLoginOtpTimer = document.getElementById('cust-login-otp-timer');
+    this.custLoginResendOtpBtn = document.getElementById('cust-login-resend-otp-btn');
+    this.custLoginOtpBackBtn = document.getElementById('cust-login-otp-back-btn');
+    this.custLoginVerifyOtpBtn = document.getElementById('cust-login-verify-otp-btn');
     this.custLoginId = document.getElementById('cust-login-id');
     this.custLoginPin = document.getElementById('cust-login-pin');
     this.custForgotLink = document.getElementById('cust-forgot-link');
@@ -793,8 +807,16 @@ class SpinWheelApp {
     this.custLoginSuccess = document.getElementById('cust-login-success');
     this.custSigninBtn = document.getElementById('cust-signin-btn');
 
-    // Customer Sign Up Form
+    // Customer Sign Up Form & OTP Elements
     this.customerSignupForm = document.getElementById('customer-signup-form');
+    this.custSignupFieldsStep = document.getElementById('cust-signup-fields-step');
+    this.custSignupOtpStep = document.getElementById('cust-signup-otp-step');
+    this.custRegOtpMobileDisplay = document.getElementById('cust-reg-otp-mobile-display');
+    this.custRegOtpCodeInput = document.getElementById('cust-reg-otp-code-input');
+    this.custRegOtpTimer = document.getElementById('cust-reg-otp-timer');
+    this.custRegResendOtpBtn = document.getElementById('cust-reg-resend-otp-btn');
+    this.custRegOtpBackBtn = document.getElementById('cust-reg-otp-back-btn');
+    this.custRegVerifyOtpBtn = document.getElementById('cust-reg-verify-otp-btn');
     this.custRegName = document.getElementById('cust-reg-name');
     this.custRegMobile = document.getElementById('cust-reg-mobile');
     this.custRegId = document.getElementById('cust-reg-id');
@@ -804,6 +826,12 @@ class SpinWheelApp {
     this.custRegError = document.getElementById('cust-reg-error');
     this.custRegSuccess = document.getElementById('cust-reg-success');
     this.custRegisterBtn = document.getElementById('cust-register-btn');
+
+    // Active OTP state sessions
+    this.activeLoginOtp = null;
+    this.activeSignupOtp = null;
+    this.loginOtpInterval = null;
+    this.signupOtpInterval = null;
     this.ruleLen = document.getElementById('rule-len');
     this.ruleUpper = document.getElementById('rule-upper');
     this.ruleNum = document.getElementById('rule-num');
@@ -1733,45 +1761,19 @@ class SpinWheelApp {
       localStorage.setItem(STATE_KEYS.UPCOMING_QUEUE, JSON.stringify(this.upcomingQueue));
     }
 
-    // 5. 4-Slot Daily Schedule (STRICT IMMUTABLE LOCK - NEVER OVERWRITE LOCKED PRESETS WITH AUTO)
+    // 5. 4-Slot Daily Schedule (Seamless Real-Time Master ID Sync)
     if (state.dailySchedule && typeof state.dailySchedule === 'object') {
       const mergedSchedule = { ...(this.dailySchedule || {}) };
       let scheduleChanged = false;
-      let pushBackToServer = false;
 
       DAILY_SLOTS.forEach(slotObj => {
         const slot = slotObj.label;
         const remoteVal = state.dailySchedule[slot];
-        const localVal = mergedSchedule[slot];
-
-        // 1. If remote has a valid locked number (e.g. 10, 20, ..., 100), always adopt it
-        if (remoteVal !== undefined && remoteVal !== null && remoteVal !== 'AUTO') {
-          const numVal = parseInt(remoteVal, 10);
-          if (!isNaN(numVal) && mergedSchedule[slot] !== numVal) {
-            mergedSchedule[slot] = numVal;
+        if (remoteVal !== undefined && remoteVal !== null) {
+          const val = remoteVal === 'AUTO' ? 'AUTO' : parseInt(remoteVal, 10);
+          if (mergedSchedule[slot] !== val) {
+            mergedSchedule[slot] = val;
             scheduleChanged = true;
-          }
-        } 
-        // 2. If remote is 'AUTO':
-        else if (remoteVal === 'AUTO') {
-          // If this is an explicit clear request from admin, reset to AUTO
-          if (state.scheduleAction === 'EXPLICIT_CLEAR' && (!state.clearedSlot || state.clearedSlot === slot)) {
-            if (mergedSchedule[slot] !== 'AUTO') {
-              mergedSchedule[slot] = 'AUTO';
-              scheduleChanged = true;
-            }
-          }
-          // If local ALREADY has a locked number, PRESERVE local locked number and flag to push it to server!
-          else if (localVal !== undefined && localVal !== null && localVal !== 'AUTO') {
-            // Keep local locked number (do NOT overwrite with AUTO)
-            pushBackToServer = true;
-          }
-          // Otherwise, if local was already AUTO or undefined, keep AUTO
-          else {
-            if (mergedSchedule[slot] !== 'AUTO') {
-              mergedSchedule[slot] = 'AUTO';
-              scheduleChanged = true;
-            }
           }
         }
       });
@@ -1781,14 +1783,6 @@ class SpinWheelApp {
       if (this.isDrawerOpen) {
         this.renderDailyScheduleTable();
         this.updateSection1BadgeForSelectedSlot();
-      }
-
-      // If local had locked numbers that server was missing, push back to server so server stays locked
-      if (pushBackToServer && (sessionStorage.getItem('admin_auth') || this.isDrawerOpen)) {
-        this.pushStateToServer({ 
-          dailySchedule: this.dailySchedule,
-          scheduleAction: 'SET_LOCK'
-        });
       }
     }
 
@@ -2004,7 +1998,7 @@ class SpinWheelApp {
     if (state.depositConfig && typeof state.depositConfig === 'object') {
       const remote = state.depositConfig;
       this.depositConfig = {
-        upiId: (remote.upiId && remote.upiId.trim()) ? remote.upiId.trim() : (this.depositConfig?.upiId || '9041062733@PTSBI'),
+        upiId: (remote.upiId && remote.upiId.trim()) ? remote.upiId.trim() : (this.depositConfig?.upiId || '00000000'),
         accountName: (remote.accountName && remote.accountName.trim()) ? remote.accountName.trim() : (this.depositConfig?.accountName || 'DEEP'),
         minDeposit: remote.minDeposit !== undefined ? Number(remote.minDeposit) : (this.depositConfig?.minDeposit || 100),
         instructions: (remote.instructions && remote.instructions.trim()) ? remote.instructions : (this.depositConfig?.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'),
@@ -2143,9 +2137,16 @@ class SpinWheelApp {
   }
 
   startServerPolling() {
-    setInterval(() => {
+    if (this._pollingInterval) clearInterval(this._pollingInterval);
+    this._pollingInterval = setInterval(() => {
       this.pullStateFromServer();
-    }, 3000);
+    }, 1500);
+
+    // Instant live synchronization whenever app window/tab is focused or restored
+    window.addEventListener('focus', () => this.pullStateFromServer());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.pullStateFromServer();
+    });
   }
 
   // ==========================================================
@@ -2380,7 +2381,7 @@ class SpinWheelApp {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
           return {
-            upiId: (parsed.upiId && parsed.upiId !== 'master@upi') ? parsed.upiId : '9041062733@PTSBI',
+            upiId: (parsed.upiId && parsed.upiId !== 'master@upi') ? parsed.upiId : '00000000',
             accountName: (parsed.accountName && parsed.accountName !== 'Master Admin') ? parsed.accountName : 'DEEP',
             qrImageUrl: (parsed.qrImageUrl && parsed.qrImageUrl.length > 5) ? parsed.qrImageUrl : './master-qr.jpg',
             minDeposit: parsed.minDeposit || 100,
@@ -2390,7 +2391,7 @@ class SpinWheelApp {
       }
     } catch (e) {}
     return {
-      upiId: '9041062733@PTSBI',
+      upiId: '00000000',
       accountName: 'DEEP',
       qrImageUrl: './master-qr.jpg',
       minDeposit: 100,
@@ -2475,7 +2476,7 @@ class SpinWheelApp {
 
   renderCustomerDepositUI() {
     const cfg = this.depositConfig || {};
-    const upiId = (cfg.upiId && cfg.upiId !== 'master@upi') ? cfg.upiId : '9041062733@PTSBI';
+    const upiId = (cfg.upiId && cfg.upiId !== 'master@upi') ? cfg.upiId : '00000000';
     const accName = (cfg.accountName && cfg.accountName !== 'Master Admin') ? cfg.accountName : 'DEEP';
     const minDep = cfg.minDeposit || 100;
     const instructions = cfg.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.';
@@ -2572,6 +2573,24 @@ class SpinWheelApp {
       reader.onerror = (err) => reject(err);
       reader.readAsDataURL(file);
     });
+  }
+
+  async sendWhatsAppNotification(text) {
+    try {
+      const cfg = this.notificationConfig || {};
+      let phone = (cfg.whatsappNumber || '7690900087').toString().replace(/[^\d]/g, '');
+      if (phone.startsWith('0')) phone = phone.substring(1);
+      if (phone.length === 10) phone = '91' + phone;
+      const apiKey = (cfg.whatsappApiKey || '').trim();
+      if (!apiKey || !phone || cfg.whatsappEnabled === false) return false;
+
+      const cleanText = String(text || '').replace(/[*`_~\[\]()<>#]/g, '');
+      const url = `https://api.callmebot.com/whatsapp.php?phone=+${phone}&text=${encodeURIComponent(cleanText)}&apikey=${encodeURIComponent(apiKey)}`;
+      await fetch(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   async sendTelegramNotification(text) {
@@ -3215,6 +3234,10 @@ class SpinWheelApp {
       this.customerSigninForm?.classList.add('hidden');
       this.customerForgotPane?.classList.add('hidden');
       this.customerSubtabsBar?.classList.remove('hidden');
+
+      // Reset signup OTP panes to fields step
+      this.custSignupFieldsStep?.classList.remove('hidden');
+      this.custSignupOtpStep?.classList.add('hidden');
     } else if (mode === 'forgot') {
       this.customerForgotPane?.classList.remove('hidden');
       this.customerSignupForm?.classList.add('hidden');
@@ -3229,6 +3252,10 @@ class SpinWheelApp {
       this.customerSignupForm?.classList.add('hidden');
       this.customerForgotPane?.classList.add('hidden');
       this.customerSubtabsBar?.classList.remove('hidden');
+
+      // Reset signin OTP step 2 back to step 1
+      this.custSigninOtpStep1?.classList.remove('hidden');
+      this.custSigninOtpStep2?.classList.add('hidden');
     }
   }
 
@@ -3533,7 +3560,7 @@ class SpinWheelApp {
 
     // 1-Click Copy Master UPI ID
     this.custCopyUpiBtn?.addEventListener('click', () => {
-      const upiId = (this.depositConfig?.upiId || '9041062733@PTSBI').trim();
+      const upiId = (this.depositConfig?.upiId || '00000000').trim();
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(upiId).then(() => {
           const orig = this.custCopyUpiBtn.textContent;
@@ -3637,16 +3664,67 @@ class SpinWheelApp {
       this.updatePasswordRuleChecklist(this.forgotNewPin.value, this.forgotRuleLen, this.forgotRuleUpper, this.forgotRuleNum);
     });
 
-    // Sign In Submit
+    // Customer Sign In Mode Switchers (Password vs Mobile OTP)
+    this.custSigninModePassBtn?.addEventListener('click', () => {
+      this.custSigninModePassBtn.classList.add('active');
+      this.custSigninModeOtpBtn?.classList.remove('active');
+      this.custSigninPassPane?.classList.remove('hidden');
+      this.custSigninOtpPane?.classList.add('hidden');
+      if (this.custLoginError) this.custLoginError.classList.add('hidden');
+    });
+
+    this.custSigninModeOtpBtn?.addEventListener('click', () => {
+      this.custSigninModeOtpBtn.classList.add('active');
+      this.custSigninModePassBtn?.classList.remove('active');
+      this.custSigninOtpPane?.classList.remove('hidden');
+      this.custSigninPassPane?.classList.add('hidden');
+      if (this.custLoginError) this.custLoginError.classList.add('hidden');
+      this.custLoginMobileInput?.focus();
+    });
+
+    // Mobile Login OTP listeners
+    this.custLoginSendOtpBtn?.addEventListener('click', () => this.handleSendLoginOtp());
+    this.custLoginMobileInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleSendLoginOtp();
+    });
+    this.custLoginResendOtpBtn?.addEventListener('click', () => this.handleSendLoginOtp());
+    this.custLoginOtpBackBtn?.addEventListener('click', () => {
+      this.custSigninOtpStep2?.classList.add('hidden');
+      this.custSigninOtpStep1?.classList.remove('hidden');
+      if (this.custLoginError) this.custLoginError.classList.add('hidden');
+    });
+    this.custLoginVerifyOtpBtn?.addEventListener('click', () => this.handleVerifyLoginOtp());
+    this.custLoginOtpCodeInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleVerifyLoginOtp();
+    });
+
+    // Registration OTP listeners
+    this.custRegisterBtn?.addEventListener('click', () => this.handleSendSignupOtp());
+    this.custRegConfirmPin?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleSendSignupOtp();
+    });
+    this.custRegResendOtpBtn?.addEventListener('click', () => this.handleSendSignupOtp());
+    this.custRegOtpBackBtn?.addEventListener('click', () => {
+      this.custSignupOtpStep?.classList.add('hidden');
+      this.custSignupFieldsStep?.classList.remove('hidden');
+      if (this.custRegError) this.custRegError.classList.add('hidden');
+    });
+    this.custRegVerifyOtpBtn?.addEventListener('click', () => this.handleVerifySignupOtp());
+    this.custRegOtpCodeInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleVerifySignupOtp();
+    });
+
+    // Clean numeric-only 4-digit formatting for OTP inputs
+    [this.custLoginOtpCodeInput, this.custRegOtpCodeInput].forEach(inp => {
+      inp?.addEventListener('input', () => {
+        inp.value = inp.value.replace(/[^\d]/g, '').slice(0, 4);
+      });
+    });
+
+    // Sign In Submit (Password Mode)
     this.custSigninBtn?.addEventListener('click', () => this.handleCustomerSignIn());
     this.custLoginPin?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this.handleCustomerSignIn();
-    });
-
-    // Registration Submit
-    this.custRegisterBtn?.addEventListener('click', () => this.handleCustomerRegister());
-    this.custRegConfirmPin?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.handleCustomerRegister();
     });
 
     // Forgot Password Step 1: Verify ID + DOB
@@ -3697,17 +3775,18 @@ class SpinWheelApp {
   }
 
   handleCustomerSignIn() {
-    const id = this.custLoginId?.value.trim() || '';
+    const rawId = this.custLoginId?.value.trim() || '';
     const pin = this.custLoginPin?.value.trim() || '';
 
-    if (!id || !pin) {
-      this.showCustomerAuthError('Please enter both User ID and Password.', this.custLoginError);
+    if (!rawId || !pin) {
+      this.showCustomerAuthError('Please enter both User ID / Mobile Number and Password.', this.custLoginError);
       return;
     }
 
-    const user = this.customersDb[id];
+    // Support signing in with either User ID or registered 10-digit mobile number
+    const user = this.customersDb[rawId] || Object.values(this.customersDb || {}).find(u => u.mobile === rawId || u.id.toLowerCase() === rawId.toLowerCase());
     if (!user || user.pin !== pin) {
-      this.showCustomerAuthError('Invalid User ID or Password. Please check or use Forgot Password.', this.custLoginError);
+      this.showCustomerAuthError('Invalid User ID or Password. Please check or use Forgot Password / Mobile OTP Login.', this.custLoginError);
       return;
     }
 
@@ -3721,9 +3800,126 @@ class SpinWheelApp {
     }
   }
 
-  handleCustomerRegister() {
+  // ==========================================================
+  // MOBILE OTP AUTHENTICATION & ANTI-FAKE REGISTRATION
+  // ==========================================================
+  handleSendLoginOtp() {
+    const rawMobile = this.custLoginMobileInput?.value.trim() || '';
+    const mobile = rawMobile.replace(/[^\d]/g, '');
+
+    if (!mobile || !/^[6-9]\d{9}$/.test(mobile)) {
+      this.showCustomerAuthError('Please enter a valid 10-digit Indian Mobile Number (e.g. 9876543210).', this.custLoginError);
+      return;
+    }
+
+    // Look up registered player by mobile number
+    const user = Object.values(this.customersDb || {}).find(u => u.mobile === mobile || u.id === mobile);
+    if (!user) {
+      this.showCustomerAuthError(`❌ No registered account found for +91 ${mobile}. Please create a New Account.`, this.custLoginError);
+      return;
+    }
+
+    // Generate secure 4-digit OTP
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    this.activeLoginOtp = {
+      mobile,
+      user,
+      code: otp,
+      expiresAt: Date.now() + 60000
+    };
+
+    if (this.custLoginError) this.custLoginError.classList.add('hidden');
+    if (this.custLoginOtpMobileDisplay) this.custLoginOtpMobileDisplay.textContent = `+91 ${mobile}`;
+    if (this.custLoginOtpCodeInput) this.custLoginOtpCodeInput.value = '';
+
+    // Switch to step 2 (OTP code input)
+    this.custSigninOtpStep1?.classList.add('hidden');
+    this.custSigninOtpStep2?.classList.remove('hidden');
+    this.custLoginOtpCodeInput?.focus();
+
+    // Start 60-second countdown
+    this.startLoginOtpCountdown();
+
+    // Alert Master Admin immediately on Telegram & WhatsApp
+    const tgMsg = `🔐 <b>[LOGIN OTP REQUEST]</b>\n\n👤 <b>Player:</b> ${user.name} (ID: <code>${user.id}</code>)\n📱 <b>Mobile:</b> <code>+91 ${mobile}</code>\n🔑 <b>OTP Code:</b> <code>${otp}</code>\n⏱ <b>Valid:</b> 60 Seconds\n🕒 <b>Time:</b> ${formatTime12(new Date())}`;
+    this.sendTelegramNotification(tgMsg);
+    this.sendWhatsAppNotification(`🔐 [Login OTP - Lucky Spin]\nPlayer: ${user.name} (ID: ${user.id})\nMobile: +91 ${mobile}\nOTP: ${otp}\nValid for 60s`);
+
+    // Fast on-screen toast for seamless user experience
+    this.showLiveToast({
+      title: '🔐 LOGIN OTP SENT!',
+      message: `4-digit code sent for <b>+91 ${mobile}</b><br>🔑 Code: <b style="color:#00f0ff; font-size:1.15rem; letter-spacing:3px;">${otp}</b>`,
+      type: 'system'
+    });
+  }
+
+  startLoginOtpCountdown() {
+    if (this.loginOtpInterval) clearInterval(this.loginOtpInterval);
+    let left = 60;
+    if (this.custLoginOtpTimer) {
+      this.custLoginOtpTimer.classList.remove('hidden');
+      this.custLoginOtpTimer.innerHTML = `Resend in <b style="color:var(--primary-gold);">${left}s</b>`;
+    }
+    if (this.custLoginResendOtpBtn) this.custLoginResendOtpBtn.classList.add('hidden');
+
+    this.loginOtpInterval = setInterval(() => {
+      left--;
+      if (left <= 0) {
+        clearInterval(this.loginOtpInterval);
+        this.loginOtpInterval = null;
+        if (this.custLoginOtpTimer) this.custLoginOtpTimer.classList.add('hidden');
+        if (this.custLoginResendOtpBtn) this.custLoginResendOtpBtn.classList.remove('hidden');
+      } else {
+        if (this.custLoginOtpTimer) {
+          this.custLoginOtpTimer.innerHTML = `Resend in <b style="color:var(--primary-gold);">${left}s</b>`;
+        }
+      }
+    }, 1000);
+  }
+
+  handleVerifyLoginOtp() {
+    const inputCode = (this.custLoginOtpCodeInput?.value || '').trim();
+
+    if (!inputCode || inputCode.length !== 4) {
+      this.showCustomerAuthError('Please enter the complete 4-digit OTP code.', this.custLoginError);
+      return;
+    }
+
+    if (!this.activeLoginOtp) {
+      this.showCustomerAuthError('OTP session expired. Please request a new code.', this.custLoginError);
+      return;
+    }
+
+    if (Date.now() > this.activeLoginOtp.expiresAt) {
+      this.showCustomerAuthError('OTP code has expired. Please click Resend OTP.', this.custLoginError);
+      return;
+    }
+
+    if (inputCode !== this.activeLoginOtp.code) {
+      this.showCustomerAuthError('❌ Incorrect OTP code. Please check and try again.', this.custLoginError);
+      return;
+    }
+
+    // Successful OTP Login!
+    const user = this.activeLoginOtp.user;
+    this.activeLoginOtp = null;
+    if (this.loginOtpInterval) clearInterval(this.loginOtpInterval);
+
+    this.saveCustomerSession(user);
+    this.updateCustomerUI();
+    this.closeAuthModal();
+
+    if (this.predictionFeedbackMsg) {
+      this.predictionFeedbackMsg.style.color = '#2ecc71';
+      this.predictionFeedbackMsg.textContent = `👋 Welcome back, ${user.name}! (Verified Mobile)`;
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 3500);
+    }
+  }
+
+  handleSendSignupOtp() {
     const name = this.custRegName?.value.trim();
-    const mobile = this.custRegMobile?.value.trim();
+    const rawMobile = this.custRegMobile?.value.trim();
+    const mobile = (rawMobile || '').replace(/[^\d]/g, '');
     const id = this.custRegId?.value.trim();
     const dob = this.custRegDob?.value.trim();
     const pin = this.custRegPin?.value.trim();
@@ -3734,8 +3930,15 @@ class SpinWheelApp {
       return;
     }
 
-    if (!mobile || !/^\d{10}$/.test(mobile)) {
-      this.showCustomerAuthError('Please enter a valid 10-digit Mobile Number.', this.custRegError);
+    if (!mobile || !/^[6-9]\d{9}$/.test(mobile)) {
+      this.showCustomerAuthError('Please enter a valid 10-digit Indian Mobile Number (e.g. 9876543210).', this.custRegError);
+      return;
+    }
+
+    // Prevent duplicate mobile registration
+    const mobileExists = Object.values(this.customersDb || {}).some(u => u.mobile === mobile);
+    if (mobileExists) {
+      this.showCustomerAuthError(`❌ Mobile number +91 ${mobile} is already registered! Please Sign In.`, this.custRegError);
       return;
     }
 
@@ -3744,7 +3947,6 @@ class SpinWheelApp {
       return;
     }
 
-    // User ID must contain both letters and digits (Name + Numbers format)
     const hasLetters = /[a-zA-Z]/.test(id);
     const hasDigits = /\d/.test(id);
     if (!hasLetters || !hasDigits) {
@@ -3753,7 +3955,7 @@ class SpinWheelApp {
     }
 
     if (this.customersDb[id]) {
-      this.showCustomerAuthError(`User ID "${id}" is already registered! Please Sign In or pick another ID.`, this.custRegError);
+      this.showCustomerAuthError(`User ID "${id}" is already registered! Please pick another ID or Sign In.`, this.custRegError);
       return;
     }
 
@@ -3777,14 +3979,104 @@ class SpinWheelApp {
       return;
     }
 
-    // CREATE CUSTOMER ACCOUNT WITH EXACTLY 10 FREE WELCOME COINS
+    // Generate 4-digit registration OTP
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    this.activeSignupOtp = {
+      name,
+      mobile,
+      id,
+      dob,
+      pin,
+      code: otp,
+      expiresAt: Date.now() + 60000
+    };
+
+    if (this.custRegError) this.custRegError.classList.add('hidden');
+    if (this.custRegOtpMobileDisplay) this.custRegOtpMobileDisplay.textContent = `+91 ${mobile}`;
+    if (this.custRegOtpCodeInput) this.custRegOtpCodeInput.value = '';
+
+    // Switch from fields step to OTP verification step
+    this.custSignupFieldsStep?.classList.add('hidden');
+    this.custSignupOtpStep?.classList.remove('hidden');
+    this.custRegOtpCodeInput?.focus();
+
+    // Start 60s countdown
+    this.startSignupOtpCountdown();
+
+    // Send Telegram & WhatsApp Alerts to Master Admin
+    const tgMsg = `🔐 <b>[REGISTRATION OTP REQUEST]</b>\n\n👑 <b>Name:</b> ${name}\n🆔 <b>User ID:</b> <code>${id}</code>\n📱 <b>Mobile:</b> <code>+91 ${mobile}</code>\n🎂 <b>DOB:</b> ${dob}\n🔑 <b>OTP Code:</b> <code>${otp}</code>\n⏱ <b>Valid:</b> 60 Seconds\n🛡 <i>Anti-fake verification active!</i>`;
+    this.sendTelegramNotification(tgMsg);
+    this.sendWhatsAppNotification(`🔐 [Signup OTP - Lucky Spin]\nName: ${name}\nUser ID: ${id}\nMobile: +91 ${mobile}\nOTP Code: ${otp}\nValid for 60s`);
+
+    // Show Live Instant Toast on screen
+    this.showLiveToast({
+      title: '🔐 VERIFICATION OTP SENT!',
+      message: `4-digit code sent for <b>+91 ${mobile}</b><br>🔑 Code: <b style="color:#00f0ff; font-size:1.15rem; letter-spacing:3px;">${otp}</b>`,
+      type: 'system'
+    });
+  }
+
+  startSignupOtpCountdown() {
+    if (this.signupOtpInterval) clearInterval(this.signupOtpInterval);
+    let left = 60;
+    if (this.custRegOtpTimer) {
+      this.custRegOtpTimer.classList.remove('hidden');
+      this.custRegOtpTimer.innerHTML = `Resend in <b style="color:var(--primary-gold);">${left}s</b>`;
+    }
+    if (this.custRegResendOtpBtn) this.custRegResendOtpBtn.classList.add('hidden');
+
+    this.signupOtpInterval = setInterval(() => {
+      left--;
+      if (left <= 0) {
+        clearInterval(this.signupOtpInterval);
+        this.signupOtpInterval = null;
+        if (this.custRegOtpTimer) this.custRegOtpTimer.classList.add('hidden');
+        if (this.custRegResendOtpBtn) this.custRegResendOtpBtn.classList.remove('hidden');
+      } else {
+        if (this.custRegOtpTimer) {
+          this.custRegOtpTimer.innerHTML = `Resend in <b style="color:var(--primary-gold);">${left}s</b>`;
+        }
+      }
+    }, 1000);
+  }
+
+  handleVerifySignupOtp() {
+    const inputCode = (this.custRegOtpCodeInput?.value || '').trim();
+
+    if (!inputCode || inputCode.length !== 4) {
+      this.showCustomerAuthError('Please enter the complete 4-digit OTP code.', this.custRegError);
+      return;
+    }
+
+    if (!this.activeSignupOtp) {
+      this.showCustomerAuthError('OTP session expired. Please retry registration.', this.custRegError);
+      return;
+    }
+
+    if (Date.now() > this.activeSignupOtp.expiresAt) {
+      this.showCustomerAuthError('OTP code has expired. Please click Resend OTP.', this.custRegError);
+      return;
+    }
+
+    if (inputCode !== this.activeSignupOtp.code) {
+      this.showCustomerAuthError('❌ Incorrect OTP code. Please enter the valid code sent to your mobile.', this.custRegError);
+      return;
+    }
+
+    // OTP VALIDATED! CREATE VERIFIED ACCOUNT
+    const { name, mobile, id, dob, pin } = this.activeSignupOtp;
+    this.activeSignupOtp = null;
+    if (this.signupOtpInterval) clearInterval(this.signupOtpInterval);
+
     const newCustomer = {
       id: id,
       name: name,
       mobile: mobile,
       dob: dob,
       pin: pin,
-      coins: 10, // ONLY 10 COINS
+      coins: 10, // 10 Welcome Coins
+      phoneVerified: true,
+      verifiedAt: Date.now(),
       joinedAt: Date.now(),
       totalBets: 0,
       wins: 0
@@ -3796,23 +4088,28 @@ class SpinWheelApp {
     this.updateCustomerUI();
     this.closeAuthModal();
 
-    // Broadcast new player immediately across all devices & server
+    // Broadcast new verified player immediately across all devices & server
     this.pushStateToServer({
       customersDb: this.customersDb,
       newPlayer: newCustomer
     });
 
-    // Send Instant Telegram Notification to Master Phone
-    const tgMsg = `👤 *NEW PLAYER REGISTRATION!*\n\n👑 *Name:* ${name}\n🆔 *User ID:* \`${id}\`\n📱 *Mobile:* \`${mobile}\`\n🎂 *DOB:* ${dob}\n💰 *Welcome Bonus:* 10 IHD Coins\n🕒 *Time:* ${formatTime12(new Date())}\n\n👉 *Status:* Account created & active!`;
+    // Send Registered Confirmation to Master Admin
+    const tgMsg = `👤 *NEW VERIFIED PLAYER REGISTRATION!*\n\n👑 *Name:* ${name}\n🆔 *User ID:* \`${id}\`\n📱 *Mobile:* \`+91 ${mobile}\` (✅ OTP Verified)\n🎂 *DOB:* ${dob}\n💰 *Welcome Bonus:* 10 IHD Coins\n🕒 *Time:* ${formatTime12(new Date())}\n\n👉 *Status:* Account created & active!`;
     this.sendTelegramNotification(tgMsg);
+    this.sendWhatsAppNotification(`👤 *NEW VERIFIED PLAYER*\nName: ${name}\nUser ID: ${id}\nMobile: +91 ${mobile} (Verified)\nBonus: 10 Coins`);
 
     this.confetti.fire(2500);
     this.audio.playWinFanfare();
     if (this.predictionFeedbackMsg) {
       this.predictionFeedbackMsg.style.color = '#2ecc71';
-      this.predictionFeedbackMsg.textContent = `🎉 Account created successfully! 10 Welcome IHD Coins credited to your wallet!`;
+      this.predictionFeedbackMsg.textContent = `🎉 Mobile Verified! Account created successfully with 10 Free IHD Coins!`;
       setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
     }
+  }
+
+  handleCustomerRegister() {
+    this.handleSendSignupOtp();
   }
 
   handleForgotVerify() {
@@ -5139,7 +5436,7 @@ class SpinWheelApp {
 
     // Unified Master Settings Saver (Saves QR, UPI & Notification configs together)
     const handleSaveMasterSettings = () => {
-      const upiId = (this.adminCfgUpiId?.value || this.adminCfgUpiIdPane?.value || this.depositConfig?.upiId || '').trim() || '9041062733@PTSBI';
+      const upiId = (this.adminCfgUpiId?.value || this.adminCfgUpiIdPane?.value || this.depositConfig?.upiId || '').trim() || '00000000';
       const upiName = (this.adminCfgUpiName?.value || this.adminCfgUpiNamePane?.value || this.depositConfig?.accountName || '').trim() || 'DEEP';
       const minDep = parseInt(this.adminCfgMinDeposit?.value || this.adminCfgMinDepositPane?.value || this.depositConfig?.minDeposit, 10) || 100;
       const inst = (this.adminCfgInstructions?.value || this.adminCfgInstructionsPane?.value || this.depositConfig?.instructions || '').trim();

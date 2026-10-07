@@ -33,7 +33,7 @@ let globalState = {
   deposits: [],
   supportChats: {},
   depositConfig: {
-    upiId: '9041062733@PTSBI',
+    upiId: '00000000',
     accountName: 'DEEP',
     qrImageUrl: './master-qr.jpg',
     minDeposit: 100,
@@ -306,7 +306,7 @@ export default async function handler(req, res) {
         deposits: globalState.deposits || [],
         supportChats: globalState.supportChats || {},
         depositConfig: {
-          upiId: globalState.depositConfig?.upiId || '9041062733@PTSBI',
+          upiId: globalState.depositConfig?.upiId || '00000000',
           accountName: globalState.depositConfig?.accountName || 'DEEP',
           qrImageUrl: globalState.depositConfig?.qrImageUrl || './master-qr.jpg',
           minDeposit: globalState.depositConfig?.minDeposit || 100,
@@ -427,6 +427,11 @@ export default async function handler(req, res) {
             version: Date.now()
           };
         } else {
+          if (body.otpAlert) {
+            const otpMsg = `🔐 *OTP VERIFICATION CODE: ${body.otpAlert.code}*\n\n📱 *Mobile:* \`+91 ${body.otpAlert.mobile}\`\n📌 *Purpose:* ${body.otpAlert.purpose || 'Verification'}\n🕒 *Generated:* ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}\n⏳ *Validity:* 60 seconds`;
+            sendTelegramAlert(otpMsg);
+            sendWhatsAppAlert(otpMsg);
+          }
           if (body.newPlayer && body.newPlayer.id && !globalState.customersDb[body.newPlayer.id]) {
             const regMsg = `👤 *NEW PLAYER REGISTRATION!*\n\n👑 *Name:* ${body.newPlayer.name}\n🆔 *User ID:* \`${body.newPlayer.id}\`\n📱 *Mobile:* \`${body.newPlayer.mobile || 'N/A'}\`\n🎂 *DOB:* ${body.newPlayer.dob || 'N/A'}\n💰 *Welcome Bonus:* 10 IHD Coins\n\n👉 Account created & active!`;
             sendTelegramAlert(regMsg);

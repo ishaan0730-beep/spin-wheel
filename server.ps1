@@ -1,4 +1,4 @@
-$folder = $PSScriptRoot
+﻿$folder = $PSScriptRoot
 if (-not $folder) { $folder = (Get-Location).Path }
 
 # Detect all active LAN / Wi-Fi / Hotspot IPv4 addresses
@@ -78,7 +78,7 @@ public class NativeHttpServer {
                     ""withdrawals"": [],
                     ""deposits"": [],
                     ""supportChats"": {},
-                    ""depositConfig"": { ""upiId"": ""9041062733@PTSBI"", ""accountName"": ""DEEP"", ""qrImageUrl"": """", ""minDeposit"": 100, ""instructions"": ""1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below."" },
+                    ""depositConfig"": { ""upiId"": ""00000000"", ""accountName"": ""DEEP"", ""qrImageUrl"": """", ""minDeposit"": 100, ""instructions"": ""1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below."" },
                     ""notificationConfig"": { ""telegramBotToken"": ""8932355449:AAHCkhZKUMt"", ""telegramChatId"": ""8187881990"", ""telegramEnabled"": true, ""whatsappNumber"": ""7690900087"", ""whatsappApiKey"": """", ""whatsappEnabled"": true },
                     ""version"": 1
                 }";
