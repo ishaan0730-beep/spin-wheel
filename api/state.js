@@ -24,6 +24,7 @@ let globalState = {
   deletedBetIds: [],
   withdrawals: [],
   deposits: [],
+  supportChats: {},
   depositConfig: {
     upiId: '9041062733@PTSBI',
     accountName: 'DEEP',
@@ -32,10 +33,12 @@ let globalState = {
     instructions: '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
   },
   notificationConfig: {
-    telegramBotToken: '',
+    telegramBotToken: '8932355449:AAHCkhZKUMt',
     telegramChatId: '8187881990',
     telegramEnabled: true,
-    whatsappNumber: ''
+    whatsappNumber: '7690900087',
+    whatsappApiKey: '',
+    whatsappEnabled: true
   },
   version: 1
 };
@@ -58,6 +61,25 @@ function checkAdminAuth(req, body) {
     keyStr === `Bearer ${currentPass}` ||
     keyStr === 'Bearer 00773300'
   );
+}
+
+async function sendWhatsAppAlert(text) {
+  try {
+    const cfg = globalState.notificationConfig;
+    if (!cfg) return false;
+    let phone = (cfg.whatsappNumber || '7690900087').toString().replace(/[^\d]/g, '');
+    if (phone.startsWith('0')) phone = phone.substring(1);
+    if (phone.length === 10) phone = '91' + phone;
+    const apiKey = (cfg.whatsappApiKey || '').trim();
+    if (!apiKey || !phone) return false;
+
+    const cleanText = String(text || '').replace(/[*`_~\[\]()<>#]/g, '');
+    const url = `https://api.callmebot.com/whatsapp.php?phone=+${phone}&text=${encodeURIComponent(cleanText)}&apikey=${encodeURIComponent(apiKey)}`;
+    await fetch(url);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 async function sendTelegramAlert(text) {
@@ -138,7 +160,10 @@ function settleServerElapsedSlots() {
           let winningNum = null;
           if (dayOffset === 0 && globalState.dailySchedule && globalState.dailySchedule[slotLabel] && globalState.dailySchedule[slotLabel] !== 'AUTO') {
             const sched = parseInt(globalState.dailySchedule[slotLabel], 10);
-            if (slices.includes(sched)) winningNum = sched;
+            if (slices.includes(sched)) {
+              winningNum = sched;
+              globalState.dailySchedule[slotLabel] = 'AUTO';
+            }
           }
 
           if (winningNum === null) {
@@ -212,10 +237,11 @@ export default function handler(req, res) {
       // Full state with all schedule & admin controls for Master Admin
       return res.status(200).json(globalState);
     } else {
-      // Clean Public State: Hide predetermined future winners and master password from public players!
+      // Public State with full dailySchedule for synchronized predetermined numbers
       const publicState = {
         slices: globalState.slices,
         history: globalState.history,
+        dailySchedule: globalState.dailySchedule || { "12:00 PM": "AUTO", "04:00 PM": "AUTO", "08:00 PM": "AUTO", "11:00 PM": "AUTO" },
         timerMode: globalState.timerMode,
         customSecs: globalState.customSecs,
         customTimerTarget: globalState.customTimerTarget,
@@ -224,6 +250,7 @@ export default function handler(req, res) {
         activeBets: globalState.activeBets,
         withdrawals: globalState.withdrawals || [],
         deposits: globalState.deposits || [],
+        supportChats: globalState.supportChats || {},
         depositConfig: {
           upiId: globalState.depositConfig?.upiId || '9041062733@PTSBI',
           accountName: globalState.depositConfig?.accountName || 'DEEP',
@@ -232,10 +259,12 @@ export default function handler(req, res) {
           instructions: globalState.depositConfig?.instructions || '1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below.'
         },
         notificationConfig: {
-          telegramBotToken: globalState.notificationConfig?.telegramBotToken || '',
-          telegramChatId: globalState.notificationConfig?.telegramChatId || '',
+          telegramBotToken: '',
+          telegramChatId: '',
           telegramEnabled: globalState.notificationConfig?.telegramEnabled || false,
-          whatsappNumber: globalState.notificationConfig?.whatsappNumber || ''
+          whatsappNumber: '',
+          whatsappApiKey: '',
+          whatsappEnabled: globalState.notificationConfig?.whatsappEnabled !== false
         },
         version: globalState.version
       };
@@ -303,6 +332,18 @@ export default function handler(req, res) {
             globalState.deposits = Array.from(existingMap.values());
             delete body.deposits;
           }
+          if (body.supportChats && typeof body.supportChats === 'object') {
+            if (!globalState.supportChats) globalState.supportChats = {};
+            Object.keys(body.supportChats).forEach(pid => {
+              const remoteMsgs = Array.isArray(body.supportChats[pid]) ? body.supportChats[pid] : [];
+              const curMsgs = Array.isArray(globalState.supportChats[pid]) ? globalState.supportChats[pid] : [];
+              const msgMap = new Map();
+              curMsgs.forEach(m => { if (m && m.id) msgMap.set(m.id, m); });
+              remoteMsgs.forEach(m => { if (m && m.id) msgMap.set(m.id, m); });
+              globalState.supportChats[pid] = Array.from(msgMap.values()).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            });
+            delete body.supportChats;
+          }
           if (Array.isArray(body.history)) {
             const histMap = new Map((globalState.history || []).map(h => [h.id || `${h.date}_${h.round}_${h.time}_${h.number}`, h]));
             body.history.forEach(h => {
@@ -326,19 +367,10 @@ export default function handler(req, res) {
           }
           if (body.dailySchedule && typeof body.dailySchedule === 'object') {
             const curSched = { ...(globalState.dailySchedule || {}) };
-            const schedAction = body.scheduleAction || '';
-            const clearedSlot = body.clearedSlot || '';
-
             Object.keys(body.dailySchedule).forEach(slot => {
               const val = body.dailySchedule[slot];
-              if (val !== undefined && val !== null && val !== 'AUTO') {
+              if (val !== undefined && val !== null) {
                 curSched[slot] = val;
-              } else if (val === 'AUTO') {
-                if (schedAction === 'EXPLICIT_CLEAR' && (!clearedSlot || clearedSlot === slot)) {
-                  curSched[slot] = 'AUTO';
-                } else if (!curSched[slot]) {
-                  curSched[slot] = 'AUTO';
-                }
               }
             });
             globalState.dailySchedule = curSched;
@@ -351,7 +383,33 @@ export default function handler(req, res) {
           };
         } else {
           if (body.newPlayer && body.newPlayer.id && !globalState.customersDb[body.newPlayer.id]) {
-            sendTelegramAlert(`👤 *NEW PLAYER REGISTRATION!*\n\n👑 *Name:* ${body.newPlayer.name}\n🆔 *User ID:* \`${body.newPlayer.id}\`\n📱 *Mobile:* \`${body.newPlayer.mobile || 'N/A'}\`\n🎂 *DOB:* ${body.newPlayer.dob || 'N/A'}\n💰 *Welcome Bonus:* 10 IHD Coins\n\n👉 Account created & active!`);
+            const regMsg = `👤 *NEW PLAYER REGISTRATION!*\n\n👑 *Name:* ${body.newPlayer.name}\n🆔 *User ID:* \`${body.newPlayer.id}\`\n📱 *Mobile:* \`${body.newPlayer.mobile || 'N/A'}\`\n🎂 *DOB:* ${body.newPlayer.dob || 'N/A'}\n💰 *Welcome Bonus:* 10 IHD Coins\n\n👉 Account created & active!`;
+            sendTelegramAlert(regMsg);
+            sendWhatsAppAlert(regMsg);
+          }
+          if (body.newBet && body.newBet.id) {
+            const betMsg = `🎯 *NEW BET PLACED!*\n\n👤 *Player ID:* \`${body.newBet.playerId || 'Player'}\`\n🔢 *Number:* #${body.newBet.number}\n💰 *Amount:* 💰${body.newBet.amount} Coins\n🏆 *Potential Win (9x):* 💰${(body.newBet.amount || 0) * 9} Coins`;
+            sendTelegramAlert(betMsg);
+            sendWhatsAppAlert(betMsg);
+          }
+          if (body.newChatMessage) {
+            const m = body.newChatMessage;
+            if (m.sender === 'CUSTOMER') {
+              const chatMsg = `💬 *NEW LIVE SUPPORT CHAT!*\n\n👤 *Player:* ${m.playerName || m.playerId} (ID: \`${m.playerId}\`)\n📱 *Mobile:* ${m.playerMobile || 'N/A'}\n💬 *Message:* "${m.text}"\n🕒 *Time:* ${m.timeFormatted || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}\n\n👉 Open Master Panel to reply!`;
+              sendTelegramAlert(chatMsg);
+              sendWhatsAppAlert(chatMsg);
+            }
+          }
+          if (body.supportChats && typeof body.supportChats === 'object') {
+            if (!globalState.supportChats) globalState.supportChats = {};
+            Object.keys(body.supportChats).forEach(pid => {
+              const remoteMsgs = Array.isArray(body.supportChats[pid]) ? body.supportChats[pid] : [];
+              const curMsgs = Array.isArray(globalState.supportChats[pid]) ? globalState.supportChats[pid] : [];
+              const msgMap = new Map();
+              curMsgs.forEach(m => { if (m && m.id) msgMap.set(m.id, m); });
+              remoteMsgs.forEach(m => { if (m && m.id) msgMap.set(m.id, m); });
+              globalState.supportChats[pid] = Array.from(msgMap.values()).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            });
           }
           if (body.customersDb && typeof body.customersDb === 'object') {
             const merged = { ...(globalState.customersDb || {}) };
@@ -375,7 +433,9 @@ export default function handler(req, res) {
             body.withdrawals.forEach(w => {
               if (w && w.id) {
                 if (w.status === 'PENDING' && !existingMap.has(w.id)) {
-                  sendTelegramAlert(`💸 *NEW WITHDRAWAL REQUEST!*\n\n👤 *Player:* ${w.customerName} (ID: \`${w.customerId}\`)\n📱 *Mobile:* ${w.customerMobile || 'N/A'}\n💰 *Amount:* 💰${(w.amount || 0).toLocaleString()} IHD (₹${(w.amount || 0).toLocaleString()})\n🏦 *Bank A/C:* \`${w.accountNumber}\` (${w.ifscCode})\n👤 *A/C Name:* ${w.accountName}\n🕒 *Time:* ${w.requestedTime || ''}\n\n👉 Open Master Panel to Confirm & Transfer!`);
+                  const wdMsg = `💸 *NEW WITHDRAWAL REQUEST!*\n\n👤 *Player:* ${w.customerName} (ID: \`${w.customerId}\`)\n📱 *Mobile:* ${w.customerMobile || 'N/A'}\n💰 *Amount:* 💰${(w.amount || 0).toLocaleString()} IHD (₹${(w.amount || 0).toLocaleString()})\n🏦 *Bank A/C:* \`${w.accountNumber}\` (${w.ifscCode})\n👤 *A/C Name:* ${w.accountName}\n🕒 *Time:* ${w.requestedTime || ''}\n\n👉 Open Master Panel to Confirm & Transfer!`;
+                  sendTelegramAlert(wdMsg);
+                  sendWhatsAppAlert(wdMsg);
                 }
                 existingMap.set(w.id, { ...(existingMap.get(w.id) || {}), ...w });
               }
@@ -387,7 +447,9 @@ export default function handler(req, res) {
             body.deposits.forEach(d => {
               if (d && d.id) {
                 if (d.status === 'PENDING' && !existingMap.has(d.id)) {
-                  sendTelegramAlert(`🚨 *NEW DEPOSIT REQUEST!*\n\n👤 *Player:* ${d.customerName} (ID: \`${d.customerId}\`)\n📱 *Mobile:* ${d.customerMobile || 'N/A'}\n💰 *Amount:* ₹${(d.amount || 0).toLocaleString()} (${(d.amount || 0).toLocaleString()} Coins)\n🔢 *UTR / Ref:* \`${d.utr || 'N/A'}\`\n🕒 *Time:* ${d.requestedTime || ''} (${d.requestedDate || ''})\n\n👉 Open Master Panel to review & approve coins!`);
+                  const depMsg = `🚨 *NEW DEPOSIT REQUEST!*\n\n👤 *Player:* ${d.customerName} (ID: \`${d.customerId}\`)\n📱 *Mobile:* ${d.customerMobile || 'N/A'}\n💰 *Amount:* ₹${(d.amount || 0).toLocaleString()} (${(d.amount || 0).toLocaleString()} Coins)\n🔢 *UTR / Ref:* \`${d.utr || 'N/A'}\`\n🕒 *Time:* ${d.requestedTime || ''} (${d.requestedDate || ''})\n\n👉 Open Master Panel to review & approve coins!`;
+                  sendTelegramAlert(depMsg);
+                  sendWhatsAppAlert(depMsg);
                 }
                 existingMap.set(d.id, { ...(existingMap.get(d.id) || {}), ...d });
               }
@@ -435,6 +497,7 @@ export default function handler(req, res) {
         customersDb: globalState.customersDb,
         withdrawals: globalState.withdrawals,
         deposits: globalState.deposits,
+        supportChats: globalState.supportChats,
         depositConfig: globalState.depositConfig,
         masterPassword: globalState.masterPassword 
       });

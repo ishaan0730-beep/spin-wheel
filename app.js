@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ==========================================================
  * LUCKY HOURLY SPIN WHEEL APPLICATION - 4 DAILY SLOTS ENGINE
  * ==========================================================
@@ -928,7 +928,12 @@ class SpinWheelApp {
     this.adminNavChatsBtn = document.getElementById('admin-nav-chats-btn');
     this.adminTabChatsPane = document.getElementById('admin-tab-chats-pane');
     this.adminTabBadgeChats = document.getElementById('admin-tab-badge-chats');
+    this.adminNavPromosBtn = document.getElementById('admin-nav-promos-btn');
+    this.adminTabPromosPane = document.getElementById('admin-tab-promos-pane');
+    this.adminTabBadgePromos = document.getElementById('admin-tab-badge-promos');
+    this.adminPromosTableBody = document.getElementById('admin-promos-table-body');
     this.supportChats = this.loadLocalSupportChats();
+    this.promoCodes = this.loadLocalPromoCodes();
     this.selectedChatPlayerId = null;
     this.sentSlotAlerts = {};
     this.adminTabSpinPane = document.getElementById('admin-tab-spin-pane');
@@ -5173,25 +5178,37 @@ class SpinWheelApp {
       }
       this.adminAddPlayerCredit(selectedId, amount);
     });
+
+    // Admin Master Vertical Nav Tabs
+    this.adminNavSpinBtn?.addEventListener('click', () => this.setAdminTab('spin'));
+    this.adminNavPlayersBtn?.addEventListener('click', () => this.setAdminTab('players'));
+    this.adminNavDepositsBtn?.addEventListener('click', () => this.setAdminTab('deposits'));
+    this.adminNavWithdrawalsBtn?.addEventListener('click', () => this.setAdminTab('withdrawals'));
+    this.adminNavChatsBtn?.addEventListener('click', () => this.setAdminTab('chats'));
+    this.adminNavPromosBtn?.addEventListener('click', () => this.setAdminTab('promos'));
+    this.adminNavSettingsBtn?.addEventListener('click', () => this.setAdminTab('settings'));
   }
 
   setAdminTab(tabName) {
     if (this.cloudSync) this.cloudSync.requestSync();
     
-    // Clear all active states
+    // Clear all active states on vertical tabs
     this.adminNavSpinBtn?.classList.remove('active');
     this.adminNavPlayersBtn?.classList.remove('active');
     this.adminNavDepositsBtn?.classList.remove('active');
     this.adminNavWithdrawalsBtn?.classList.remove('active');
+    this.adminNavChatsBtn?.classList.remove('active');
+    this.adminNavPromosBtn?.classList.remove('active');
     this.adminNavSettingsBtn?.classList.remove('active');
 
+    // Hide all panes
     this.adminTabSpinPane?.classList.add('hidden');
     this.adminTabPlayersPane?.classList.add('hidden');
     this.adminTabDepositsPane?.classList.add('hidden');
     this.adminTabWithdrawalsPane?.classList.add('hidden');
-    this.adminTabSettingsPane?.classList.add('hidden');
     this.adminTabChatsPane?.classList.add('hidden');
-    this.adminNavChatsBtn?.classList.remove('active');
+    this.adminTabPromosPane?.classList.add('hidden');
+    this.adminTabSettingsPane?.classList.add('hidden');
 
     if (tabName === 'players') {
       this.adminNavPlayersBtn?.classList.add('active');
@@ -5211,6 +5228,10 @@ class SpinWheelApp {
       this.adminNavChatsBtn?.classList.add('active');
       this.adminTabChatsPane?.classList.remove('hidden');
       this.refreshSupportChatsUI();
+    } else if (tabName === 'promos') {
+      this.adminNavPromosBtn?.classList.add('active');
+      this.adminTabPromosPane?.classList.remove('hidden');
+      this.renderAdminPromosList();
     } else if (tabName === 'settings') {
       this.adminNavSettingsBtn?.classList.add('active');
       this.adminTabSettingsPane?.classList.remove('hidden');
@@ -8545,7 +8566,7 @@ class SpinWheelApp {
     const applyPromo = () => {
       const code = (promoInput?.value || '').trim().toUpperCase();
       if (!code) {
-        alert('Please enter a valid Promo Code (e.g. WELCOME100, CRIC99, BONUS50, LUCKY10)');
+        this.showLiveToast({ title: 'PROMO CODE', message: 'Please enter a valid Promo Code.', type: 'deposit', duration: 3000 });
         return;
       }
       this.applyPromoCode(code);
@@ -9138,49 +9159,250 @@ class SpinWheelApp {
     }
   }
 
-  // 8. Promo Code Redeemer
+  // 8. Master Promo Codes Subsystem (Only Master Generates + Strict 1-Use Per Account)
+  loadLocalPromoCodes() {
+    try {
+      const raw = localStorage.getItem('lucky_spin_promo_codes_v7');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return {
+      'WELCOME100': {
+        code: 'WELCOME100',
+        bonus: 100,
+        active: true,
+        maxUsesPerUser: 1,
+        createdAt: Date.now() - 86400000 * 3,
+        redeemedBy: {}
+      }
+    };
+  }
+
+  savePromoCodes(promos) {
+    this.promoCodes = promos || {};
+    try {
+      localStorage.setItem('lucky_spin_promo_codes_v7', JSON.stringify(this.promoCodes));
+    } catch (e) {}
+    this.updatePromoBadges();
+  }
+
+  updatePromoBadges() {
+    const badge = document.getElementById('admin-tab-badge-promos') || this.adminTabBadgePromos;
+    const countBadge = document.getElementById('admin-promos-count-badge');
+    const totalActive = Object.values(this.promoCodes || {}).filter(p => p && p.active).length;
+    if (badge) badge.textContent = totalActive;
+    if (countBadge) countBadge.textContent = Object.keys(this.promoCodes || {}).length;
+  }
+
+  adminCreatePromoCode() {
+    const codeInp = document.getElementById('admin-new-promo-code');
+    const bonusInp = document.getElementById('admin-new-promo-bonus');
+    const code = (codeInp?.value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    const bonus = parseFloat(bonusInp?.value || '0');
+
+    if (!code || code.length < 3) {
+      alert('Please enter a valid Promo Code name (at least 3 characters, e.g. BONUS500).');
+      return;
+    }
+    if (isNaN(bonus) || bonus <= 0) {
+      alert('Please enter a valid positive Coin Bonus amount (e.g. 100).');
+      return;
+    }
+
+    if (!this.promoCodes) this.promoCodes = {};
+    if (this.promoCodes[code]) {
+      if (!confirm(`Promo Code "${code}" already exists! Do you want to update its bonus to â‚¹${bonus.toFixed(2)}?`)) {
+        return;
+      }
+    }
+
+    this.promoCodes[code] = {
+      code: code,
+      bonus: bonus,
+      active: true,
+      maxUsesPerUser: 1,
+      createdAt: Date.now(),
+      redeemedBy: (this.promoCodes[code] && this.promoCodes[code].redeemedBy) ? this.promoCodes[code].redeemedBy : {}
+    };
+
+    this.savePromoCodes(this.promoCodes);
+    this.pushStateToServer({ promoCodes: this.promoCodes });
+
+    if (codeInp) codeInp.value = '';
+    if (bonusInp) bonusInp.value = '';
+
+    this.renderAdminPromosList();
+
+    this.showLiveToast({
+      title: 'ðŸŽ PROMO CODE CREATED',
+      message: `Code <b>${code}</b> created with <b>+${bonus} Coins</b> bonus!`,
+      type: 'success',
+      duration: 4000
+    });
+  }
+
+  adminTogglePromoCode(code) {
+    if (!this.promoCodes || !this.promoCodes[code]) return;
+    this.promoCodes[code].active = !this.promoCodes[code].active;
+    this.savePromoCodes(this.promoCodes);
+    this.pushStateToServer({ promoCodes: this.promoCodes });
+    this.renderAdminPromosList();
+    this.showLiveToast({
+      title: this.promoCodes[code].active ? 'âœ… PROMO ACTIVATED' : 'â¸ï¸ PROMO DEACTIVATED',
+      message: `Code ${code} is now ${this.promoCodes[code].active ? 'ACTIVE' : 'DISABLED'}.`,
+      type: 'success',
+      duration: 3000
+    });
+  }
+
+  adminDeletePromoCode(code) {
+    if (!this.promoCodes || !this.promoCodes[code]) return;
+    if (!confirm(`Are you sure you want to permanently delete Promo Code "${code}"?`)) return;
+    delete this.promoCodes[code];
+    this.savePromoCodes(this.promoCodes);
+    this.pushStateToServer({ promoCodes: this.promoCodes });
+    this.renderAdminPromosList();
+    this.showLiveToast({
+      title: 'ðŸ—‘ï¸ PROMO DELETED',
+      message: `Code ${code} deleted successfully.`,
+      type: 'success',
+      duration: 3000
+    });
+  }
+
+  renderAdminPromosList() {
+    const tbody = document.getElementById('admin-promos-table-body');
+    const badge = document.getElementById('admin-promos-count-badge');
+    if (!tbody) return;
+
+    const promos = this.promoCodes || {};
+    const keys = Object.keys(promos);
+    if (badge) badge.textContent = keys.length;
+
+    if (keys.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No promo codes created yet. Generate one above!</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = keys.map(k => {
+      const p = promos[k];
+      const redCount = p.redeemedBy ? Object.keys(p.redeemedBy).length : 0;
+      const createdStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+      const isActive = p.active !== false;
+
+      return `
+        <tr>
+          <td><strong style="color:var(--primary-gold-bright); letter-spacing:1px; font-size:0.88rem;">ðŸŽ ${this.escapeHTML(p.code)}</strong></td>
+          <td><span style="color:#2ecc71; font-weight:800; font-size:0.9rem;">+â‚¹${Number(p.bonus).toFixed(2)}</span></td>
+          <td><span style="font-size:0.8rem; color:#00f0ff; font-weight:700;">ðŸ‘¤ ${redCount} player${redCount === 1 ? '' : 's'}</span></td>
+          <td style="font-size:0.75rem; color:var(--text-secondary);">${createdStr}</td>
+          <td>
+            <span style="font-size:0.72rem; font-weight:800; padding:2px 8px; border-radius:10px; background:${isActive ? 'rgba(46,204,113,0.2)' : 'rgba(239,68,68,0.2)'}; color:${isActive ? '#2ecc71' : '#ef4444'}; border:1px solid ${isActive ? 'rgba(46,204,113,0.4)' : 'rgba(239,68,68,0.4)'};">
+              ${isActive ? 'ACTIVE' : 'DISABLED'}
+            </span>
+          </td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-secondary btn-xs" onclick="window.app.adminTogglePromoCode('${this.escapeHTML(p.code)}')" title="Toggle Active">
+                ${isActive ? 'â¸ï¸ Disable' : 'â–¶ï¸ Enable'}
+              </button>
+              <button type="button" class="btn btn-secondary btn-xs" style="color:#ef4444;" onclick="window.app.adminDeletePromoCode('${this.escapeHTML(p.code)}')" title="Delete Promo">
+                ðŸ—‘ï¸ Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   applyPromoCode(code) {
     if (!this.currentCustomer) {
       this.openAuthModal('signin');
-      alert('Please Sign In or Register first to redeem Promo Codes!');
+      this.showLiveToast({
+        title: 'ðŸ”‘ PLEASE SIGN IN',
+        message: 'Please sign in or register to redeem promo codes!',
+        type: 'deposit',
+        duration: 4000
+      });
       return;
     }
 
-    const usedKey = `promo_used_${this.currentCustomer.id}_${code}`;
-    if (localStorage.getItem(usedKey)) {
-      alert(`âš ï¸ You have already redeemed code "${code}"!`);
+    const cleanCode = (code || '').trim().toUpperCase();
+    if (!cleanCode) {
+      this.showLiveToast({
+        title: 'ðŸŽ ENTER PROMO CODE',
+        message: 'Please enter a promo code to apply.',
+        type: 'deposit',
+        duration: 3000
+      });
       return;
     }
 
-    const PROMOS = {
-      'WELCOME100': 100,
-      'CRIC99': 99,
-      'BONUS50': 50,
-      'LUCKY10': 10,
-      'FREEBET': 25,
-      'VIP500': 500
-    };
+    if (!this.promoCodes) this.promoCodes = this.loadLocalPromoCodes();
+    const promoObj = this.promoCodes[cleanCode];
 
-    const bonus = PROMOS[code];
-    if (!bonus) {
-      alert(`âŒ Invalid Promo Code "${code}". Valid codes: WELCOME100, CRIC99, BONUS50, LUCKY10, FREEBET, VIP500`);
+    if (!promoObj || promoObj.active === false) {
+      this.showLiveToast({
+        title: 'âŒ INVALID PROMO CODE',
+        message: 'This promo code is invalid or has expired.',
+        type: 'withdrawal',
+        duration: 4000
+      });
       return;
     }
 
-    localStorage.setItem(usedKey, 'true');
-    this.currentCustomer.coins = (this.currentCustomer.coins || 0) + bonus;
-    this.customersDb[this.currentCustomer.id].coins = this.currentCustomer.coins;
-    this.saveCustomersDB(this.customersDb);
+    const custId = String(this.currentCustomer.id || '').toLowerCase();
+    const redeemedBy = promoObj.redeemedBy || {};
+
+    if (redeemedBy[custId] || redeemedBy[this.currentCustomer.id]) {
+      this.showLiveToast({
+        title: 'âš ï¸ ALREADY REDEEMED',
+        message: 'You have already redeemed this promo code once! (Only 1 redemption per player).',
+        type: 'withdrawal',
+        duration: 5000
+      });
+      return;
+    }
+
+    const bonus = Number(promoObj.bonus) || 0;
+    if (bonus <= 0) {
+      this.showLiveToast({
+        title: 'âŒ INVALID PROMO CODE',
+        message: 'This promo code is no longer active.',
+        type: 'withdrawal',
+        duration: 4000
+      });
+      return;
+    }
+
+    // Mark as redeemed for this player
+    if (!promoObj.redeemedBy) promoObj.redeemedBy = {};
+    promoObj.redeemedBy[custId] = Date.now();
+    promoObj.redeemedBy[this.currentCustomer.id] = Date.now();
+    this.savePromoCodes(this.promoCodes);
+
+    // Credit coins to customer
+    this.currentCustomer.coins = (Number(this.currentCustomer.coins) || 0) + bonus;
+    if (this.customersDb && this.customersDb[this.currentCustomer.id]) {
+      this.customersDb[this.currentCustomer.id].coins = this.currentCustomer.coins;
+      this.saveCustomersDB(this.customersDb);
+    }
     this.saveCustomerSession(this.currentCustomer);
     this.updateCustomerUI();
-    this.pushStateToServer({ customersDb: this.customersDb });
 
-    this.confetti.fire(3000);
-    this.audio.playWinFanfare();
+    // Push state update to server
+    this.pushStateToServer({
+      promoCodes: this.promoCodes,
+      customersDb: this.customersDb
+    });
+
+    // Celebration Fanfare & Confetti
+    if (this.confetti) this.confetti.fire(3000);
+    if (this.audio) this.audio.playWinFanfare();
 
     this.showLiveToast({
-      title: 'ðŸŽ‰ PROMO CODE REDEEMED!',
-      message: `Code <b>${code}</b> applied! ðŸ’°<b>+${bonus} IHD Coins</b> credited instantly to your wallet!`,
+      title: 'ðŸŽ‰ PROMO CODE APPLIED!',
+      message: `Code <b>${cleanCode}</b> applied! ðŸ’°<b>+${bonus.toFixed(2)} Coins</b> credited instantly to your wallet!`,
       type: 'success',
       duration: 6000
     });
@@ -9189,9 +9411,6 @@ class SpinWheelApp {
     if (promoInp) promoInp.value = '';
   }
 
-  // ==========================================
-  // DRAWER HELPERS & PWA INSTALL ENGINE
-  // ==========================================
   openHelpModal() {
     this.closeCricDrawer();
     if (this.helpModal) this.helpModal.classList.remove('hidden');
@@ -9393,13 +9612,18 @@ class SpinWheelApp {
     if (!listEl) return;
 
     const chats = this.supportChats || {};
-    const playerIds = Object.keys(chats);
+    const chatPlayerIds = Object.keys(chats);
+    const dbPlayerIds = Object.keys(this.customersDb || {});
+    
+    // Merge active chat threads and all registered customers
+    const allIdsSet = new Set([...chatPlayerIds, ...dbPlayerIds]);
+    const allPlayerIds = Array.from(allIdsSet);
 
-    if (countEl) countEl.textContent = playerIds.length;
+    if (countEl) countEl.textContent = chatPlayerIds.length;
 
-    if (playerIds.length === 0) {
-      listEl.innerHTML = `<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.78rem;">No active support inquiries yet. New customer messages will appear here instantly.</div>`;
-      if (feedEl) feedEl.innerHTML = `<div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.8rem;">Select a player on the left to start live messaging.</div>`;
+    if (allPlayerIds.length === 0) {
+      listEl.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.78rem;">No registered players or support inquiries yet.</div>';
+      if (feedEl) feedEl.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.8rem;">Select a player on the left to start live messaging.</div>';
       if (nameEl) nameEl.textContent = 'Select a conversation';
       if (subEl) subEl.textContent = 'Click any player from the list to view and reply';
       if (actionsEl) actionsEl.classList.add('hidden');
@@ -9407,26 +9631,29 @@ class SpinWheelApp {
     }
 
     // Auto-select first thread if none selected
-    if (!this.selectedChatPlayerId || !chats[this.selectedChatPlayerId]) {
-      this.selectedChatPlayerId = playerIds[0];
+    if (!this.selectedChatPlayerId || (!chats[this.selectedChatPlayerId] && !this.customersDb?.[this.selectedChatPlayerId])) {
+      this.selectedChatPlayerId = allPlayerIds[0];
     }
 
     // Render thread list on left
-    listEl.innerHTML = playerIds.map(pid => {
+    listEl.innerHTML = allPlayerIds.map(pid => {
       const thread = chats[pid] || [];
-      const lastMsg = thread[thread.length - 1] || {};
+      const hasMsgs = thread.length > 0;
+      const lastMsg = hasMsgs ? thread[thread.length - 1] : {};
+      const custObj = this.customersDb ? this.customersDb[pid] : null;
+      const displayName = lastMsg.playerName || (custObj ? (custObj.name || custObj.id) : pid);
       const isSel = this.selectedChatPlayerId === pid;
       const unreadCount = thread.filter(m => m.sender === 'CUSTOMER' && !m.readByAdmin).length;
 
       return `
         <div class="admin-chat-thread-item ${isSel ? 'active' : ''}" style="padding:10px 12px; border-bottom:1px solid var(--border-subtle); cursor:pointer; background:${isSel ? 'rgba(217,119,6,0.18)' : 'transparent'}; border-left:${isSel ? '3px solid #f59e0b' : '3px solid transparent'};" onclick="window.app.selectAdminChatPlayer('${pid}')">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span style="font-weight:700; color:#f8fafc; font-size:0.85rem;">👤 ${lastMsg.playerName || pid}</span>
-            <span style="font-size:0.7rem; color:var(--text-muted);">${lastMsg.timeFormatted || ''}</span>
+            <span style="font-weight:700; color:#f8fafc; font-size:0.85rem;">ðŸ‘¤ ${this.escapeHTML(displayName)}</span>
+            <span style="font-size:0.7rem; color:var(--text-muted);">${lastMsg.timeFormatted || (custObj ? 'Registered' : '')}</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="font-size:0.75rem; color:#cbd5e1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">
-              ${lastMsg.sender === 'ADMIN' ? '👑 You: ' : ''}${this.escapeHTML(lastMsg.text || 'No messages')}
+              ${lastMsg.sender === 'ADMIN' ? 'ðŸ‘‘ You: ' : ''}${this.escapeHTML(lastMsg.text || 'No message history yet')}
             </div>
             ${unreadCount > 0 ? `<span style="background:#e11d48; color:#fff; font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px;">${unreadCount}</span>` : ''}
           </div>
@@ -9435,28 +9662,42 @@ class SpinWheelApp {
     }).join('');
 
     // If active player selected, render feed on right
-    if (this.selectedChatPlayerId && chats[this.selectedChatPlayerId]) {
-      const selThread = chats[this.selectedChatPlayerId];
+    if (this.selectedChatPlayerId) {
+      const pid = this.selectedChatPlayerId;
+      const selThread = chats[pid] || [];
+      const custObj = this.customersDb ? this.customersDb[pid] : null;
       const firstMsg = selThread[0] || {};
+      const dispName = firstMsg.playerName || (custObj ? (custObj.name || custObj.id) : pid);
+      const dispMobile = firstMsg.playerMobile || (custObj ? (custObj.mobile || 'N/A') : 'N/A');
+      const dispCoins = custObj ? Number(custObj.coins || 0).toFixed(2) : '0.00';
 
-      if (nameEl) nameEl.textContent = `👤 ${firstMsg.playerName || this.selectedChatPlayerId}`;
-      if (subEl) subEl.textContent = `Player ID: ${this.selectedChatPlayerId} • Mobile: ${firstMsg.playerMobile || 'N/A'}`;
+      if (nameEl) nameEl.textContent = `ðŸ‘¤ ${dispName}`;
+      if (subEl) subEl.textContent = `Player ID: ${pid} â€¢ Mobile: ${dispMobile} â€¢ Balance: â‚¹${dispCoins}`;
       if (actionsEl) actionsEl.classList.remove('hidden');
 
       if (feedEl) {
-        feedEl.innerHTML = selThread.map(m => {
-          const isAdmin = m.sender === 'ADMIN';
-          return `
-            <div class="chat-msg ${isAdmin ? 'chat-msg-admin' : 'chat-msg-user'}" style="margin-bottom:8px; display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-end' : 'flex-start'};">
-              <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:2px;">${isAdmin ? '👑 You (Master Admin)' : '👤 ' + (m.playerName || m.playerId)}</div>
-              <div style="background:${isAdmin ? 'linear-gradient(135deg, #d97706, #b45309)' : 'rgba(255,255,255,0.08)'}; color:#fff; padding:8px 12px; border-radius:10px; max-width:80%; word-break:break-word; font-size:0.85rem;">
-                ${this.escapeHTML(m.text)}
-              </div>
-              <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">${m.timeFormatted || new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        if (selThread.length === 0) {
+          feedEl.innerHTML = `
+            <div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.82rem;">
+              ðŸ’¬ No previous message history with <b>${this.escapeHTML(dispName)}</b>.<br>
+              Type your message below to start a direct live conversation or click <b>ðŸ’° Quick Credit</b>.
             </div>
           `;
-        }).join('');
-        feedEl.scrollTop = feedEl.scrollHeight;
+        } else {
+          feedEl.innerHTML = selThread.map(m => {
+            const isAdmin = m.sender === 'ADMIN';
+            return `
+              <div class="chat-msg ${isAdmin ? 'chat-msg-admin' : 'chat-msg-user'}" style="margin-bottom:8px; display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-end' : 'flex-start'};">
+                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:2px;">${isAdmin ? 'ðŸ‘‘ You (Master Admin)' : 'ðŸ‘¤ ' + (m.playerName || m.playerId)}</div>
+                <div style="background:${isAdmin ? 'linear-gradient(135deg, #d97706, #b45309)' : 'rgba(255,255,255,0.08)'}; color:#fff; padding:8px 12px; border-radius:10px; max-width:80%; word-break:break-word; font-size:0.85rem;">
+                  ${this.escapeHTML(m.text)}
+                </div>
+                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">${m.timeFormatted || new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+              </div>
+            `;
+          }).join('');
+          feedEl.scrollTop = feedEl.scrollHeight;
+        }
       }
     }
   }
