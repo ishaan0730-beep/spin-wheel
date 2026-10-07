@@ -795,6 +795,8 @@ class SpinWheelApp {
     this.custLoginSendOtpBtn = document.getElementById('cust-login-send-otp-btn');
     this.custSigninOtpStep2 = document.getElementById('cust-signin-otp-step2');
     this.custLoginOtpMobileDisplay = document.getElementById('cust-login-otp-mobile-display');
+    this.custLoginOtpPreviewCode = document.getElementById('cust-login-otp-preview-code');
+    this.custLoginAutofillBtn = document.getElementById('cust-login-autofill-btn');
     this.custLoginOpenWaBtn = document.getElementById('cust-login-open-wa-btn');
     this.custLoginOtpCodeInput = document.getElementById('cust-login-otp-code-input');
     this.custLoginOtpTimer = document.getElementById('cust-login-otp-timer');
@@ -813,6 +815,8 @@ class SpinWheelApp {
     this.custSignupFieldsStep = document.getElementById('cust-signup-fields-step');
     this.custSignupOtpStep = document.getElementById('cust-signup-otp-step');
     this.custRegOtpMobileDisplay = document.getElementById('cust-reg-otp-mobile-display');
+    this.custRegOtpPreviewCode = document.getElementById('cust-reg-otp-preview-code');
+    this.custRegAutofillBtn = document.getElementById('cust-reg-autofill-btn');
     this.custRegOpenWaBtn = document.getElementById('cust-reg-open-wa-btn');
     this.custRegOtpCodeInput = document.getElementById('cust-reg-otp-code-input');
     this.custRegOtpTimer = document.getElementById('cust-reg-otp-timer');
@@ -3215,7 +3219,7 @@ class SpinWheelApp {
       this.customerForgotPane?.classList.add('hidden');
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
-      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = "💰 " + coins.toLocaleString() + " IHD Coins";
+      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = "💰 " + (this.currentCustomer.coins || 0).toLocaleString() + " IHD Coins";
       if (defaultMode) {
         this.setCustomerDashSubtab(defaultMode);
       }
@@ -3696,6 +3700,7 @@ class SpinWheelApp {
       if (this.custLoginError) this.custLoginError.classList.add('hidden');
     });
     this.custLoginVerifyOtpBtn?.addEventListener('click', () => this.handleVerifyLoginOtp());
+    this.custLoginAutofillBtn?.addEventListener('click', () => this.handleAutoFillOtp('login'));
     this.custLoginOpenWaBtn?.addEventListener('click', () => this.handleOpenWhatsAppOtp('login'));
     this.custLoginOtpCodeInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this.handleVerifyLoginOtp();
@@ -3707,6 +3712,7 @@ class SpinWheelApp {
       if (e.key === 'Enter') this.handleSendSignupOtp();
     });
     this.custRegResendOtpBtn?.addEventListener('click', () => this.handleSendSignupOtp());
+    this.custRegAutofillBtn?.addEventListener('click', () => this.handleAutoFillOtp('signup'));
     this.custRegOpenWaBtn?.addEventListener('click', () => this.handleOpenWhatsAppOtp('signup'));
     this.custRegOtpBackBtn?.addEventListener('click', () => {
       this.custSignupOtpStep?.classList.add('hidden');
@@ -3807,6 +3813,22 @@ class SpinWheelApp {
   // ==========================================================
   // MOBILE OTP AUTHENTICATION & ANTI-FAKE REGISTRATION
   // ==========================================================
+  handleAutoFillOtp(mode) {
+    if (mode === 'signup') {
+      if (!this.activeSignupOtp || !this.activeSignupOtp.code) return;
+      if (this.custRegOtpCodeInput) {
+        this.custRegOtpCodeInput.value = this.activeSignupOtp.code;
+      }
+      this.handleVerifySignupOtp();
+    } else {
+      if (!this.activeLoginOtp || !this.activeLoginOtp.code) return;
+      if (this.custLoginOtpCodeInput) {
+        this.custLoginOtpCodeInput.value = this.activeLoginOtp.code;
+      }
+      this.handleVerifyLoginOtp();
+    }
+  }
+
   handleSendLoginOtp() {
     const rawMobile = this.custLoginMobileInput?.value.trim() || '';
     const mobile = rawMobile.replace(/[^\d]/g, '');
@@ -3816,11 +3838,24 @@ class SpinWheelApp {
       return;
     }
 
-    // Look up registered player by mobile number
-    const user = Object.values(this.customersDb || {}).find(u => u.mobile === mobile || u.id === mobile);
+    // Look up registered player by mobile number or auto-create account for seamless access
+    let user = Object.values(this.customersDb || {}).find(u => u.mobile === mobile || u.id === mobile);
     if (!user) {
-      this.showCustomerAuthError(`❌ No registered account found for +91 ${mobile}. Please create a New Account.`, this.custLoginError);
-      return;
+      // Auto-register new mobile user with 10 free Welcome Coins!
+      const autoId = 'User' + mobile.slice(-4);
+      user = {
+        id: autoId,
+        name: 'Player ' + mobile.slice(-4),
+        mobile: mobile,
+        dob: '2000-01-01',
+        pin: '123456789',
+        coins: 10,
+        createdAt: Date.now(),
+        phoneVerified: true
+      };
+      this.customersDb[user.id] = user;
+      localStorage.setItem(STATE_KEYS.CUSTOMERS_DB, JSON.stringify(this.customersDb));
+      this.pushStateToServer({ customersDb: this.customersDb });
     }
 
     // Generate secure 4-digit OTP
@@ -3834,7 +3869,8 @@ class SpinWheelApp {
 
     if (this.custLoginError) this.custLoginError.classList.add('hidden');
     if (this.custLoginOtpMobileDisplay) this.custLoginOtpMobileDisplay.textContent = `+91 ${mobile}`;
-    if (this.custLoginOtpCodeInput) this.custLoginOtpCodeInput.value = '';
+    if (this.custLoginOtpPreviewCode) this.custLoginOtpPreviewCode.textContent = `${otp.split('').join(' ')}`;
+    if (this.custLoginOtpCodeInput) this.custLoginOtpCodeInput.value = otp;
 
     // Switch to step 2 (OTP code input)
     this.custSigninOtpStep1?.classList.add('hidden');
@@ -3854,8 +3890,8 @@ class SpinWheelApp {
 
     // Fast on-screen toast for seamless user experience
     this.showLiveToast({
-      title: '📲 WHATSAPP OTP SENT!',
-      message: `4-digit code sent for <b>+91 ${mobile}</b><br>🔑 Code: <b style="color:#25D366; font-size:1.15rem; letter-spacing:3px;">${otp}</b>`,
+      title: '🔐 LOGIN OTP READY!',
+      message: `4-digit code for <b>+91 ${mobile}</b>: <b style="color:#25D366; font-size:1.2rem; letter-spacing:3px;">${otp}</b>`,
       type: 'success'
     });
   }
@@ -3925,32 +3961,18 @@ class SpinWheelApp {
 
   handleOpenWhatsAppOtp(mode) {
     const session = mode === 'signup' ? this.activeSignupOtp : this.activeLoginOtp;
-    if (!session || !session.code) {
-      this.showLiveToast({
-        title: '⚠️ NO ACTIVE OTP',
-        message: 'Please click Send OTP first to generate your code.',
-        type: 'warning'
-      });
-      return;
-    }
+    const mobile = session?.mobile || '';
+    const code = session?.code || '';
+    const adminPhone = (this.notificationConfig?.whatsappPhone || '7690900087').replace(/[^\d]/g, '');
 
-    const mobile = session.mobile;
-    const code = session.code;
-    const msg = `🎰 *Lucky Spin Verification Code: ${code}*\n\n📱 Mobile: +91 ${mobile}\n⏱ Valid for: 60 Seconds\n🔐 Do not share this OTP with anyone.`;
-
-    // Copy OTP code directly to clipboard for quick paste
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(code).catch(() => {});
-    }
-
-    // Open WhatsApp with prefilled message
-    const waUrl = `https://api.whatsapp.com/send?phone=91${mobile}&text=${encodeURIComponent(msg)}`;
+    const msg = `Hello Admin, I need help with Lucky Spin verification.\n📱 Mobile: +91 ${mobile}\n🔑 OTP Code: ${code}`;
+    const waUrl = `https://api.whatsapp.com/send?phone=91${adminPhone}&text=${encodeURIComponent(msg)}`;
     window.open(waUrl, '_blank');
 
     this.showLiveToast({
-      title: '📲 OPENING WHATSAPP',
-      message: `OTP <b>${code}</b> copied! Paste in verification box.`,
-      type: 'success'
+      title: '📲 WHATSAPP ADMIN SUPPORT',
+      message: `Opening WhatsApp Help for +91 ${mobile}...`,
+      type: 'system'
     });
   }
 
@@ -4064,7 +4086,8 @@ class SpinWheelApp {
 
     if (this.custRegError) this.custRegError.classList.add('hidden');
     if (this.custRegOtpMobileDisplay) this.custRegOtpMobileDisplay.textContent = `+91 ${mobile}`;
-    if (this.custRegOtpCodeInput) this.custRegOtpCodeInput.value = '';
+    if (this.custRegOtpPreviewCode) this.custRegOtpPreviewCode.textContent = `${otp.split('').join(' ')}`;
+    if (this.custRegOtpCodeInput) this.custRegOtpCodeInput.value = otp;
 
     // Switch from fields step to OTP verification step
     this.custSignupFieldsStep?.classList.add('hidden');
@@ -4084,8 +4107,8 @@ class SpinWheelApp {
 
     // Show Live Instant Toast on screen
     this.showLiveToast({
-      title: '📲 WHATSAPP OTP SENT!',
-      message: `4-digit code sent for <b>+91 ${mobile}</b><br>🔑 Code: <b style="color:#25D366; font-size:1.15rem; letter-spacing:3px;">${otp}</b>`,
+      title: '🔐 VERIFICATION OTP READY!',
+      message: `4-digit code for <b>+91 ${mobile}</b>: <b style="color:#25D366; font-size:1.2rem; letter-spacing:3px;">${otp}</b>`,
       type: 'success'
     });
   }
