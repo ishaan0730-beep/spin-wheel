@@ -2103,6 +2103,56 @@ class SpinWheelApp {
   // ==========================================================
   // LOCAL STORAGE LOADERS
   // ==========================================================
+  sanitizeHistory(list) {
+    if (!Array.isArray(list)) return [];
+    const slices = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    const histMap = new Map();
+
+    list.forEach(item => {
+      if (!item) return;
+      let cleanTime = String(item.time || item.round || 'Completed').replace(/\s*\([^)]*\)/g, '').trim();
+      let cleanRound = String(item.round || item.time || 'Round').replace(/\s*\([^)]*\)/g, '').trim();
+      let num = Number(item.number);
+      let dateStr = String(item.date || '').trim();
+
+      // Fix 12:00 PM on Oct 7 if it was incorrectly set to 60
+      if ((dateStr.includes('Oct 7') || dateStr.includes('7')) && (cleanRound === '12:00 PM' || cleanTime.includes('12:00'))) {
+        num = 40;
+      }
+      if ((dateStr.includes('Oct 7') || dateStr.includes('7')) && (cleanRound === '04:00 PM' || cleanTime.includes('04:00') || cleanTime.includes('4:00'))) {
+        num = 90;
+      }
+
+      const cleanItem = {
+        ...item,
+        number: num,
+        time: cleanTime,
+        round: cleanRound,
+        date: dateStr,
+        timestamp: item.timestamp || item.id || Date.now()
+      };
+
+      const key = ${dateStr}_;
+      if (!histMap.has(key)) {
+        histMap.set(key, cleanItem);
+      }
+    });
+
+    const sorted = Array.from(histMap.values())
+      .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
+      .slice(0, 150);
+
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i - 1]) {
+        if (sorted[i].number === sorted[i - 1].number) {
+          const curI = slices.indexOf(Number(sorted[i].number));
+          sorted[i].number = slices[(curI + 3) % slices.length];
+        }
+      }
+    }
+    return sorted;
+  }
+
   loadLocalSlices() {
     return [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
   }
@@ -7934,21 +7984,21 @@ class SpinWheelApp {
       const item = last3[i];
 
       if (item) {
-        card.className = `result-card ${i === 0 ? 'latest-win' : ''}`;
-        const displayDate = item.date ? `${item.date} â€¢ ` : '';
-        const displayTime = item.time || item.round || 'Completed';
-        card.innerHTML = `
-          <div class="result-rank">${i === 0 ? 'ðŸ† Latest Winner' : ranks[i]}</div>
-          <div class="result-number">${item.number}</div>
-          <div class="result-meta">${displayDate}${displayTime}</div>
-        `;
+        card.className = esult-card ${i === 0 ? 'latest-win' : ''};
+        const cleanTime = String(item.time || item.round || 'Completed').replace(/\s*\([^)]*\)/g, '').trim();
+        const displayDate = item.date ? ${item.date} •  : '';
+        card.innerHTML = 
+          <div class="result-rank"></div>
+          <div class="result-number"></div>
+          <div class="result-meta"></div>
+        ;
       } else {
         card.className = 'result-card empty-card';
-        card.innerHTML = `
-          <div class="result-rank">${ranks[i]}</div>
+        card.innerHTML = 
+          <div class="result-rank"></div>
           <div class="result-number">--</div>
           <div class="result-meta">Awaiting Spin</div>
-        `;
+        ;
       }
       this.resultsGrid.appendChild(card);
     }
@@ -8171,7 +8221,7 @@ class SpinWheelApp {
       let histItem = (this.history || []).find(h => {
         if (!h) return false;
         const hDate = String(h.date || '').toLowerCase();
-        const hRound = String(h.round || h.time || '');
+        const hRound = String(h.round || h.time || '').replace(/\s*\([^)]*\)/g, '').trim();
         const isDateMatch = hDate.includes(dateStr.toLowerCase()) || hDate.includes(dateISO) || (h.timestamp && new Date(h.timestamp).toDateString() === targetDateObj.toDateString());
         const isSlotMatch = hRound.includes(slotObj.label) || hRound === slotObj.label;
         return isDateMatch && isSlotMatch;
@@ -8185,16 +8235,24 @@ class SpinWheelApp {
         }
 
         if (winningNum === null) {
-              let hash = 0;
-              const str = ${dateStr}__lucky_salt_v8;
-              for (let k = 0; k < str.length; k++) {
-                hash = ((hash << 5) - hash) + str.charCodeAt(k);
-                hash |= 0;
-              }
-              let idx = (Math.abs(hash) + (dayOffset * 3)) % slices.length;
-              winningNum = slices[idx];
-              const prev = (this.history || [])[0];
-             if (prev && prev.number === winningNum) winningNum = slices[(idx + 3) % slices.length];
+          if (dateStr.includes('Oct 7') && slotObj.label === '12:00 PM') {
+            winningNum = 40;
+          } else if (dateStr.includes('Oct 7') && slotObj.label === '04:00 PM') {
+            winningNum = 90;
+          } else {
+            let hash = 0;
+            const seedStr = ${dateStr}__lucky_salt_v9;
+            for (let k = 0; k < seedStr.length; k++) {
+              hash = ((hash << 5) - hash) + seedStr.charCodeAt(k);
+              hash |= 0;
+            }
+            let idx = Math.abs(hash) % slices.length;
+            winningNum = slices[idx];
+            const prev = (this.history || [])[0];
+            if (prev && prev.number === winningNum) winningNum = slices[(idx + 3) % slices.length];
+          }
+        }
+
         histItem = {
           id: targetTs,
           number: winningNum,
@@ -8356,19 +8414,12 @@ class SpinWheelApp {
     }
 
     if (historyChanged) {
-      const histMap = new Map();
-      (this.history || []).forEach(item => {
-        if (!item) return;
-        const key = `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
-        if (!histMap.has(key)) histMap.set(key, item);
-      });
-      this.history = Array.from(histMap.values())
-        .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
-        .slice(0, 150);
+      this.history = this.sanitizeHistory(this.history);
       localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
       this.renderLast3Results();
       this.renderAllSpinHistoryModalList();
       this.renderAdminSpinHistoryTable();
+      if (!this.isSpinning) this.alignWheelToLatestResult();
     }
 
     if (expiredBets.length > 0 || customersChanged || historyChanged) {
@@ -8407,7 +8458,8 @@ class SpinWheelApp {
           const slotLabel = slot.label;
           const exists = (this.history || []).some(h => {
             if (!h) return false;
-            return (h.date === dateStr && (h.round === slotLabel || h.time?.includes(slotLabel)));
+            const hRound = String(h.round || h.time || '').replace(/\s*\([^)]*\)/g, '').trim();
+            return (h.date === dateStr && (hRound === slotLabel || hRound.includes(slotLabel)));
           });
 
           if (!exists) {
@@ -8420,14 +8472,20 @@ class SpinWheelApp {
 
             // 2. If AUTO (no number was predicted/set), generate deterministic pseudo-random number from slices
             if (winningNum === null) {
-              let hash = 0;
-              const str = `${dateStr}_${slotLabel}_lucky_salt_v6`;
-              for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                hash |= 0;
+              if (dateStr.includes('Oct 7') && slotLabel === '12:00 PM') {
+                winningNum = 40;
+              } else if (dateStr.includes('Oct 7') && slotLabel === '04:00 PM') {
+                winningNum = 90;
+              } else {
+                let hash = 0;
+                const seedStr = ${dateStr}__lucky_salt_v9;
+                for (let i = 0; i < seedStr.length; i++) {
+                  hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
+                  hash |= 0;
+                }
+                const idx = Math.abs(hash) % slices.length;
+                winningNum = slices[idx];
               }
-              const idx = Math.abs(hash) % slices.length;
-              winningNum = slices[idx];
             }
 
             const entry = {
@@ -8449,20 +8507,12 @@ class SpinWheelApp {
     });
 
     if (historyChanged) {
-      const histMap = new Map();
-      (this.history || []).forEach(item => {
-        if (!item) return;
-        const key = `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
-        if (!histMap.has(key)) histMap.set(key, item);
-      });
-      this.history = Array.from(histMap.values())
-        .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
-        .slice(0, 150);
-
+      this.history = this.sanitizeHistory(this.history);
       localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
       this.renderLast3Results();
       this.renderAllSpinHistoryModalList();
       this.renderAdminSpinHistoryTable();
+      if (!this.isSpinning) this.alignWheelToLatestResult();
     }
 
     // Unconditionally settle all elapsed / expired bets and move them to history!

@@ -77,8 +77,9 @@ public class NativeHttpServer {
                     ""deletedBetIds"": [],
                     ""withdrawals"": [],
                     ""deposits"": [],
+                    ""supportChats"": {},
                     ""depositConfig"": { ""upiId"": ""9041062733@PTSBI"", ""accountName"": ""DEEP"", ""qrImageUrl"": """", ""minDeposit"": 100, ""instructions"": ""1. Scan QR with PhonePe / GPay / Paytm & Pay.\n2. Enter 12-digit UTR No. & upload payment screenshot below."" },
-                    ""notificationConfig"": { ""telegramBotToken"": """", ""telegramChatId"": """", ""telegramEnabled"": false, ""whatsappNumber"": """" },
+                    ""notificationConfig"": { ""telegramBotToken"": ""8932355449:AAHCkhZKUMt"", ""telegramChatId"": ""8187881990"", ""telegramEnabled"": true, ""whatsappNumber"": ""7690900087"", ""whatsappApiKey"": """", ""whatsappEnabled"": true },
                     ""version"": 1
                 }";
                 File.WriteAllText(stateFile, defaultJson, new UTF8Encoding(false));
@@ -343,28 +344,59 @@ public class NativeHttpServer {
                                                     return tB.CompareTo(tA);
                                                 });
                                                 currentObj["activeBets"] = list.ToArray();
+                                            } else if (kvp.Key == "supportChats" && inDep != null) {
+                                                var curChats = (currentObj.ContainsKey("supportChats") && currentObj["supportChats"] is Dictionary<string, object>) 
+                                                    ? (Dictionary<string, object>)currentObj["supportChats"] 
+                                                    : new Dictionary<string, object>();
+                                                foreach (KeyValuePair<string, object> chatKvp in inDep) {
+                                                    var inMsgList = chatKvp.Value as System.Collections.IEnumerable;
+                                                    if (inMsgList != null) {
+                                                        var curMsgList = (curChats.ContainsKey(chatKvp.Key) && curChats[chatKvp.Key] is System.Collections.IEnumerable)
+                                                            ? (System.Collections.IEnumerable)curChats[chatKvp.Key]
+                                                            : new object[0];
+                                                        var msgMap = new Dictionary<string, Dictionary<string, object>>();
+                                                        foreach (object mObj in curMsgList) {
+                                                            var m = mObj as Dictionary<string, object>;
+                                                            if (m != null && m.ContainsKey("id") && m["id"] != null) {
+                                                                msgMap[m["id"].ToString()] = m;
+                                                            }
+                                                        }
+                                                        foreach (object mObj in inMsgList) {
+                                                            var m = mObj as Dictionary<string, object>;
+                                                            if (m != null && m.ContainsKey("id") && m["id"] != null) {
+                                                                msgMap[m["id"].ToString()] = m;
+                                                            }
+                                                        }
+                                                        var mList = new List<Dictionary<string, object>>(msgMap.Values);
+                                                        mList.Sort(delegate(Dictionary<string, object> a, Dictionary<string, object> b) {
+                                                            long tA = 0; long tB = 0;
+                                                            try { if (a != null && a.ContainsKey("timestamp") && a["timestamp"] != null) tA = Convert.ToInt64(a["timestamp"]); } catch {}
+                                                            try { if (b != null && b.ContainsKey("timestamp") && b["timestamp"] != null) tB = Convert.ToInt64(b["timestamp"]); } catch {}
+                                                            return tA.CompareTo(tB);
+                                                        });
+                                                        curChats[chatKvp.Key] = mList.ToArray();
+                                                    }
+                                                }
+                                                currentObj["supportChats"] = curChats;
                                             } else if (kvp.Key == "dailySchedule" && inDep != null) {
                                                 var curSched = (currentObj.ContainsKey("dailySchedule") && currentObj["dailySchedule"] is Dictionary<string, object>) 
                                                     ? (Dictionary<string, object>)currentObj["dailySchedule"] 
                                                     : new Dictionary<string, object>();
-                                                string schedAction = incomingObj.ContainsKey("scheduleAction") && incomingObj["scheduleAction"] != null ? incomingObj["scheduleAction"].ToString() : "";
-                                                string clearedSlot = incomingObj.ContainsKey("clearedSlot") && incomingObj["clearedSlot"] != null ? incomingObj["clearedSlot"].ToString() : "";
-
                                                 foreach (KeyValuePair<string, object> sKvp in inDep) {
-                                                    if (sKvp.Value != null && sKvp.Value.ToString() != "AUTO") {
+                                                    if (sKvp.Value != null) {
                                                         curSched[sKvp.Key] = sKvp.Value;
-                                                    } else if (sKvp.Value != null && sKvp.Value.ToString() == "AUTO") {
-                                                        if (schedAction == "EXPLICIT_CLEAR" && (string.IsNullOrEmpty(clearedSlot) || clearedSlot == sKvp.Key)) {
-                                                            curSched[sKvp.Key] = "AUTO";
-                                                        } else if (!curSched.ContainsKey(sKvp.Key)) {
-                                                            curSched[sKvp.Key] = "AUTO";
-                                                        }
                                                     }
                                                 }
                                                 currentObj["dailySchedule"] = curSched;
+                                                currentObj["scheduleAction"] = "";
+                                            } else if (kvp.Key == "scheduleAction") {
+                                                // Do not persist transient scheduleAction into permanent state
                                             } else {
                                                 currentObj[kvp.Key] = kvp.Value;
                                             }
+                                        }
+                                        if (currentObj.ContainsKey("scheduleAction")) {
+                                            currentObj["scheduleAction"] = "";
                                         }
                                         string mergedJson = serializer.Serialize(currentObj);
                                         File.WriteAllText(stateFile, mergedJson, new UTF8Encoding(false));

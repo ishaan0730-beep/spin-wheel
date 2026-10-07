@@ -1,9 +1,16 @@
-﻿// Vercel Serverless Function: Shared Central State API (/api/state)
+// Vercel Serverless Function: Shared Central State API (/api/state)
 // Secure Central State Management: Protects predetermined winners and admin password from public view!
 
 let globalState = {
   slices: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
-  history: [],
+  history: [
+    { id: 1791369600000, number: 90, time: '04:00 PM', date: 'Oct 7', round: '04:00 PM', source: 'Scheduled Round', timestamp: 1791369600000 },
+    { id: 1791355200000, number: 40, time: '12:00 PM', date: 'Oct 7', round: '12:00 PM', source: 'Slot 12:00 PM', timestamp: 1791355200000 },
+    { id: 1791308400000, number: 80, time: '11:00 PM', date: 'Oct 6', round: '11:00 PM', source: 'Scheduled Round', timestamp: 1791308400000 },
+    { id: 1791297600000, number: 30, time: '08:00 PM', date: 'Oct 6', round: '08:00 PM', source: 'Scheduled Round', timestamp: 1791297600000 },
+    { id: 1791283200000, number: 50, time: '04:00 PM', date: 'Oct 6', round: '04:00 PM', source: 'Scheduled Round', timestamp: 1791283200000 },
+    { id: 1791268800000, number: 70, time: '12:00 PM', date: 'Oct 6', round: '12:00 PM', source: 'Scheduled Round', timestamp: 1791268800000 }
+  ],
   forcedNext: null,
   upcomingQueue: ["AUTO", "AUTO", "AUTO"],
   dailySchedule: {
@@ -135,6 +142,58 @@ const DAILY_SLOTS = [
   { label: '11:00 PM', hour: 23, min: 0 }
 ];
 
+function sanitizeHistoryList(list) {
+  if (!Array.isArray(list)) return [];
+  const slices = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+  const histMap = new Map();
+
+  list.forEach(item => {
+    if (!item) return;
+    let cleanTime = String(item.time || item.round || 'Completed').replace(/\s*\([^)]*\)/g, '').trim();
+    let cleanRound = String(item.round || item.time || 'Round').replace(/\s*\([^)]*\)/g, '').trim();
+    let num = Number(item.number);
+    let dateStr = String(item.date || '').trim();
+
+    // Fix 12:00 PM on Oct 7 if it was incorrectly set to 60
+    if ((dateStr.includes('Oct 7') || dateStr.includes('7')) && (cleanRound === '12:00 PM' || cleanTime.includes('12:00'))) {
+      num = 40;
+    }
+    if ((dateStr.includes('Oct 7') || dateStr.includes('7')) && (cleanRound === '04:00 PM' || cleanTime.includes('04:00') || cleanTime.includes('4:00'))) {
+      num = 90;
+    }
+
+    const cleanItem = {
+      ...item,
+      number: num,
+      time: cleanTime,
+      round: cleanRound,
+      date: dateStr,
+      timestamp: item.timestamp || item.id || Date.now()
+    };
+
+    const key = `${dateStr}_${cleanRound}`;
+    if (!histMap.has(key)) {
+      histMap.set(key, cleanItem);
+    }
+  });
+
+  const sorted = Array.from(histMap.values())
+    .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
+    .slice(0, 150);
+
+  // Prevent consecutive duplicate numbers
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i - 1]) {
+      if (sorted[i].number === sorted[i - 1].number) {
+        const curI = slices.indexOf(Number(sorted[i].number));
+        sorted[i].number = slices[(curI + 3) % slices.length];
+      }
+    }
+  }
+
+  return sorted;
+}
+
 function settleServerElapsedSlots() {
   const now = new Date();
   const slices = globalState.slices || [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
@@ -153,7 +212,8 @@ function settleServerElapsedSlots() {
         const slotLabel = slot.label;
         const exists = (globalState.history || []).some(h => {
           if (!h) return false;
-          return (h.date === dateStr && (h.round === slotLabel || h.time?.includes(slotLabel)));
+          const hRound = String(h.round || h.time || '').replace(/\s*\([^)]*\)/g, '').trim();
+          return (h.date === dateStr && (hRound === slotLabel || hRound.includes(slotLabel)));
         });
 
         if (!exists) {
@@ -167,16 +227,22 @@ function settleServerElapsedSlots() {
           }
 
           if (winningNum === null) {
-            let hash = 0;
-            const str = ${dateStr}__lucky_salt_v8;
-            for (let k = 0; k < str.length; k++) {
-              hash = ((hash << 5) - hash) + str.charCodeAt(k);
-              hash |= 0;
+            if (dateStr.includes('Oct 7') && slotLabel === '12:00 PM') {
+              winningNum = 40;
+            } else if (dateStr.includes('Oct 7') && slotLabel === '04:00 PM') {
+              winningNum = 90;
+            } else {
+              let hash = 0;
+              const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;
+              for (let k = 0; k < seedStr.length; k++) {
+                hash = ((hash << 5) - hash) + seedStr.charCodeAt(k);
+                hash |= 0;
+              }
+              let idx = Math.abs(hash) % slices.length;
+              winningNum = slices[idx];
             }
-            let idx = (Math.abs(hash) + (dayOffset * 3)) % slices.length;
-            winningNum = slices[idx];
-            const prev = (globalState.history || [])[0];
-           if (prev && prev.number === winningNum) winningNum = slices[(idx + 3) % slices.length];
+          }
+
           const entry = {
             id: slotTime.getTime(),
             number: winningNum,
@@ -195,24 +261,12 @@ function settleServerElapsedSlots() {
     });
   });
 
-  if (changed) {
-    const histMap = new Map();
-    (globalState.history || []).forEach(item => {
-      if (!item) return;
-      const key = `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
-      if (!histMap.has(key)) histMap.set(key, item);
-    });
-    globalState.history = Array.from(histMap.values())
-      .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
-      .slice(0, 150);
-    for (let hIdx = 0; hIdx < globalState.history.length; hIdx++) {
-      if (hIdx > 0 && globalState.history[hIdx - 1]) {
-        if (globalState.history[hIdx].number === globalState.history[hIdx - 1].number) {
-          const curI = slices.indexOf(Number(globalState.history[hIdx].number));
-          globalState.history[hIdx].number = slices[(curI + 3) % slices.length];
-        }
-      }
-    }
+  globalState.history = sanitizeHistoryList(globalState.history);
+}
+
+export default async function handler(req, res) {
+  settleServerElapsedSlots();
+
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -345,16 +399,7 @@ function settleServerElapsedSlots() {
             delete body.supportChats;
           }
           if (Array.isArray(body.history)) {
-            const histMap = new Map((globalState.history || []).map(h => [h.id || `${h.date}_${h.round}_${h.time}_${h.number}`, h]));
-            body.history.forEach(h => {
-              if (h) {
-                const k = h.id || `${h.date}_${h.round}_${h.time}_${h.number}`;
-                histMap.set(k, { ...(histMap.get(k) || {}), ...h });
-              }
-            });
-            globalState.history = Array.from(histMap.values())
-              .sort((a, b) => (b.id || (b.timestamp || 0)) - (a.id || (a.timestamp || 0)))
-              .slice(0, 150);
+            globalState.history = sanitizeHistoryList([...(body.history || []), ...(globalState.history || [])]);
             delete body.history;
           }
           if (body.depositConfig && typeof body.depositConfig === 'object') {
@@ -460,16 +505,7 @@ function settleServerElapsedSlots() {
             globalState.spinTrigger = null;
           }
           if (Array.isArray(body.history) && body.history.length > 0) {
-            const histMap = new Map((globalState.history || []).map(h => [h.id || `${h.date}_${h.round}_${h.time}_${h.number}`, h]));
-            body.history.forEach(h => {
-              if (h) {
-                const k = h.id || `${h.date}_${h.round}_${h.time}_${h.number}`;
-                histMap.set(k, { ...(histMap.get(k) || {}), ...h });
-              }
-            });
-            globalState.history = Array.from(histMap.values())
-              .sort((a, b) => (b.id || (b.timestamp || 0)) - (a.id || (a.timestamp || 0)))
-              .slice(0, 150);
+            globalState.history = sanitizeHistoryList([...(body.history || []), ...(globalState.history || [])]);
           }
           if (body.depositConfig && typeof body.depositConfig === 'object') {
             if (body.depositConfig.qrImageUrl || body.depositConfig.upiId) {
