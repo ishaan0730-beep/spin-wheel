@@ -3043,7 +3043,7 @@ class SpinWheelApp {
       this.customerForgotPane?.classList.add('hidden');
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
-      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `💰 ${(this.currentCustomer.coins || 0).toLocaleString()} IHD Coins`;
+      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = "💰 " + coins.toLocaleString() + " IHD Coins";
       if (defaultMode) {
         this.setCustomerDashSubtab(defaultMode);
       }
@@ -3207,15 +3207,15 @@ class SpinWheelApp {
       this.customerLoginBtn?.classList.add('hidden');
       this.customerProfileChip?.classList.add('hidden'); // Strictly keep hidden so coins only display in top payment pill
       if (this.chipPlayerName) this.chipPlayerName.textContent = this.currentCustomer.name || 'Player';
-      if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = `ðŸ’° ${coins.toLocaleString()} IHD`;
-      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = `ðŸ’° ${coins.toLocaleString()} IHD Coins`;
+      if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = "💰 " + coins.toLocaleString() + " IHD";
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = "💰 " + coins.toLocaleString() + " IHD Coins";
       if (this.dashPlayerName) this.dashPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.dashPlayerId) this.dashPlayerId.textContent = this.currentCustomer.id || '--';
-      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = `ðŸ’° ${coins.toLocaleString()} IHD Coins`;
+      if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = "💰 " + coins.toLocaleString() + " IHD Coins";
     } else {
       this.customerLoginBtn?.classList.remove('hidden');
       this.customerProfileChip?.classList.add('hidden');
-      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = 'ðŸ’° Logged Out (0 IHD Coins)';
+      if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = "💰 Logged Out (0 IHD Coins)";
     }
 
     this.updateTargetSlotDisplay();
