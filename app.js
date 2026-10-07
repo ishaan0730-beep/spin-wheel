@@ -2197,14 +2197,6 @@ class SpinWheelApp {
       .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
       .slice(0, 150);
 
-    for (let i = 0; i < sorted.length; i++) {
-      if (i > 0 && sorted[i - 1]) {
-        if (sorted[i].number === sorted[i - 1].number) {
-          const curI = slices.indexOf(Number(sorted[i].number));
-          sorted[i].number = slices[(curI + 3) % slices.length];
-        }
-      }
-    }
     return sorted;
   }
 
