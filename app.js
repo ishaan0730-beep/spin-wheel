@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * ==========================================================
  * LUCKY HOURLY SPIN WHEEL APPLICATION - 4 DAILY SLOTS ENGINE
  * ==========================================================
@@ -1418,10 +1418,10 @@ class SpinWheelApp {
       // If admin received customer message, show toast on Master screen
       if (msg.sender === 'CUSTOMER') {
         this.showLiveToast({
-          title: 'ðŸ’¬ NEW SUPPORT CHAT MESSAGE!',
+          title: '’¬ NEW SUPPORT CHAT MESSAGE!',
           message: `<b>${msg.playerName || msg.playerId}</b>: ${msg.text.slice(0, 50)}`,
           type: 'deposit',
-          actionText: 'ðŸ‘‰ OPEN LIVE CHAT',
+          actionText: '‘‰ OPEN LIVE CHAT',
           actionCallback: () => {
             this.openAdminPanelDirectly();
             this.setAdminTab('chats');
@@ -1432,7 +1432,7 @@ class SpinWheelApp {
     }
 
     else if (event.eventType === 'BROADCAST_NOTIFICATION') {
-      this.sendSystemNotification(event.title || 'ðŸŽ° SPIN & WHEEL ALERT', event.message || '', event.icon || 'icon-192.png');
+      this.sendSystemNotification(event.title || 'Ž° SPIN & WHEEL ALERT', event.message || '', event.icon || 'icon-192.png');
     }
 
     else if (event.eventType === 'NEW_DEPOSIT') {
@@ -8987,7 +8987,7 @@ class SpinWheelApp {
   shareOnWhatsApp() {
     const code = document.getElementById('cric-refer-code-val')?.textContent || 'CRIC99-PLAYER';
     const url = encodeURIComponent(`${window.location.origin}${window.location.pathname}?ref=${code}`);
-    const text = encodeURIComponent(`ðŸŽ° Play Spin & Wheel Hourly Spin! Use my referral code *${code}* to get Free Bonus Coins: `);
+    const text = encodeURIComponent(`Ž° Play Spin & Wheel Hourly Spin! Use my referral code *${code}* to get Free Bonus Coins: `);
     window.open(`https://api.whatsapp.com/send?text=${text}${url}`, '_blank');
   }
 
@@ -9022,7 +9022,7 @@ class SpinWheelApp {
     // 1. Initial signup welcome bonus
     records.push({
       date: new Date(this.currentCustomer.joinedAt || Date.now() - 86400000),
-      desc: 'ðŸŽ Welcome Bonus Credited',
+      desc: 'Ž Welcome Bonus Credited',
       type: 'DEPOSIT',
       amount: '+10.00',
       color: '#2ecc71',
@@ -9033,7 +9033,7 @@ class SpinWheelApp {
     (this.deposits || []).filter(d => String(d.customerId || '').toLowerCase() === playerId).forEach(d => {
       records.push({
         date: new Date(d.requestedAt || Date.now()),
-        desc: `ðŸ’³ Deposit (${d.utr ? 'UTR: ' + d.utr : d.id}) [${d.status}]`,
+        desc: `’³ Deposit (${d.utr ? 'UTR: ' + d.utr : d.id}) [${d.status}]`,
         type: 'DEPOSIT',
         amount: d.status === 'APPROVED' ? `+${d.amount}.00` : `${d.amount}.00 (${d.status})`,
         color: d.status === 'APPROVED' ? '#2ecc71' : '#ffd700',
@@ -9045,7 +9045,7 @@ class SpinWheelApp {
     (this.withdrawals || []).filter(w => String(w.customerId || '').toLowerCase() === playerId).forEach(w => {
       records.push({
         date: new Date(w.requestedAt || Date.now()),
-        desc: `ðŸ’¸ Withdrawal Request [${w.status}]`,
+        desc: `’¸ Withdrawal Request [${w.status}]`,
         type: 'WITHDRAW',
         amount: `-${w.amount}.00`,
         color: '#ff6b6b',
@@ -9057,7 +9057,7 @@ class SpinWheelApp {
     (this.activeBets || []).filter(b => String(b.playerId || b.customerId || '').toLowerCase() === playerId).forEach(b => {
       records.push({
         date: new Date(b.timestamp || Date.now()),
-        desc: `ðŸŽ¯ Prediction Bet #${b.number || b.no} (${b.targetSlot || 'Slot'})`,
+        desc: `Ž¯ Prediction Bet #${b.number || b.no} (${b.targetSlot || 'Slot'})`,
         type: 'BETS',
         amount: `-${b.amount || b.coins}.00`,
         color: '#ff6b6b',
@@ -9070,7 +9070,7 @@ class SpinWheelApp {
       if (b.status === 'WON') {
         records.push({
           date: new Date(b.timestamp || Date.now()),
-          desc: `ðŸ† Won Prediction #${b.number || b.no} (9x Payout)`,
+          desc: `† Won Prediction #${b.number || b.no} (9x Payout)`,
           type: 'BETS',
           amount: `+${b.payout || (Number(b.amount) * 9)}.00`,
           color: '#2ecc71',
@@ -9104,7 +9104,7 @@ class SpinWheelApp {
         <td style="font-size:0.78rem; font-weight:700; color:#fff;">${r.desc}</td>
         <td><span style="font-size:0.7rem; font-weight:800; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08);">${r.type}</span></td>
         <td style="font-size:0.85rem; font-weight:900; color:${r.color};">${r.amount}</td>
-        <td style="font-size:0.85rem; font-weight:800; color:var(--primary-gold-bright);">ðŸ’° ${currentBalance.toFixed(2)}</td>
+        <td style="font-size:0.85rem; font-weight:800; color:var(--primary-gold-bright);">💰 ${currentBalance.toFixed(2)}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -9147,8 +9147,8 @@ class SpinWheelApp {
     const winRate = totalBetsCount > 0 ? ((wonCount / totalBetsCount) * 100).toFixed(1) : '0';
 
     document.getElementById('cric-pnl-total-bets').textContent = totalBetsCount;
-    document.getElementById('cric-pnl-total-staked').textContent = `ðŸ’° ${totalStaked.toLocaleString()}`;
-    document.getElementById('cric-pnl-total-won').textContent = `ðŸ’° ${totalWon.toLocaleString()}`;
+    document.getElementById('cric-pnl-total-staked').textContent = `💰 ${totalStaked.toLocaleString()}`;
+    document.getElementById('cric-pnl-total-won').textContent = `💰 ${totalWon.toLocaleString()}`;
     document.getElementById('cric-pnl-win-rate').textContent = `${winRate}%`;
 
     const netValEl = document.getElementById('cric-pnl-net-value');
@@ -9156,7 +9156,7 @@ class SpinWheelApp {
 
     if (net >= 0) {
       if (netValEl) {
-        netValEl.textContent = `ðŸ’° +${net.toLocaleString()} IHD (PROFIT)`;
+        netValEl.textContent = `💰 +${net.toLocaleString()} IHD (PROFIT)`;
         netValEl.style.color = '#2ecc71';
       }
       if (netCard) {
@@ -9165,7 +9165,7 @@ class SpinWheelApp {
       }
     } else {
       if (netValEl) {
-        netValEl.textContent = `ðŸ’° -${Math.abs(net).toLocaleString()} IHD (LOSS)`;
+        netValEl.textContent = `💰 -${Math.abs(net).toLocaleString()} IHD (LOSS)`;
         netValEl.style.color = '#ff6b6b';
       }
       if (netCard) {
@@ -9249,7 +9249,7 @@ class SpinWheelApp {
     this.pushStateToServer({ customersDb: this.customersDb });
 
     if (fb) {
-      fb.textContent = 'âœ… Mobile number updated successfully!';
+      fb.textContent = '✅ Mobile number updated successfully!';
       fb.style.color = '#2ecc71';
     }
     setTimeout(() => this.closeCricModals(), 1200);
@@ -9294,7 +9294,7 @@ class SpinWheelApp {
     this.pushStateToServer({ customersDb: this.customersDb });
 
     if (fb) {
-      fb.textContent = 'âœ… Display name updated successfully!';
+      fb.textContent = '✅ Display name updated successfully!';
       fb.style.color = '#2ecc71';
     }
     setTimeout(() => this.closeCricModals(), 1200);
@@ -9311,7 +9311,7 @@ class SpinWheelApp {
     const txt = document.getElementById('cric-2fa-status-text');
     if (sw) sw.checked = is2FA;
     if (txt) {
-      txt.textContent = is2FA ? 'âœ… 2FA is currently ACTIVE' : 'âš ï¸ 2FA is currently DISABLED';
+      txt.textContent = is2FA ? '✅ 2FA is currently ACTIVE' : 'âš ï¸ 2FA is currently DISABLED';
       txt.style.color = is2FA ? '#2ecc71' : '#ff6b6b';
     }
 
@@ -9322,7 +9322,7 @@ class SpinWheelApp {
     localStorage.setItem('cric_2fa_enabled', enabled ? 'true' : 'false');
     const txt = document.getElementById('cric-2fa-status-text');
     if (txt) {
-      txt.textContent = enabled ? 'âœ… 2FA is currently ACTIVE' : 'âš ï¸ 2FA is currently DISABLED';
+      txt.textContent = enabled ? '✅ 2FA is currently ACTIVE' : 'âš ï¸ 2FA is currently DISABLED';
       txt.style.color = enabled ? '#2ecc71' : '#ff6b6b';
     }
   }
@@ -9401,7 +9401,7 @@ class SpinWheelApp {
     this.renderAdminPromosList();
 
     this.showLiveToast({
-      title: 'ðŸŽ PROMO CODE CREATED',
+      title: 'Ž PROMO CODE CREATED',
       message: `Code <b>${code}</b> created with <b>+${bonus} Coins</b> bonus!`,
       type: 'success',
       duration: 4000
@@ -9415,7 +9415,7 @@ class SpinWheelApp {
     this.pushStateToServer({ promoCodes: this.promoCodes });
     this.renderAdminPromosList();
     this.showLiveToast({
-      title: this.promoCodes[code].active ? 'âœ… PROMO ACTIVATED' : 'â¸ï¸ PROMO DEACTIVATED',
+      title: this.promoCodes[code].active ? '✅ PROMO ACTIVATED' : 'â¸ï¸ PROMO DEACTIVATED',
       message: `Code ${code} is now ${this.promoCodes[code].active ? 'ACTIVE' : 'DISABLED'}.`,
       type: 'success',
       duration: 3000
@@ -9430,7 +9430,7 @@ class SpinWheelApp {
     this.pushStateToServer({ promoCodes: this.promoCodes });
     this.renderAdminPromosList();
     this.showLiveToast({
-      title: 'ðŸ—‘ï¸ PROMO DELETED',
+      title: '—‘ï¸ PROMO DELETED',
       message: `Code ${code} deleted successfully.`,
       type: 'success',
       duration: 3000
@@ -9459,9 +9459,9 @@ class SpinWheelApp {
 
       return `
         <tr>
-          <td><strong style="color:var(--primary-gold-bright); letter-spacing:1px; font-size:0.88rem;">ðŸŽ ${this.escapeHTML(p.code)}</strong></td>
+          <td><strong style="color:var(--primary-gold-bright); letter-spacing:1px; font-size:0.88rem;">Ž ${this.escapeHTML(p.code)}</strong></td>
           <td><span style="color:#2ecc71; font-weight:800; font-size:0.9rem;">+â‚¹${Number(p.bonus).toFixed(2)}</span></td>
-          <td><span style="font-size:0.8rem; color:#00f0ff; font-weight:700;">ðŸ‘¤ ${redCount} player${redCount === 1 ? '' : 's'}</span></td>
+          <td><span style="font-size:0.8rem; color:#00f0ff; font-weight:700;">‘¤ ${redCount} player${redCount === 1 ? '' : 's'}</span></td>
           <td style="font-size:0.75rem; color:var(--text-secondary);">${createdStr}</td>
           <td>
             <span style="font-size:0.72rem; font-weight:800; padding:2px 8px; border-radius:10px; background:${isActive ? 'rgba(46,204,113,0.2)' : 'rgba(239,68,68,0.2)'}; color:${isActive ? '#2ecc71' : '#ef4444'}; border:1px solid ${isActive ? 'rgba(46,204,113,0.4)' : 'rgba(239,68,68,0.4)'};">
@@ -9474,7 +9474,7 @@ class SpinWheelApp {
                 ${isActive ? 'â¸ï¸ Disable' : 'â–¶ï¸ Enable'}
               </button>
               <button type="button" class="btn btn-secondary btn-xs" style="color:#ef4444;" onclick="window.app.adminDeletePromoCode('${this.escapeHTML(p.code)}')" title="Delete Promo">
-                ðŸ—‘ï¸ Delete
+                —‘ï¸ Delete
               </button>
             </div>
           </td>
@@ -9487,7 +9487,7 @@ class SpinWheelApp {
     if (!this.currentCustomer) {
       this.openAuthModal('signin');
       this.showLiveToast({
-        title: 'ðŸ”‘ PLEASE SIGN IN',
+        title: '”‘ PLEASE SIGN IN',
         message: 'Please sign in or register to redeem promo codes!',
         type: 'deposit',
         duration: 4000
@@ -9498,7 +9498,7 @@ class SpinWheelApp {
     const cleanCode = (code || '').trim().toUpperCase();
     if (!cleanCode) {
       this.showLiveToast({
-        title: 'ðŸŽ ENTER PROMO CODE',
+        title: 'Ž ENTER PROMO CODE',
         message: 'Please enter a promo code to apply.',
         type: 'deposit',
         duration: 3000
@@ -9569,8 +9569,8 @@ class SpinWheelApp {
     if (this.audio) this.audio.playWinFanfare();
 
     this.showLiveToast({
-      title: 'ðŸŽ‰ PROMO CODE APPLIED!',
-      message: `Code <b>${cleanCode}</b> applied! ðŸ’°<b>+${bonus.toFixed(2)} Coins</b> credited instantly to your wallet!`,
+      title: 'Ž‰ PROMO CODE APPLIED!',
+      message: `Code <b>${cleanCode}</b> applied! 💰<b>+${bonus.toFixed(2)} Coins</b> credited instantly to your wallet!`,
       type: 'success',
       duration: 6000
     });
@@ -9816,12 +9816,12 @@ class SpinWheelApp {
       return `
         <div class="admin-chat-thread-item ${isSel ? 'active' : ''}" style="padding:10px 12px; border-bottom:1px solid var(--border-subtle); cursor:pointer; background:${isSel ? 'rgba(217,119,6,0.18)' : 'transparent'}; border-left:${isSel ? '3px solid #f59e0b' : '3px solid transparent'};" onclick="window.app.selectAdminChatPlayer('${pid}')">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span style="font-weight:700; color:#f8fafc; font-size:0.85rem;">ðŸ‘¤ ${this.escapeHTML(displayName)}</span>
+            <span style="font-weight:700; color:#f8fafc; font-size:0.85rem;">‘¤ ${this.escapeHTML(displayName)}</span>
             <span style="font-size:0.7rem; color:var(--text-muted);">${lastMsg.timeFormatted || (custObj ? 'Registered' : '')}</span>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="font-size:0.75rem; color:#cbd5e1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">
-              ${lastMsg.sender === 'ADMIN' ? 'ðŸ‘‘ You: ' : ''}${this.escapeHTML(lastMsg.text || 'No message history yet')}
+              ${lastMsg.sender === 'ADMIN' ? '‘‘ You: ' : ''}${this.escapeHTML(lastMsg.text || 'No message history yet')}
             </div>
             ${unreadCount > 0 ? `<span style="background:#e11d48; color:#fff; font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px;">${unreadCount}</span>` : ''}
           </div>
@@ -9839,16 +9839,16 @@ class SpinWheelApp {
       const dispMobile = firstMsg.playerMobile || (custObj ? (custObj.mobile || 'N/A') : 'N/A');
       const dispCoins = custObj ? Number(custObj.coins || 0).toFixed(2) : '0.00';
 
-      if (nameEl) nameEl.textContent = `ðŸ‘¤ ${dispName}`;
-      if (subEl) subEl.textContent = `Player ID: ${pid} â€¢ Mobile: ${dispMobile} â€¢ Balance: â‚¹${dispCoins}`;
+      if (nameEl) nameEl.textContent = `‘¤ ${dispName}`;
+      if (subEl) subEl.textContent = `Player ID: ${pid} • Mobile: ${dispMobile} • Balance: â‚¹${dispCoins}`;
       if (actionsEl) actionsEl.classList.remove('hidden');
 
       if (feedEl) {
         if (selThread.length === 0) {
           feedEl.innerHTML = `
             <div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.82rem;">
-              ðŸ’¬ No previous message history with <b>${this.escapeHTML(dispName)}</b>.<br>
-              Type your message below to start a direct live conversation or click <b>ðŸ’° Quick Credit</b>.
+              ’¬ No previous message history with <b>${this.escapeHTML(dispName)}</b>.<br>
+              Type your message below to start a direct live conversation or click <b>💰 Quick Credit</b>.
             </div>
           `;
         } else {
@@ -9856,7 +9856,7 @@ class SpinWheelApp {
             const isAdmin = m.sender === 'ADMIN';
             return `
               <div class="chat-msg ${isAdmin ? 'chat-msg-admin' : 'chat-msg-user'}" style="margin-bottom:8px; display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-end' : 'flex-start'};">
-                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:2px;">${isAdmin ? 'ðŸ‘‘ You (Master Admin)' : 'ðŸ‘¤ ' + (m.playerName || m.playerId)}</div>
+                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:2px;">${isAdmin ? '‘‘ You (Master Admin)' : '‘¤ ' + (m.playerName || m.playerId)}</div>
                 <div style="background:${isAdmin ? 'linear-gradient(135deg, #d97706, #b45309)' : 'rgba(255,255,255,0.08)'}; color:#fff; padding:8px 12px; border-radius:10px; max-width:80%; word-break:break-word; font-size:0.85rem;">
                   ${this.escapeHTML(m.text)}
                 </div>
