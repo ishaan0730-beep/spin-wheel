@@ -1117,6 +1117,7 @@ class SpinWheelApp {
     this.bindCricbetEvents();
     this.bindAdminPlayerEvents();
     this.updateSoundUI();
+    this.alignWheelToLatestResult();
     this.renderWheel();
     this.renderPredictionChips();
     this.updateTargetSlotDisplay();
@@ -1583,41 +1584,18 @@ class SpinWheelApp {
     this.slices = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     localStorage.setItem(STATE_KEYS.SLICES, JSON.stringify(this.slices));
 
-    // 2. History (DEEP MERGE & DEDUPLICATE - NEVER LOSE AUTO ROUNDS)
+    // 2. History (STRICT SYNCHRONIZED CLOUD REPLICATION)
     if (Array.isArray(state.history)) {
       if (state.history.length > 0) {
-        const histMap = new Map();
-        // Add remote items
-        state.history.forEach(item => {
-          if (!item) return;
-          const key = item.id || `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
-          histMap.set(key, item);
-        });
-        // Merge local items so newly spun local rounds are not wiped
-        (this.history || []).forEach(item => {
-          if (!item) return;
-          const key = item.id || `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
-          if (!histMap.has(key)) {
-            histMap.set(key, item);
-          }
-        });
-        const mergedHist = Array.from(histMap.values())
-          .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
-          .slice(0, 150);
-
-        const currHistJson = JSON.stringify(this.history);
-        const newHistJson = JSON.stringify(mergedHist);
-        if (currHistJson !== newHistJson) {
-          this.history = mergedHist;
+        const currJson = JSON.stringify(this.history || []);
+        const newJson = JSON.stringify(state.history);
+        if (currJson !== newJson) {
+          this.history = state.history;
           localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
           historyNeedsRedraw = true;
         }
-      } else if (this.history && this.history.length > 0) {
-        // Local has history but server state has empty array: push local history to server to restore it
-        this.pushStateToServer({ history: this.history });
       }
     }
-
     // 3. Forced Next Winner (Strict Protected Lock)
     if (state.forcedNext !== undefined && state.forcedNext !== null) {
       this.forcedNext = state.forcedNext;
@@ -1944,7 +1922,7 @@ class SpinWheelApp {
       this.renderLast3Results();
       this.renderAllSpinHistoryModalList();
       this.renderAdminSpinHistoryTable();
-    }
+      if (!this.isSpinning) this.alignWheelToLatestResult();
     if (this.isDrawerOpen) {
       this.updateSection1BadgeForSelectedSlot();
       this.renderDailyScheduleTable();
@@ -2062,12 +2040,12 @@ class SpinWheelApp {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch (e) {}
-    return [
-      { id: 1789769291721, number: 80, time: "11:00 PM", date: "Sep 24", round: "11:00 PM", source: "Live Slot Round" },
-      { id: 1789768890761, number: 70, time: "08:00 PM", date: "Sep 24", round: "08:00 PM", source: "Live Slot Round" },
-      { id: 1789768058759, number: 40, time: "04:00 PM", date: "Sep 24", round: "04:00 PM", source: "Live Slot Round" }
-    ];
+    return [];
   }
+
+
+
+
 
   loadLocalQueue() {
     try {
@@ -7338,6 +7316,24 @@ class SpinWheelApp {
       }, 5000);
     }
   }
+  alignWheelToLatestResult() {
+    if (this.isSpinning) return;
+    if (!this.history || !Array.isArray(this.history) || this.history.length === 0) return;
+    const latest = this.history[0];
+    if (!latest || typeof latest.number === 'undefined') return;
+    const targetNumber = parseInt(latest.number, 10);
+    if (isNaN(targetNumber)) return;
+    let targetIndex = this.slices.indexOf(targetNumber);
+    if (targetIndex === -1) targetIndex = 0;
+    const numSlices = this.slices.length;
+    const sliceAngle = (2 * Math.PI) / numSlices;
+    const targetCenterAngle = (targetIndex + 0.5) * sliceAngle;
+    let desiredAngle = (-Math.PI / 2 - targetCenterAngle) % (2 * Math.PI);
+    if (desiredAngle < 0) desiredAngle += 2 * Math.PI;
+    this.currentAngle = desiredAngle;
+    this.renderWheel();
+  }
+
   renderWheel() {
     const ctx = this.ctx;
     const numSlices = this.slices.length;
