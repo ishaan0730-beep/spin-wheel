@@ -167,52 +167,9 @@
         <span>Verify &amp; Enter &rarr;</span>
       </button>
     </form>
-
-    <!-- Discrete 1-Tap Shortcut Button for Phone Screen -->
-    <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid rgba(255, 179, 0, 0.2);">
-      <button id="add-shortcut-btn" type="button" style="width: 100%; background: rgba(255, 179, 0, 0.12); border: 1px solid rgba(255, 179, 0, 0.4); color: #ffc107; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-        <span>📲</span>
-        <span>Add Shortcut to Phone Home Screen</span>
-      </button>
-      <p id="shortcut-hint" style="font-size: 11px; color: rgba(255, 255, 255, 0.45); margin-top: 8px; line-height: 1.4;">
-        Tap above or use browser menu (3 dots ⋮) &rarr; "Add to Home screen" to save with official logo.
-      </p>
-    </div>
   </div>
 
   <script>
-    let deferredPrompt = null;
-    const shortcutBtn = document.getElementById('add-shortcut-btn');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      if (shortcutBtn) {
-        shortcutBtn.style.background = 'linear-gradient(135deg, rgba(255,179,0,0.25), rgba(255,111,0,0.2))';
-        shortcutBtn.innerHTML = '<span>⭐</span> <span>INSTALL MASTER APP ON HOME SCREEN</span>';
-      }
-    });
-
-    if (shortcutBtn) {
-      shortcutBtn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          if (outcome === 'accepted') {
-            shortcutBtn.innerHTML = '<span>✅</span> <span>Shortcut Added to Phone!</span>';
-          }
-          deferredPrompt = null;
-        } else {
-          // Native instructions for Android & iOS
-          const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
-          if (isIos) {
-            alert("iPhone / Safari par Shortcut Lagane Ka Tarika:\n\n1. Safari me neeche Share (⬆️) button dabayein.\n2. 'Add to Home Screen' par click karein.\n\nPhone screen par Master ka logo icon ban jayega!");
-          } else {
-            alert("Android / Chrome par Shortcut Lagane Ka Tarika:\n\n1. Chrome browser me upar right side 3 dots (⋮) dabayein.\n2. 'Add to Home screen' (ya 'Install app') chunein.\n\nPhone screen par Golden Logo ke sath Master Admin ban jayega!");
-          }
-        }
-      });
-    }
     const form = document.getElementById('master-login-form');
     const pinInput = document.getElementById('master-pin');
     const errorEl = document.getElementById('login-error');
