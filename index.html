@@ -9,15 +9,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="manifest" href="manifest.json?v=7.6.0">
+    <link rel="manifest" href="manifest.json?v=7.6.5">
   <meta name="theme-color" content="#381c19">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Spin & Wheel">
-  <link rel="apple-touch-icon" href="icon-192.png?v=7.6.0">
-  <link rel="icon" type="image/png" href="icon-192.png?v=7.6.0"><link rel="shortcut icon" href="favicon.png?v=7.6.0">
-  <link rel="stylesheet" href="style.css?v=7.6.0">
+  <link rel="apple-touch-icon" href="icon-192.png?v=7.6.5">
+  <link rel="icon" type="image/png" href="icon-192.png?v=7.6.5"><link rel="shortcut icon" href="favicon.png?v=7.6.5">
+  <link rel="stylesheet" href="style.css?v=7.6.5">
   <script>
     if (window.location.hostname.includes('vercel.app')) {
       window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
@@ -2295,7 +2295,10 @@
         <!-- Top 4-Box Key Stats Grid -->
         <div class="aph-stats-grid">
           <div class="aph-stat-card card-gold">
-            <span class="aph-stat-lbl">💰 IHD Balance</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:4px;">
+              <span class="aph-stat-lbl" style="margin-bottom:0;">💰 IHD Balance</span>
+              <button type="button" class="btn btn-secondary btn-xs" style="font-size:0.68rem; padding:2px 6px; color:#00f0ff; border-color:rgba(0,240,255,0.4); font-weight:700;" onclick="(window.app || app).promptAdminSetPlayerExactBalance((window.app || app).currentAphPlayerId)" title="Edit and overwrite exact coin balance">✏️ Set Balance</button>
+            </div>
             <strong id="aph-coins-balance" class="aph-stat-val highlight-gold">0 IHD</strong>
             <span style="font-size:0.68rem; color:var(--text-muted);">Available in Wallet</span>
           </div>
@@ -2449,9 +2452,9 @@
             </div>
 
             <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-top:0.75rem; padding-top:0.75rem; border-top:1px dashed rgba(255,255,255,0.12);">
-              <span style="font-size:0.78rem; font-weight:700; color:#00f0ff;">🎯 Set Exact Balance:</span>
-              <input type="number" id="aph-exact-balance-amount" class="admin-input" placeholder="e.g. 920 or 420" style="max-width:140px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); app.adminApplyAphExactBalance();}">
-              <button type="button" class="btn btn-primary btn-sm" onclick="app.adminApplyAphExactBalance()">Set Exact Balance</button>
+              <span style="font-size:0.78rem; font-weight:700; color:#00f0ff;">🎯 Set Exact Balance (Overwrite):</span>
+              <input type="number" id="aph-exact-balance-amount" class="admin-input" placeholder="e.g. 500" style="max-width:140px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); (window.app || app).adminApplyAphExactBalance();}">
+              <button type="button" class="btn btn-primary btn-sm" onclick="(window.app || app).adminApplyAphExactBalance()">Set Exact Balance</button>
             </div>
 
             <span id="aph-quick-credit-feedback" class="save-status-msg" style="display:block; margin-top:6px;"></span>
@@ -2471,11 +2474,11 @@
       </div>
 
       <!-- Modal Footer -->
-      <div class="modal-footer" style="padding:0.75rem 1.25rem; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-        <button type="button" id="aph-delete-player-btn" class="btn btn-danger btn-sm" style="background:#ef4444; border-color:#dc2626; font-weight:800;" onclick="(window.app || app).adminDeletePlayer((window.app || app).currentAphPlayerId)">
+      <div class="modal-footer" style="padding:0.75rem 1.25rem; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <button type="button" id="aph-delete-player-btn" class="btn btn-danger btn-sm" style="background:#ef4444; border-color:#dc2626; font-weight:800; white-space:nowrap; padding:6px 14px; min-width:180px; display:inline-flex; align-items:center; justify-content:center; gap:6px;" onclick="(window.app || app).adminDeletePlayer((window.app || app).currentAphPlayerId)">
           🗑️ Delete This Player ID
         </button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="(window.app || app).closePlayerHistoryModal()">Close History</button>
+        <button type="button" class="btn btn-secondary btn-sm" style="white-space:nowrap; padding:6px 16px;" onclick="(window.app || app).closePlayerHistoryModal()">Close History</button>
       </div>
 
     </div>
@@ -2960,7 +2963,7 @@
   </script>
   <script src="mqtt.min.js"></script>
   <script src="confetti.js"></script>
-  <script src="app.js?v=7.6.0"></script>
+  <script src="app.js?v=7.6.5"></script>
   <script>
     if (typeof window.app !== 'undefined') {
       window.app = window.app;

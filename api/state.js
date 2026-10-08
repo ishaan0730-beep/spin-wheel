@@ -26,10 +26,70 @@ let globalState = {
   manualRoundTitle: null,
   masterPassword: "00773300",
   spinTrigger: null,
-  customersDb: {},
+  customersDb: {
+    "Ishaan0730": {
+      id: "Ishaan0730",
+      name: "Ishaan kamiria",
+      mobile: "7232820730",
+      dob: "2000-07-30",
+      pin: "Ishaan0730@",
+      coins: 500,
+      status: "ACTIVE",
+      phoneVerified: true,
+      joinedAt: 1790641200000,
+      lastUpdated: 1791388000000,
+      totalBets: 3,
+      wins: 1,
+      bankDetails: {
+        accountHolderName: "Ishaan kamiria",
+        accountNumber: "0480000101203979",
+        ifscCode: "PUNB0048000"
+      },
+      betHistory: []
+    },
+    "Deep321": {
+      id: "Deep321",
+      name: "Deepanshu",
+      mobile: "9041062733",
+      dob: "1998-05-12",
+      pin: "Deep321@",
+      coins: 600,
+      status: "ACTIVE",
+      phoneVerified: true,
+      joinedAt: 1790700000000,
+      lastUpdated: 1791388000000,
+      totalBets: 2,
+      wins: 1,
+      bankDetails: {
+        accountHolderName: "Deepanshu",
+        accountNumber: "7736000100042570",
+        ifscCode: "PUNB0773600"
+      }
+    }
+  },
   activeBets: [],
   deletedBetIds: [],
-  withdrawals: [],
+  withdrawals: [
+    {
+      id: "WD_1791259535365_51Q4",
+      customerId: "Ishaan0730",
+      customerName: "Ishaan kamiria",
+      customerMobile: "7232820730",
+      accountName: "Ishaan kamiria",
+      accountNumber: "0480000101203979",
+      ifscCode: "PUNB0048000",
+      amount: 500,
+      status: "REJECTED",
+      rejectionReason: "Incorrect Bank Account Number",
+      isRefunded: true,
+      refundedAt: 1791259600000,
+      requestedAt: 1791259535365,
+      requestedTime: "09:35:35 AM",
+      requestedDate: "Oct 6, 2026",
+      processedAt: 1791259600000,
+      processedTime: "09:36:40 AM"
+    }
+  ],
   deposits: [],
   supportChats: {},
   depositConfig: {

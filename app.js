@@ -6373,27 +6373,38 @@ class SpinWheelApp {
       return;
     }
 
+    if (req.isRefunded || req.status === 'REJECTED') {
+      this.adminCloseRejectModal();
+      this.showAdminCreditFeedback(`⚠️ Withdrawal ${req.id} is already marked as rejected/refunded.`, false);
+      return;
+    }
+
     const reason = this.adminRejectReasonText?.value.trim() || 'Details mismatch / Bank rejection';
 
     req.status = 'REJECTED';
     req.rejectionReason = reason;
+    req.isRefunded = true;
+    req.refundedAt = Date.now();
     req.processedAt = Date.now();
     req.processedTime = formatTime12(new Date());
 
-    // AUTOMATIC COIN REFUND BACK TO PLAYER'S WALLET
+    // AUTOMATIC COIN REFUND BACK TO PLAYER'S WALLET (EXACTLY ONCE)
+    let refundedPlayer = null;
     if (this.customersDb && this.customersDb[req.customerId]) {
-      this.customersDb[req.customerId].coins = (Number(this.customersDb[req.customerId].coins) || 0) + (Number(req.amount) || 0);
-      this.saveCustomersDB(this.customersDb);
+      refundedPlayer = this.customersDb[req.customerId];
     } else if (this.customersDb) {
-      const player = Object.values(this.customersDb).find(p => p.id === req.customerId || p.mobile === req.customerId);
-      if (player) {
-        player.coins = (Number(player.coins) || 0) + (Number(req.amount) || 0);
-        this.saveCustomersDB(this.customersDb);
-      }
+      refundedPlayer = Object.values(this.customersDb).find(p => p.id === req.customerId || p.mobile === req.customerId);
+    }
+
+    if (refundedPlayer) {
+      refundedPlayer.coins = (Number(refundedPlayer.coins) || 0) + (Number(req.amount) || 0);
+      refundedPlayer.lastUpdated = Date.now();
+      this.saveCustomersDB(this.customersDb);
     }
 
     if (this.currentCustomer && (this.currentCustomer.id === req.customerId || this.currentCustomer.mobile === req.customerId)) {
       this.currentCustomer.coins = (Number(this.currentCustomer.coins) || 0) + (Number(req.amount) || 0);
+      this.currentCustomer.lastUpdated = Date.now();
       this.saveCustomerSession(this.currentCustomer);
       this.updateCustomerUI();
     }
@@ -6467,6 +6478,78 @@ class SpinWheelApp {
     // Send Telegram Notification for Admin Credit Update
     const tgCreditMsg = `💳 *ADMIN COIN UPDATE!*\n\n👤 *Player:* ${player.name || userId} (ID: \`${userId}\`)\n💰 *Amount:* ${addAmt >= 0 ? '+' : ''}${addAmt.toLocaleString()} IHD Coins\n💼 *New Balance:* 💰${newBalance.toLocaleString()} IHD Coins\n🕒 *Time:* ${formatTime12(new Date())}`;
     this.sendTelegramNotification(tgCreditMsg);
+  }
+
+  adminSetPlayerExactBalance(userId, targetCoins) {
+    if (!this.customersDb || !this.customersDb[userId]) {
+      this.showAdminCreditFeedback(`❌ Player "${userId}" not found!`, false);
+      return;
+    }
+
+    const player = this.customersDb[userId];
+    const newCoins = Math.max(0, parseInt(targetCoins, 10) || 0);
+    const oldCoins = Number(player.coins) || 0;
+    player.coins = newCoins;
+    player.lastUpdated = Date.now();
+    this.customersDb[userId] = player;
+
+    this.saveCustomersDB(this.customersDb);
+
+    if (this.currentCustomer && (this.currentCustomer.id === userId || String(this.currentCustomer.id) === String(userId))) {
+      this.currentCustomer.coins = newCoins;
+      this.currentCustomer.lastUpdated = Date.now();
+      this.saveCustomerSession(this.currentCustomer);
+      this.updateCustomerUI();
+    }
+
+    this.pushStateToServer({ customersDb: this.customersDb });
+
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.renderMasterBackupStats();
+    if (this.currentAphPlayerId === userId && this.adminPlayerHistoryModal && !this.adminPlayerHistoryModal.classList.contains('hidden')) {
+      this.openPlayerHistoryModal(userId);
+    }
+
+    this.showAdminCreditFeedback(`✅ Player ${player.name} (${userId}) balance set to 💰 ${newCoins.toLocaleString()} IHD Coins!`, true);
+    if (this.audio) this.audio.playWinFanfare();
+
+    // Send Telegram Notification
+    const tgMsg = `✏️ <b>[PLAYER WALLET BALANCE ADJUSTED]</b>\n\n👤 <b>Player:</b> ${player.name} (ID: <code>${userId}</code>)\n💰 <b>Old Balance:</b> 💰${oldCoins.toLocaleString()} IHD\n💰 <b>New Exact Balance:</b> 💰${newCoins.toLocaleString()} IHD Coins\n🕒 <b>Adjusted At:</b> ${formatTime12(new Date())}\n\n👉 <i>Set by Master Admin.</i>`;
+    this.sendTelegramNotification(tgMsg);
+  }
+
+  promptAdminSetPlayerExactBalance(userId) {
+    if (!userId) return;
+    const player = this.customersDb ? this.customersDb[userId] : null;
+    const cur = player ? (Number(player.coins) || 0) : 0;
+    const pName = player ? (player.name || userId) : userId;
+    const input = prompt(`✏️ SET EXACT IHD COIN BALANCE\n\nPlayer: ${pName} (ID: ${userId})\nCurrent Balance: ${cur.toLocaleString()} IHD Coins\n\nEnter new exact wallet balance (e.g. 500):`, cur);
+    if (input === null || input.trim() === '') return;
+    const val = parseInt(input.trim(), 10);
+    if (isNaN(val) || val < 0) {
+      alert('❌ Please enter a valid non-negative number of coins!');
+      return;
+    }
+    this.adminSetPlayerExactBalance(userId, val);
+  }
+
+  adminApplyAphExactBalance() {
+    if (!this.currentAphPlayerId) return;
+    const input = document.getElementById('aph-exact-balance-amount');
+    const val = parseInt(input?.value, 10);
+    if (isNaN(val) || val < 0) {
+      if (this.aphQuickCreditFeedback) {
+        this.aphQuickCreditFeedback.textContent = '❌ Please enter a valid non-negative balance (e.g. 500)!';
+        this.aphQuickCreditFeedback.style.color = '#ef4444';
+      }
+      return;
+    }
+    this.adminSetPlayerExactBalance(this.currentAphPlayerId, val);
+    if (this.aphQuickCreditFeedback) {
+      this.aphQuickCreditFeedback.textContent = `✅ Player balance strictly set to 💰${val.toLocaleString()} IHD Coins!`;
+      this.aphQuickCreditFeedback.style.color = '#2ecc71';
+      setTimeout(() => { if (this.aphQuickCreditFeedback) this.aphQuickCreditFeedback.textContent = ''; }, 3500);
+    }
   }
 
   adminCustomCreditPrompt(userId) {
@@ -8754,14 +8837,20 @@ class SpinWheelApp {
         const isDateMatch = (!bet.targetDate || bet.targetDate === todayFormatted || bet.targetDate === dateStr);
 
         if (isSlotMatch && isDateMatch) {
+          if (bet.settled || bet.payoutCredited) return; // Prevent duplicate payout
+
           const isWin = (bet.number === winningNumber);
           const winAmount = isWin ? (bet.amount * 9) : 0;
+          bet.settled = true;
+          bet.payoutCredited = true;
+          bet.status = isWin ? 'WON' : 'LOST';
 
           if (this.customersDb && this.customersDb[bet.playerId]) {
             const p = this.customersDb[bet.playerId];
             if (isWin) {
-              p.coins = (p.coins || 0) + winAmount;
-              p.wins = (p.wins || 0) + 1;
+              p.coins = (Number(p.coins) || 0) + winAmount;
+              p.wins = (Number(p.wins) || 0) + 1;
+              p.lastUpdated = Date.now();
             }
             if (!Array.isArray(p.betHistory)) p.betHistory = [];
             const histEntry = p.betHistory.find(b => b.id === bet.id);
@@ -8769,6 +8858,8 @@ class SpinWheelApp {
               histEntry.status = isWin ? 'WON' : 'LOST';
               histEntry.winningNumber = winningNumber;
               histEntry.payout = winAmount;
+              histEntry.settled = true;
+              histEntry.payoutCredited = true;
               histEntry.settledAt = timeStr12;
             } else {
               p.betHistory.unshift({
@@ -8776,6 +8867,8 @@ class SpinWheelApp {
                 status: isWin ? 'WON' : 'LOST',
                 winningNumber: winningNumber,
                 payout: winAmount,
+                settled: true,
+                payoutCredited: true,
                 settledAt: timeStr12
               });
             }
@@ -8783,8 +8876,9 @@ class SpinWheelApp {
 
           if (this.currentCustomer && this.currentCustomer.id === bet.playerId) {
             if (isWin) {
-              this.currentCustomer.coins = (this.currentCustomer.coins || 0) + winAmount;
-              this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+              this.currentCustomer.coins = (Number(this.currentCustomer.coins) || 0) + winAmount;
+              this.currentCustomer.wins = (Number(this.currentCustomer.wins) || 0) + 1;
+              this.currentCustomer.lastUpdated = Date.now();
               myTotalWon += winAmount;
               myWinCount++;
             } else {
@@ -8796,6 +8890,8 @@ class SpinWheelApp {
               custHistEntry.status = isWin ? 'WON' : 'LOST';
               custHistEntry.winningNumber = winningNumber;
               custHistEntry.payout = winAmount;
+              custHistEntry.settled = true;
+              custHistEntry.payoutCredited = true;
               custHistEntry.settledAt = timeStr12;
             }
           }
@@ -9225,6 +9321,8 @@ class SpinWheelApp {
     });
 
     expiredBets.forEach(bet => {
+      if (bet.settled || bet.payoutCredited) return; // Already settled, skip
+
       const targetTs = this.getBetTargetTimestamp(bet, now);
       const targetDateObj = new Date(targetTs);
       const dateStr = targetDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -9244,6 +9342,8 @@ class SpinWheelApp {
         status: isWin ? 'WON' : 'LOST',
         winningNumber: winningNumber,
         payout: payoutVal,
+        settled: true,
+        payoutCredited: true,
         settledAt: slotLabel,
         settledDate: dateStr,
         settledTimestamp: Date.now()
@@ -9254,9 +9354,10 @@ class SpinWheelApp {
         for (let k of Object.keys(this.customersDb)) {
           const p = this.customersDb[k];
           if (k.toLowerCase() === pid || String(p?.id || '').toLowerCase() === pid) {
-            if (isWin) {
-              p.coins = (p.coins || 0) + payoutVal;
-              p.wins = (p.wins || 0) + 1;
+            if (isWin && !bet.payoutCredited) {
+              p.coins = (Number(p.coins) || 0) + payoutVal;
+              p.wins = (Number(p.wins) || 0) + 1;
+              p.lastUpdated = Date.now();
             }
             if (!Array.isArray(p.betHistory)) p.betHistory = [];
             const idx = p.betHistory.findIndex(x => String(x.id) === String(bet.id));
@@ -9275,9 +9376,10 @@ class SpinWheelApp {
       if (this.currentCustomer) {
         const cId = String(this.currentCustomer.id || this.currentCustomer.memberId || '').toLowerCase().trim();
         if (cId === pid) {
-          if (isWin) {
-            this.currentCustomer.coins = (this.currentCustomer.coins || 0) + payoutVal;
-            this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+          if (isWin && !bet.payoutCredited) {
+            this.currentCustomer.coins = (Number(this.currentCustomer.coins) || 0) + payoutVal;
+            this.currentCustomer.wins = (Number(this.currentCustomer.wins) || 0) + 1;
+            this.currentCustomer.lastUpdated = Date.now();
           }
           if (!Array.isArray(this.currentCustomer.betHistory)) this.currentCustomer.betHistory = [];
           const idx = this.currentCustomer.betHistory.findIndex(x => String(x.id) === String(bet.id));
@@ -9296,7 +9398,7 @@ class SpinWheelApp {
       Object.values(this.customersDb).forEach(p => {
         if (p && Array.isArray(p.betHistory)) {
           p.betHistory.forEach(b => {
-            if (b && (b.status === 'ACTIVE' || !b.status) && this.isBetExpired(b, now)) {
+            if (b && !b.settled && !b.payoutCredited && (b.status === 'ACTIVE' || !b.status) && this.isBetExpired(b, now)) {
               const targetTs = this.getBetTargetTimestamp(b, now);
               const targetDateObj = new Date(targetTs);
               const dateStr = targetDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -9309,10 +9411,13 @@ class SpinWheelApp {
               const betAmt = Number(b.amount || b.coins || b.betAmount || 0);
               const payoutVal = isWin ? (betAmt * 9) : 0;
 
-              if (isWin) {
-                p.coins = (p.coins || 0) + payoutVal;
-                p.wins = (p.wins || 0) + 1;
+              if (isWin && !b.payoutCredited) {
+                p.coins = (Number(p.coins) || 0) + payoutVal;
+                p.wins = (Number(p.wins) || 0) + 1;
+                p.lastUpdated = Date.now();
               }
+              b.settled = true;
+              b.payoutCredited = true;
               b.status = isWin ? 'WON' : 'LOST';
               b.winningNumber = winningNumber;
               b.payout = payoutVal;
@@ -9322,9 +9427,10 @@ class SpinWheelApp {
               customersChanged = true;
 
               if (this.currentCustomer && String(this.currentCustomer.id || '').toLowerCase() === String(p.id || '').toLowerCase()) {
-                if (isWin) {
-                  this.currentCustomer.coins = (this.currentCustomer.coins || 0) + payoutVal;
-                  this.currentCustomer.wins = (this.currentCustomer.wins || 0) + 1;
+                if (isWin && !b.payoutCredited) {
+                  this.currentCustomer.coins = (Number(this.currentCustomer.coins) || 0) + payoutVal;
+                  this.currentCustomer.wins = (Number(this.currentCustomer.wins) || 0) + 1;
+                  this.currentCustomer.lastUpdated = Date.now();
                 }
                 if (Array.isArray(this.currentCustomer.betHistory)) {
                   const cIdx = this.currentCustomer.betHistory.findIndex(x => String(x.id) === String(b.id));
