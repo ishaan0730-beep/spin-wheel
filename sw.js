@@ -1,5 +1,5 @@
 // Spin & Wheel - Service Worker for PWA Mobile App Support
-const CACHE_NAME = 'spin-wheel-v7.6.5';
+const CACHE_NAME = 'spin-wheel-v7.8.0';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -38,7 +38,14 @@ self.addEventListener('fetch', (e) => {
   if (e.request.url.includes('/api/') || e.request.method !== 'GET') {
     return;
   }
+  // Network first with cache fallback
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    fetch(e.request)
+      .then((res) => {
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resClone));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

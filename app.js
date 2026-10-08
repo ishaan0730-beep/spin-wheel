@@ -1222,6 +1222,11 @@ class SpinWheelApp {
 
     if (!splash || !fill) return;
 
+    if (window.location.search.includes('nosplash')) {
+      splash.style.display = 'none';
+      return;
+    }
+
     // Total target duration: 6.2 seconds (between 5-9 seconds as requested)
     const targetDurationMs = 6200;
     const startTime = Date.now();
@@ -3518,12 +3523,15 @@ class SpinWheelApp {
     updateCustomerUI() {
     const coins = this.currentCustomer ? Number(this.currentCustomer.coins || 0) : 0;
     const cricBalEl = document.getElementById('cric-balance-val');
+    const balancePill = document.getElementById('cric-balance-pill');
+
     if (cricBalEl) {
       cricBalEl.textContent = coins.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     if (this.currentCustomer) {
       this.customerLoginBtn?.classList.add('hidden');
+      if (balancePill) balancePill.classList.remove('hidden');
       this.customerProfileChip?.classList.add('hidden'); // Strictly keep hidden so coins only display in top payment pill
       if (this.chipPlayerName) this.chipPlayerName.textContent = this.currentCustomer.name || 'Player';
       if (this.chipPlayerCoins) this.chipPlayerCoins.textContent = "💰 " + coins.toLocaleString() + " IHD";
@@ -3533,6 +3541,7 @@ class SpinWheelApp {
       if (this.dashPlayerCoins) this.dashPlayerCoins.textContent = "💰 " + coins.toLocaleString() + " IHD Coins";
     } else {
       this.customerLoginBtn?.classList.remove('hidden');
+      if (balancePill) balancePill.classList.add('hidden');
       this.customerProfileChip?.classList.add('hidden');
       if (this.playerWalletDisplay) this.playerWalletDisplay.textContent = "💰 Logged Out (0 IHD Coins)";
     }
