@@ -9,19 +9,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="manifest" href="manifest.json?v=7.8.0">
+    <link rel="manifest" href="manifest.json?v=7.8.5">
   <meta name="theme-color" content="#381c19">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Spin & Wheel">
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=7.8.0">
-  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png?v=7.8.0">
-  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png?v=7.8.0">
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7.8.0">
-  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7.8.0">
-  <link rel="shortcut icon" href="favicon.png?v=7.8.0">
-  <link rel="stylesheet" href="style.css?v=7.8.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=7.8.5">
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png?v=7.8.5">
+  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png?v=7.8.5">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7.8.5">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7.8.5">
+  <link rel="shortcut icon" href="favicon.png?v=7.8.5">
+  <link rel="stylesheet" href="style.css?v=7.8.5">
   <script>
     if (window.location.hostname.includes('vercel.app')) {
       window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
@@ -89,9 +89,8 @@
         <a href="javascript:void(0)" class="cric-home-btn" id="cric-home-btn" title="Home">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
         </a>
-        <div class="cric-logo" id="brand-header" title="SPIN & WHEEL" style="display:flex; align-items:center; gap:6px;">
+        <div class="cric-logo" id="brand-header" title="SPIN & WHEEL" style="display:flex; align-items:center;">
           <img src="logo.png?v=7.8.0" alt="Spin & Wheel Emblem" style="width:30px; height:30px; border-radius:50%; box-shadow:0 0 10px rgba(255,215,0,0.6); border:1.5px solid #ffd700; object-fit:cover; display:inline-block;">
-          <span class="cric-logo-text">SPIN & WHEEL</span>
         </div>
       </div>
 
@@ -100,30 +99,6 @@
         <button type="button" class="cric-top-deposit-btn" id="cric-top-deposit-btn" title="Deposit IHD Coins">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
           <span>DEPOSIT</span>
-        </button>
-
-        <!-- Sound Button (Desktop / Wide screens) -->
-        <button id="sound-btn" class="cric-icon-btn hidden-on-mobile" title="Toggle Sound" aria-label="Toggle Sound">
-          <svg id="sound-icon-on" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-          </svg>
-          <svg id="sound-icon-off" class="hidden" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <line x1="23" y1="9" x2="17" y2="15"></line>
-            <line x1="17" y1="9" x2="23" y2="15"></line>
-          </svg>
-        </button>
-
-        <!-- Search Button (Hidden on Mobile) -->
-        <button type="button" class="cric-icon-btn hidden-on-mobile" id="cric-search-btn" title="Search Events">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        </button>
-
-        <!-- Live Support Chat Button (Hidden on Mobile) -->
-        <button type="button" class="cric-icon-btn hidden-on-mobile" id="cric-header-chat-btn" title="24/7 Live Support Chat" onclick="app.openSupportChatModal()" style="position:relative; color:#2ecc71;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          <span style="position:absolute; top:2px; right:2px; width:6px; height:6px; background:#2ecc71; border-radius:50%; box-shadow:0 0 6px #2ecc71;"></span>
         </button>
 
         <!-- Balance / User Pill Button (Visible when logged in) -->
@@ -151,7 +126,7 @@
           <span class="cric-bar"></span>
         </button>
 
-        <!-- Hidden Legacy Elements for 100% Backwards Compatibility -->
+        <!-- Hidden Elements for 100% Backwards Compatibility & JS Bindings -->
         <div id="customer-profile-chip" class="hidden" style="display:none !important;">
           <span id="chip-player-name"></span>
           <span id="chip-player-coins"></span>
@@ -160,6 +135,11 @@
           <button id="customer-bets-btn" class="hidden"><span id="chip-active-bets-count">0</span></button>
           <button id="customer-dashboard-btn" class="hidden"></button>
           <button id="customer-logout-btn" class="hidden"></button>
+          <button id="help-btn" class="hidden"></button>
+          <button id="sound-btn" class="hidden"></button>
+          <button id="cric-search-btn" class="hidden"></button>
+          <button id="cric-header-chat-btn" class="hidden"></button>
+          <button id="cric-lang-btn" class="hidden"></button>
         </div>
       </div>
     </header>
@@ -3002,7 +2982,7 @@
   </script>
   <script src="mqtt.min.js"></script>
   <script src="confetti.js"></script>
-  <script src="app.js?v=7.8.0"></script>
+  <script src="app.js?v=7.8.5"></script>
   <script>
     if (typeof window.app !== 'undefined') {
       window.app = window.app;
