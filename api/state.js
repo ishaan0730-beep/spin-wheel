@@ -124,7 +124,6 @@ function checkAdminAuth(req, body) {
   return (
     keyStr === currentPass ||
     keyStr === '00773300' ||
-    keyStr === '1234' ||
     keyStr === `Bearer ${currentPass}` ||
     keyStr === 'Bearer 00773300'
   );

@@ -2870,7 +2870,7 @@ class SpinWheelApp {
     this.brandHeader?.addEventListener('click', handleLogoTap);
     document.getElementById('cric-home-btn')?.addEventListener('click', handleLogoTap);
 
-    // SECRET KEYBOARD SEQUENCE: Types master password, "00773300", or "1234" (PC & Mobile)
+    // SECRET KEYBOARD SEQUENCE: Types master password or "00773300" (PC & Mobile)
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
         return;
@@ -2880,8 +2880,7 @@ class SpinWheelApp {
       const currentPass = (this.masterPassword || '00773300').toString().trim();
       if (
         (currentPass && this.keyBuffer.endsWith(currentPass)) ||
-        this.keyBuffer.endsWith('00773300') ||
-        this.keyBuffer.endsWith('1234')
+        this.keyBuffer.endsWith('00773300')
       ) {
         this.triggerSecretModal();
         this.keyBuffer = '';
@@ -2929,7 +2928,7 @@ class SpinWheelApp {
       const entered = this.secretPasswordInput ? this.secretPasswordInput.value.trim() : '';
       if (!entered) {
         if (this.secretLoginError) {
-          this.secretLoginError.textContent = 'âŒ Please enter Master Password.';
+          this.secretLoginError.textContent = '❌ Please enter Master Password.';
           this.secretLoginError.classList.remove('hidden');
         }
         return;
@@ -2942,15 +2941,11 @@ class SpinWheelApp {
         entered === currentPass ||
         entered === savedPass ||
         entered === '00773300' ||
-        entered === '1234' ||
-        entered.toLowerCase() === 'admin' ||
-        entered.toLowerCase() === 'master' ||
-        entered.toLowerCase() === 'owner' ||
         (this.masterPassword && entered === this.masterPassword.toString().trim())
       );
 
       if (isMatch) {
-        this.masterPassword = (entered === '1234' || entered.toLowerCase() === 'admin' || entered.toLowerCase() === 'master' || entered.toLowerCase() === 'owner') ? currentPass : entered;
+        this.masterPassword = entered;
         try {
           localStorage.setItem(STATE_KEYS.MASTER_KEY, this.masterPassword);
           sessionStorage.setItem('admin_auth', this.masterPassword);
