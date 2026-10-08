@@ -6,7 +6,29 @@
       "has": [
         {
           "type": "host",
+          "value": "spin-wheel-chi-hazel.vercel.app"
+        }
+      ],
+      "destination": "https://www.spinandwin.world/$1",
+      "permanent": true
+    },
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
           "value": "spinwheel3d.vercel.app"
+        }
+      ],
+      "destination": "https://www.spinandwin.world/$1",
+      "permanent": true
+    },
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?<subdomain>.*)\\.vercel\\.app"
         }
       ],
       "destination": "https://www.spinandwin.world/$1",

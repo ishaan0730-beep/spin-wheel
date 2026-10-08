@@ -23,9 +23,12 @@
   <link rel="shortcut icon" href="favicon.png?v=7.9.0">
   <link rel="stylesheet" href="style.css?v=7.9.0">
   <script>
-    if (window.location.hostname.includes('vercel.app')) {
-      window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
-    }
+    (function() {
+      var h = window.location.hostname;
+      if (h !== 'www.spinandwin.world' && h !== 'spinandwin.world' && h !== 'localhost' && h !== '127.0.0.1') {
+        window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
+      }
+    })();
   </script>
 </head>
 <body>
