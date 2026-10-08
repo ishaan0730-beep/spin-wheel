@@ -1054,6 +1054,17 @@ class SpinWheelApp {
     this.adminRejectQuickReason = document.getElementById('admin-reject-quick-reason');
     this.adminRejectReasonText = document.getElementById('admin-reject-reason-text');
 
+    // Admin Player Registration Rejection Modal Elements
+    this.adminRejectPlayerModal = document.getElementById('admin-reject-player-modal');
+    this.adminRejectPlayerOverlay = document.getElementById('admin-reject-player-overlay');
+    this.adminRejectPlayerCloseBtn = document.getElementById('admin-reject-player-close-btn');
+    this.adminRejectPlayerCancelBtn = document.getElementById('admin-reject-player-cancel-btn');
+    this.adminRejectPlayerConfirmBtn = document.getElementById('admin-reject-player-confirm-btn');
+    this.rejectPlayerModalTitle = document.getElementById('reject-player-modal-title');
+    this.rejectPlayerModalDesc = document.getElementById('reject-player-modal-desc');
+    this.adminRejectPlayerQuickReason = document.getElementById('admin-reject-player-quick-reason');
+    this.adminRejectPlayerReasonText = document.getElementById('admin-reject-player-reason-text');
+
     // Admin Deposit Rejection Modal Elements
     this.adminRejectDepositModal = document.getElementById('admin-reject-deposit-modal');
     this.adminRejectDepositOverlay = document.getElementById('admin-reject-deposit-overlay');
@@ -3839,6 +3850,16 @@ class SpinWheelApp {
       return;
     }
 
+    // Enforce Master Admin Approval
+    if (user.status === 'PENDING') {
+      this.showCustomerAuthError('⏳ Your registration is currently PENDING Master Admin approval. Please wait for Master Admin to verify and activate your account before logging in.', this.custLoginError);
+      return;
+    }
+    if (user.status === 'REJECTED') {
+      this.showCustomerAuthError(`❌ Your registration request was REJECTED by Master Admin.${user.rejectionReason ? ' Reason: ' + user.rejectionReason : ''}`, this.custLoginError);
+      return;
+    }
+
     this.saveCustomerSession(user);
     this.updateCustomerUI();
     this.closeAuthModal();
@@ -3877,24 +3898,21 @@ class SpinWheelApp {
       return;
     }
 
-    // Look up registered player by mobile number or auto-create account for seamless access
+    // Look up registered player by mobile number
     let user = Object.values(this.customersDb || {}).find(u => u.mobile === mobile || u.id === mobile);
     if (!user) {
-      // Auto-register new mobile user with 10 free Welcome Coins!
-      const autoId = 'User' + mobile.slice(-4);
-      user = {
-        id: autoId,
-        name: 'Player ' + mobile.slice(-4),
-        mobile: mobile,
-        dob: '2000-01-01',
-        pin: '123456789',
-        coins: 10,
-        createdAt: Date.now(),
-        phoneVerified: true
-      };
-      this.customersDb[user.id] = user;
-      localStorage.setItem(STATE_KEYS.CUSTOMERS_DB, JSON.stringify(this.customersDb));
-      this.pushStateToServer({ customersDb: this.customersDb });
+      this.showCustomerAuthError(`❌ Mobile number +91 ${mobile} is not registered yet! Please tap "Sign Up" below to create an account.`, this.custLoginError);
+      return;
+    }
+
+    // Enforce Master Admin Approval Check on Mobile OTP Login
+    if (user.status === 'PENDING') {
+      this.showCustomerAuthError(`⏳ Account for +91 ${mobile} is currently PENDING Master Admin approval. Please wait for Master Admin verification.`, this.custLoginError);
+      return;
+    }
+    if (user.status === 'REJECTED') {
+      this.showCustomerAuthError(`❌ Registration for +91 ${mobile} was REJECTED by Master Admin.${user.rejectionReason ? ' Reason: ' + user.rejectionReason : ''}`, this.custLoginError);
+      return;
     }
 
     // Generate secure 4-digit OTP
@@ -3986,6 +4004,16 @@ class SpinWheelApp {
     const user = this.activeLoginOtp.user;
     this.activeLoginOtp = null;
     if (this.loginOtpInterval) clearInterval(this.loginOtpInterval);
+
+    // Double check status
+    if (user.status === 'PENDING') {
+      this.showCustomerAuthError(`⏳ Account for +91 ${user.mobile || user.id} is currently PENDING Master Admin approval.`, this.custLoginError);
+      return;
+    }
+    if (user.status === 'REJECTED') {
+      this.showCustomerAuthError(`❌ Registration was REJECTED by Master Admin.${user.rejectionReason ? ' Reason: ' + user.rejectionReason : ''}`, this.custLoginError);
+      return;
+    }
 
     this.saveCustomerSession(user);
     this.updateCustomerUI();
@@ -4199,7 +4227,7 @@ class SpinWheelApp {
       return;
     }
 
-    // OTP VALIDATED! CREATE VERIFIED ACCOUNT
+    // OTP VALIDATED! CREATE ACCOUNT IN PENDING APPROVAL STATUS
     const { name, mobile, id, dob, pin } = this.activeSignupOtp;
     this.activeSignupOtp = null;
     if (this.signupOtpInterval) clearInterval(this.signupOtpInterval);
@@ -4210,37 +4238,41 @@ class SpinWheelApp {
       mobile: mobile,
       dob: dob,
       pin: pin,
-      coins: 10, // 10 Welcome Coins
+      coins: 0, // Bonus credited upon Master Admin approval
+      status: 'PENDING', // PENDING MASTER ADMIN APPROVAL
       phoneVerified: true,
       verifiedAt: Date.now(),
       joinedAt: Date.now(),
       totalBets: 0,
-      wins: 0
+      wins: 0,
+      bankDetails: null
     };
 
     this.customersDb[id] = newCustomer;
     this.saveCustomersDB(this.customersDb);
-    this.saveCustomerSession(newCustomer);
-    this.updateCustomerUI();
     this.closeAuthModal();
 
-    // Broadcast new verified player immediately across all devices & server
+    // Broadcast new registration request immediately across all devices & server
     this.pushStateToServer({
       customersDb: this.customersDb,
       newPlayer: newCustomer
     });
 
-    // Send Registered Confirmation to Master Admin
-    const tgMsg = `👤 *NEW VERIFIED PLAYER REGISTRATION!*\n\n👑 *Name:* ${name}\n🆔 *User ID:* \`${id}\`\n📱 *Mobile:* \`+91 ${mobile}\` (✅ OTP Verified)\n🎂 *DOB:* ${dob}\n💰 *Welcome Bonus:* 10 IHD Coins\n🕒 *Time:* ${formatTime12(new Date())}\n\n👉 *Status:* Account created & active!`;
+    // Send High-Priority Registration Request to Master Admin
+    const tgMsg = `🚨 <b>[NEW PLAYER REGISTRATION REQUEST]</b>\n\n👤 <b>Name:</b> ${name}\n🆔 <b>User ID:</b> <code>${id}</code>\n📱 <b>Mobile:</b> <code>+91 ${mobile}</code> (✅ OTP Verified)\n🎂 <b>DOB:</b> ${dob}\n🕒 <b>Requested:</b> ${formatTime12(new Date())}\n\n👉 <b>Status:</b> ⏳ PENDING APPROVAL\n<i>Open Master Panel to APPROVE or REJECT this account!</i>`;
     this.sendTelegramNotification(tgMsg);
-    this.sendWhatsAppNotification(`👤 *NEW VERIFIED PLAYER*\nName: ${name}\nUser ID: ${id}\nMobile: +91 ${mobile} (Verified)\nBonus: 10 Coins`);
+    this.sendWhatsAppNotification(`🚨 [New Registration Request]\nName: ${name}\nUser ID: ${id}\nMobile: +91 ${mobile}\nStatus: PENDING MASTER APPROVAL\nPlease open Master Panel to Approve.`);
 
-    this.confetti.fire(2500);
-    this.audio.playWinFanfare();
+    this.showLiveToast({
+      title: '⏳ REGISTRATION REQUEST SUBMITTED!',
+      message: `Account <b>${id}</b> (+91 ${mobile}) is created and <b>PENDING Master Admin approval</b>. You will be able to log in once Master Admin approves your account!`,
+      type: 'warning'
+    });
+
     if (this.predictionFeedbackMsg) {
-      this.predictionFeedbackMsg.style.color = '#2ecc71';
-      this.predictionFeedbackMsg.textContent = `🎉 Mobile Verified! Account created successfully with 10 Free IHD Coins!`;
-      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 4500);
+      this.predictionFeedbackMsg.style.color = '#f5b041';
+      this.predictionFeedbackMsg.textContent = `⏳ Registration for ${id} submitted! Awaiting Master Admin approval.`;
+      setTimeout(() => { if (this.predictionFeedbackMsg) this.predictionFeedbackMsg.textContent = ''; }, 6000);
     }
   }
 
@@ -5714,6 +5746,35 @@ class SpinWheelApp {
       this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch.value);
     });
 
+    // Player Approval Status Filter Pills
+    document.querySelectorAll('.admin-player-filter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.admin-player-filter').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.adminPlayerFilter = btn.getAttribute('data-filter') || 'ALL';
+        this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+      });
+    });
+
+    // Admin Player Registration Rejection Modal Events
+    this.adminRejectPlayerCloseBtn?.addEventListener('click', () => this.adminCloseRejectPlayerModal());
+    this.adminRejectPlayerCancelBtn?.addEventListener('click', () => this.adminCloseRejectPlayerModal());
+    this.adminRejectPlayerOverlay?.addEventListener('click', () => this.adminCloseRejectPlayerModal());
+
+    this.adminRejectPlayerQuickReason?.addEventListener('change', () => {
+      const sel = this.adminRejectPlayerQuickReason.value;
+      if (sel !== 'CUSTOM' && this.adminRejectPlayerReasonText) {
+        this.adminRejectPlayerReasonText.value = sel;
+      } else if (this.adminRejectPlayerReasonText) {
+        this.adminRejectPlayerReasonText.value = '';
+        this.adminRejectPlayerReasonText.focus();
+      }
+    });
+
+    this.adminRejectPlayerConfirmBtn?.addEventListener('click', () => {
+      this.adminConfirmRejectPlayer();
+    });
+
     // Admin Rejection Modal Events
     this.adminRejectCloseBtn?.addEventListener('click', () => this.adminCloseRejectModal());
     this.adminRejectCancelBtn?.addEventListener('click', () => this.adminCloseRejectModal());
@@ -6402,32 +6463,60 @@ class SpinWheelApp {
 
     const players = Object.values(this.customersDb || {});
     const totalCount = players.length;
+    const pendingPlayers = players.filter(p => p && p.status === 'PENDING');
+    const activePlayers = players.filter(p => !p.status || p.status === 'ACTIVE');
+    const rejectedPlayers = players.filter(p => p && p.status === 'REJECTED');
     const totalCoins = players.reduce((sum, p) => sum + (p.coins || 0), 0);
+
+    const pendingCount = pendingPlayers.length;
+    const activeCount = activePlayers.length;
+    const rejectedCount = rejectedPlayers.length;
+
+    // Update Counter Badges
+    const pAll = document.getElementById('player-cnt-all');
+    const pPending = document.getElementById('player-cnt-pending');
+    const pActive = document.getElementById('player-cnt-active');
+    const pRejected = document.getElementById('player-cnt-rejected');
+    if (pAll) pAll.textContent = totalCount;
+    if (pPending) pPending.textContent = pendingCount;
+    if (pActive) pActive.textContent = activeCount;
+    if (pRejected) pRejected.textContent = rejectedCount;
 
     if (this.adminTotalPlayersCount) {
       this.adminTotalPlayersCount.textContent = totalCount;
     }
     if (this.adminTabBadgePlayers) {
-      this.adminTabBadgePlayers.textContent = totalCount;
+      this.adminTabBadgePlayers.textContent = pendingCount > 0 ? `${pendingCount} Req` : totalCount;
+      this.adminTabBadgePlayers.style.background = pendingCount > 0 ? '#f5b041' : 'rgba(0, 240, 255, 0.2)';
+      this.adminTabBadgePlayers.style.color = pendingCount > 0 ? '#000' : '#00f0ff';
+      this.adminTabBadgePlayers.style.fontWeight = pendingCount > 0 ? '800' : '700';
     }
     if (this.adminTotalCoinsCount) {
       this.adminTotalCoinsCount.textContent = `💰 ${totalCoins.toLocaleString()} IHD Coins`;
     }
 
-    // Populate Select Dropdown
+    // Populate Select Dropdown (Active players only)
     if (this.adminCreditPlayerSelect) {
       const currentSelected = this.adminCreditPlayerSelect.value;
       let opts = '<option value="">-- Choose a Registered Player --</option>';
-      players.forEach(p => {
+      activePlayers.forEach(p => {
         const isSel = p.id === currentSelected ? 'selected' : '';
         opts += `<option value="${p.id}" ${isSel}>${p.id} (${p.name || 'Player'} - 💰 ${(p.coins || 0).toLocaleString()} IHD Coins)</option>`;
       });
       this.adminCreditPlayerSelect.innerHTML = opts;
     }
 
-    // Filter players for table
+    // Filter players by status filter & search query
+    const activeFilter = this.adminPlayerFilter || 'ALL';
     const q = (filterQuery || '').toLowerCase().trim();
+
     const filteredPlayers = players.filter(p => {
+      if (!p) return false;
+      const status = p.status || 'ACTIVE';
+      if (activeFilter === 'PENDING' && status !== 'PENDING') return false;
+      if (activeFilter === 'ACTIVE' && status !== 'ACTIVE') return false;
+      if (activeFilter === 'REJECTED' && status !== 'REJECTED') return false;
+
       if (!q) return true;
       return (
         (p.id && p.id.toLowerCase().includes(q)) ||
@@ -6439,8 +6528,8 @@ class SpinWheelApp {
     if (filteredPlayers.length === 0) {
       this.adminPlayersTableBody.innerHTML = `
         <tr>
-          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1rem;">
-            ${totalCount === 0 ? 'No registered players yet.' : 'No players match your search filter.'}
+          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+            ${totalCount === 0 ? 'No registered players yet.' : (activeFilter === 'PENDING' ? '🎉 No pending registration requests right now!' : 'No players match your search filter.')}
           </td>
         </tr>
       `;
@@ -6451,15 +6540,50 @@ class SpinWheelApp {
     filteredPlayers.forEach(p => {
       const tr = document.createElement('tr');
       const coins = p.coins || 0;
+      const status = p.status || 'ACTIVE';
+
+      let statusBadge = '';
+      let actionsHtml = '';
+
+      if (status === 'PENDING') {
+        statusBadge = '<span class="status-pill status-pending" style="animation: badgePulsate 1.5s infinite ease-in-out; margin-top:3px; display:inline-block;">⏳ Pending Approval</span>';
+        actionsHtml = `
+          <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
+            <button class="btn btn-gold btn-xs" style="background:#2ecc71; border-color:#27ae60; color:#000; font-weight:800; padding:4px 8px;" title="Approve Registration & Credit 10 Bonus" onclick="(window.app || app).adminApprovePlayer('${p.id}')">✓ Approve (+10 Bonus)</button>
+            <button class="btn btn-danger btn-xs" style="padding:4px 8px;" title="Reject Registration Request" onclick="(window.app || app).adminOpenRejectPlayerModal('${p.id}')">✕ Reject</button>
+          </div>
+        `;
+      } else if (status === 'REJECTED') {
+        statusBadge = `<span class="status-pill status-rejected" style="margin-top:3px; display:inline-block;" title="${p.rejectionReason || 'Rejected'}">❌ Rejected</span>`;
+        actionsHtml = `
+          <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:center;">
+            <button class="btn btn-secondary btn-xs" style="padding:3px 7px; color:#2ecc71; border-color:rgba(46,204,113,0.4);" title="Re-Activate Player Account" onclick="(window.app || app).adminApprovePlayer('${p.id}')">🔄 Re-Activate</button>
+            <button class="btn btn-primary btn-xs" style="padding:3px 6px; font-size:0.68rem;" title="View Full History" onclick="(window.app || app).openPlayerHistoryModal('${p.id}')">📜 History</button>
+          </div>
+        `;
+      } else {
+        statusBadge = '<span class="status-pill status-approved" style="margin-top:3px; display:inline-block;">✅ Active</span>';
+        actionsHtml = `
+          <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:center;">
+            <button class="btn btn-secondary btn-xs" title="Add 100 IHD Coins" onclick="(window.app || app).adminAddPlayerCredit('${p.id}', 100)">+100</button>
+            <button class="btn btn-secondary btn-xs" title="Add 500 IHD Coins" onclick="(window.app || app).adminAddPlayerCredit('${p.id}', 500)">+500</button>
+            <button class="btn btn-gold btn-xs" title="Add 1,000 IHD Coins" onclick="(window.app || app).adminAddPlayerCredit('${p.id}', 1000)">+1k</button>
+            <button class="btn btn-secondary btn-xs" style="background:rgba(255,255,255,0.06); padding:2px 6px;" title="Custom Amount" onclick="(window.app || app).adminCustomCreditPrompt('${p.id}')">±</button>
+            <button class="btn btn-primary btn-xs" style="padding:2px 6px; font-size:0.68rem;" title="View Full History" onclick="(window.app || app).openPlayerHistoryModal('${p.id}')">📜 History</button>
+          </div>
+        `;
+      }
+
       tr.innerHTML = `
         <td>
-          <a href="javascript:void(0)" class="player-id-link" onclick="app.openPlayerHistoryModal('${p.id}')" title="Tap to view full history of ${p.name || p.id}">
+          <a href="javascript:void(0)" class="player-id-link" onclick="(window.app || app).openPlayerHistoryModal('${p.id}')" title="Tap to view full history of ${p.name || p.id}">
             <strong style="color:#fff; display:block;">${p.name || 'Player'}</strong>
             <span style="font-family:monospace; color:#00f0ff; font-weight:700;">ID: ${p.id}</span>
           </a>
+          ${statusBadge}
         </td>
         <td>
-          <span>📱 ${p.mobile || '--'}</span><br>
+          <span>📱 ${p.mobile ? '+91 ' + p.mobile : '--'}</span><br>
           <span style="font-size:0.7rem; color:var(--text-muted);">🎂 ${p.dob || '--'}</span>
         </td>
         <td>
@@ -6467,17 +6591,102 @@ class SpinWheelApp {
           <span style="font-size:0.68rem; color:var(--text-secondary);">${p.totalBets || 0} Bets</span>
         </td>
         <td>
-          <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:center;">
-            <button class="btn btn-secondary btn-xs" title="Add 100 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 100)">+100</button>
-            <button class="btn btn-secondary btn-xs" title="Add 500 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 500)">+500</button>
-            <button class="btn btn-gold btn-xs" title="Add 1,000 IHD Coins" onclick="app.adminAddPlayerCredit('${p.id}', 1000)">+1k</button>
-            <button class="btn btn-secondary btn-xs" style="background:rgba(255,255,255,0.06); padding:2px 6px;" title="Custom Amount" onclick="app.adminCustomCreditPrompt('${p.id}')">±</button>
-            <button class="btn btn-primary btn-xs" style="padding:2px 6px; font-size:0.68rem;" title="View Full History" onclick="app.openPlayerHistoryModal('${p.id}')">📜 History</button>
-          </div>
+          ${actionsHtml}
         </td>
       `;
       this.adminPlayersTableBody.appendChild(tr);
     });
+  }
+
+  adminApprovePlayer(userId) {
+    if (!this.customersDb || !this.customersDb[userId]) {
+      this.showAdminCreditFeedback(`❌ Player "${userId}" not found!`, false);
+      return;
+    }
+
+    const player = this.customersDb[userId];
+    player.status = 'ACTIVE';
+    player.approvedAt = Date.now();
+
+    // Credit 10 Welcome Bonus Coins if not already awarded
+    if (!player.bonusGiven) {
+      player.coins = (Number(player.coins) || 0) + 10;
+      player.bonusGiven = true;
+    }
+
+    this.saveCustomersDB(this.customersDb);
+    this.pushStateToServer({ customersDb: this.customersDb });
+
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.showAdminCreditFeedback(`✅ Player ${player.name} (${userId}) APPROVED & Activated with 10 IHD Bonus!`, true);
+    if (this.audio) this.audio.playWinFanfare();
+
+    // Alert Master Admin via Telegram & WhatsApp
+    const tgMsg = `✅ <b>[PLAYER REGISTRATION APPROVED!]</b>\n\n👤 <b>Player:</b> ${player.name} (ID: <code>${userId}</code>)\n📱 <b>Mobile:</b> <code>+91 ${player.mobile || 'N/A'}</code>\n🎂 <b>DOB:</b> ${player.dob || 'N/A'}\n💰 <b>Welcome Coins:</b> 10 IHD Credited\n🕒 <b>Approved At:</b> ${formatTime12(new Date())}\n\n👉 <i>Player is now ACTIVE and can log in & play!</i>`;
+    this.sendTelegramNotification(tgMsg);
+    this.sendWhatsAppNotification(`✅ [Registration Approved]\nPlayer: ${player.name} (ID: ${userId})\nMobile: +91 ${player.mobile || 'N/A'}\nStatus: ACTIVE`);
+  }
+
+  adminOpenRejectPlayerModal(userId) {
+    if (!this.customersDb || !this.customersDb[userId]) return;
+    const player = this.customersDb[userId];
+    this.pendingRejectPlayerId = userId;
+
+    if (this.rejectPlayerModalTitle) {
+      this.rejectPlayerModalTitle.textContent = `Reject Player: ${player.name} (${userId})`;
+    }
+    if (this.rejectPlayerModalDesc) {
+      this.rejectPlayerModalDesc.innerHTML = `Mobile: <strong>+91 ${player.mobile || 'N/A'}</strong> | User ID: <strong>${userId}</strong><br><span style="color:#ef4444;">This account will be blocked from logging in.</span>`;
+    }
+    if (this.adminRejectPlayerQuickReason) {
+      this.adminRejectPlayerQuickReason.selectedIndex = 0;
+    }
+    if (this.adminRejectPlayerReasonText) {
+      this.adminRejectPlayerReasonText.value = this.adminRejectPlayerQuickReason ? this.adminRejectPlayerQuickReason.value : 'Duplicate account detected';
+    }
+    if (this.adminRejectPlayerModal) {
+      this.adminRejectPlayerModal.classList.remove('hidden');
+    }
+  }
+
+  adminCloseRejectPlayerModal() {
+    this.pendingRejectPlayerId = null;
+    if (this.adminRejectPlayerModal) {
+      this.adminRejectPlayerModal.classList.add('hidden');
+    }
+  }
+
+  adminConfirmRejectPlayer() {
+    if (!this.pendingRejectPlayerId) return;
+    const userId = this.pendingRejectPlayerId;
+    const player = this.customersDb[userId];
+    if (!player) {
+      this.adminCloseRejectPlayerModal();
+      return;
+    }
+
+    const reason = (this.adminRejectPlayerReasonText?.value || 'Blocked by administrator policy').trim();
+    player.status = 'REJECTED';
+    player.rejectionReason = reason;
+    player.rejectedAt = Date.now();
+
+    this.saveCustomersDB(this.customersDb);
+    this.pushStateToServer({ customersDb: this.customersDb });
+
+    this.adminCloseRejectPlayerModal();
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.showAdminCreditFeedback(`❌ Registration for ${player.name} (${userId}) REJECTED.`, false);
+
+    // Send Telegram Notification
+    const tgMsg = `❌ <b>[PLAYER REGISTRATION REJECTED]</b>\n\n👤 <b>Player:</b> ${player.name} (ID: <code>${userId}</code>)\n📱 <b>Mobile:</b> <code>+91 ${player.mobile || 'N/A'}</code>\n⚠️ <b>Reason:</b> ${reason}\n🕒 <b>Rejected At:</b> ${formatTime12(new Date())}`;
+    this.sendTelegramNotification(tgMsg);
+  }
+
+  handleRejectPlayerQuickReasonChange(reason) {
+    if (this.adminRejectPlayerReasonText) {
+      this.adminRejectPlayerReasonText.value = (reason === 'CUSTOM') ? '' : reason;
+      if (reason === 'CUSTOM') this.adminRejectPlayerReasonText.focus();
+    }
   }
 
   getBetDateCategory(bet, now = new Date()) {

@@ -422,10 +422,17 @@ export default async function handler(req, res) {
             sendTelegramAlert(otpMsg);
             sendWhatsAppAlert(otpMsg);
           }
-          if (body.newPlayer && body.newPlayer.id && !globalState.customersDb[body.newPlayer.id]) {
-            const regMsg = `👤 *NEW PLAYER REGISTRATION!*\n\n👑 *Name:* ${body.newPlayer.name}\n🆔 *User ID:* \`${body.newPlayer.id}\`\n📱 *Mobile:* \`${body.newPlayer.mobile || 'N/A'}\`\n🎂 *DOB:* ${body.newPlayer.dob || 'N/A'}\n💰 *Welcome Bonus:* 10 IHD Coins\n\n👉 Account created & active!`;
-            sendTelegramAlert(regMsg);
-            sendWhatsAppAlert(regMsg);
+          if (body.newPlayer && body.newPlayer.id) {
+            const isApproved = (body.newPlayer.status === 'ACTIVE');
+            if (isApproved) {
+              const regMsg = `👤 *NEW VERIFIED PLAYER APPROVED!*\n\n👑 *Name:* ${body.newPlayer.name}\n🆔 *User ID:* \`${body.newPlayer.id}\`\n📱 *Mobile:* \`+91 ${body.newPlayer.mobile || 'N/A'}\`\n🎂 *DOB:* ${body.newPlayer.dob || 'N/A'}\n💰 *Welcome Bonus:* 10 IHD Coins\n\n👉 Account is active & ready to play!`;
+              sendTelegramAlert(regMsg);
+              sendWhatsAppAlert(regMsg);
+            } else {
+              const regMsg = `🚨 *NEW PLAYER REGISTRATION REQUEST (PENDING APPROVAL)!*\n\n👑 *Name:* ${body.newPlayer.name}\n🆔 *User ID:* \`${body.newPlayer.id}\`\n📱 *Mobile:* \`+91 ${body.newPlayer.mobile || 'N/A'}\` (✅ OTP Verified)\n🎂 *DOB:* ${body.newPlayer.dob || 'N/A'}\n🕒 *Time:* ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}\n\n👉 *Status:* ⏳ PENDING Master Admin Approval\nOpen Master Admin Panel to APPROVE or REJECT!`;
+              sendTelegramAlert(regMsg);
+              sendWhatsAppAlert(regMsg);
+            }
           }
           if (body.newBet && body.newBet.id) {
             const betMsg = `🎯 *NEW BET PLACED!*\n\n👤 *Player ID:* \`${body.newBet.playerId || 'Player'}\`\n🔢 *Number:* #${body.newBet.number}\n💰 *Amount:* 💰${body.newBet.amount} Coins\n🏆 *Potential Win (9x):* 💰${(body.newBet.amount || 0) * 9} Coins`;

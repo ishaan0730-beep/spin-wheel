@@ -1269,6 +1269,14 @@
                 <input type="text" id="admin-player-search" class="admin-input" placeholder="🔍 Search players by User ID, Name, or Mobile...">
               </div>
 
+              <!-- Status Filter Pills for Player Registration Approvals -->
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:0.65rem;">
+                <button type="button" class="btn btn-secondary btn-xs admin-player-filter active" data-filter="ALL">👥 All Players (<span id="player-cnt-all">0</span>)</button>
+                <button type="button" class="btn btn-secondary btn-xs admin-player-filter" data-filter="PENDING" style="border-color:#f5b041; color:#f5b041; font-weight:800;">⏳ Pending Approvals (<span id="player-cnt-pending">0</span>)</button>
+                <button type="button" class="btn btn-secondary btn-xs admin-player-filter" data-filter="ACTIVE" style="border-color:#2ecc71; color:#2ecc71;">✅ Active (<span id="player-cnt-active">0</span>)</button>
+                <button type="button" class="btn btn-secondary btn-xs admin-player-filter" data-filter="REJECTED" style="border-color:#ff6b6b; color:#ff6b6b;">❌ Rejected (<span id="player-cnt-rejected">0</span>)</button>
+              </div>
+
               <!-- Interactive Players Table -->
               <div class="schedule-table-wrap" style="max-height: 280px; overflow-y:auto;">
                 <table class="schedule-table" style="font-size:0.76rem;">
@@ -2059,6 +2067,50 @@
         <div class="form-actions" style="margin-top: 0.9rem; display:flex; gap:0.5rem;">
           <button type="button" id="admin-reject-dep-cancel-btn" class="btn btn-secondary" style="flex:1;" onclick="app.adminCloseRejectDepositModal()">Cancel</button>
           <button type="button" id="admin-reject-dep-confirm-btn" class="btn btn-danger" style="flex:1.5;" onclick="app.adminConfirmRejectDeposit()">❌ Confirm Reject Deposit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MASTER ADMIN REJECTION PROMPT MODAL FOR PLAYER REGISTRATION -->
+  <div id="admin-reject-player-modal" class="modal-wrapper hidden">
+    <div class="modal-overlay" id="admin-reject-player-overlay" onclick="app.adminCloseRejectPlayerModal()"></div>
+    <div class="modal-card auth-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span style="font-size:1.2rem;">❌</span>
+          <h3 style="color:#ef4444;">Reject Player Registration</h3>
+        </div>
+        <button id="admin-reject-player-close-btn" class="icon-btn" aria-label="Close Modal" onclick="app.adminCloseRejectPlayerModal()">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 1.2rem;">
+        <div class="admin-badge-notice" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.4); margin-bottom: 0.85rem;">
+          <div>
+            <strong id="reject-player-modal-title" style="color:#fff;">Rejecting Player Registration</strong>
+            <p id="reject-player-modal-desc" style="font-size: 0.74rem; color: var(--text-secondary); margin: 2px 0 0 0;">Player will not be able to log in.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="field-label">Select Reason for Rejection:</label>
+          <select id="admin-reject-player-quick-reason" class="admin-select" onchange="app.handleRejectPlayerQuickReasonChange(this.value)">
+            <option value="Duplicate account detected">Duplicate account detected</option>
+            <option value="Suspicious / invalid mobile number">Suspicious / invalid mobile number</option>
+            <option value="Underage / DOB mismatch">Underage / DOB mismatch</option>
+            <option value="Blocked by administrator policy">Blocked by administrator policy</option>
+            <option value="CUSTOM">Type custom reason...</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-top:0.6rem;">
+          <label class="field-label">Rejection Reason (Visible to Player on Login):</label>
+          <textarea id="admin-reject-player-reason-text" class="admin-input" rows="3" placeholder="Enter reason for rejecting registration..."></textarea>
+        </div>
+
+        <div class="form-actions" style="margin-top: 0.9rem; display:flex; gap:0.5rem;">
+          <button type="button" id="admin-reject-player-cancel-btn" class="btn btn-secondary" style="flex:1;" onclick="app.adminCloseRejectPlayerModal()">Cancel</button>
+          <button type="button" id="admin-reject-player-confirm-btn" class="btn btn-danger" style="flex:1.5;" onclick="app.adminConfirmRejectPlayer()">❌ Confirm Reject Account</button>
         </div>
       </div>
     </div>
