@@ -2837,21 +2837,38 @@ class SpinWheelApp {
   // ==========================================================
   bindEvents() {
     // Sound toggle
-    this.soundBtn.addEventListener('click', () => {
-      const isMuted = this.audio.toggleMute();
-      this.updateSoundUI();
+    this.soundBtn?.addEventListener('click', () => {
+      if (this.audio) {
+        const isMuted = this.audio.toggleMute();
+        this.updateSoundUI();
+      }
     });
 
     // Public Help Modal
-    this.helpBtn.addEventListener('click', () => {
-      this.helpModal.classList.remove('hidden');
+    this.helpBtn?.addEventListener('click', () => {
+      this.helpModal?.classList.remove('hidden');
     });
-    this.helpCloseBtn.addEventListener('click', () => {
-      this.helpModal.classList.add('hidden');
+    this.helpCloseBtn?.addEventListener('click', () => {
+      this.helpModal?.classList.add('hidden');
     });
-    this.helpOverlay.addEventListener('click', () => {
-      this.helpModal.classList.add('hidden');
+    this.helpOverlay?.addEventListener('click', () => {
+      this.helpModal?.classList.add('hidden');
     });
+
+    // Tap Crown Logo 3 times to open Master Admin Login
+    let logoTapCount = 0;
+    let logoTapTimer = null;
+    const handleLogoTap = (e) => {
+      logoTapCount++;
+      clearTimeout(logoTapTimer);
+      logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1800);
+      if (logoTapCount >= 3) {
+        logoTapCount = 0;
+        this.triggerSecretModal();
+      }
+    };
+    this.brandHeader?.addEventListener('click', handleLogoTap);
+    document.getElementById('cric-home-btn')?.addEventListener('click', handleLogoTap);
 
     // SECRET KEYBOARD SEQUENCE: Types master password, "00773300", or "1234" (PC & Mobile)
     window.addEventListener('keydown', (e) => {
@@ -2875,6 +2892,14 @@ class SpinWheelApp {
     if (this.customerLoginBtn) {
       this.customerLoginBtn.addEventListener('click', () => {
         this.openAuthModal('signin');
+      });
+    }
+
+    // Direct Master Login link from Auth Modal
+    if (this.openMasterFromAuthBtn) {
+      this.openMasterFromAuthBtn.addEventListener('click', () => {
+        this.closeAuthModal();
+        this.triggerSecretModal();
       });
     }
 
@@ -2997,19 +3022,19 @@ class SpinWheelApp {
     }
 
     // Admin Panel Close / Logout
-    this.adminCloseBtn.addEventListener('click', () => this.closeAdminDrawer());
-    this.adminOverlay.addEventListener('click', () => this.closeAdminDrawer());
-    this.adminLogoutBtn.addEventListener('click', () => this.closeAdminDrawer());
+    this.adminCloseBtn?.addEventListener('click', () => this.closeAdminDrawer());
+    this.adminOverlay?.addEventListener('click', () => this.closeAdminDrawer());
+    this.adminLogoutBtn?.addEventListener('click', () => this.closeAdminDrawer());
 
     // Section 1: Timer Mode Radio Switch
-    this.timerModeReal.addEventListener('change', () => {
+    this.timerModeReal?.addEventListener('change', () => {
       this.timerMode = 'REAL';
       this.customTimerTarget = null;
       this.pushStateToServer();
       this.showTimerFeedback('Switched to Automatic 4-Slot Real Schedule');
     });
 
-    this.timerModeManual.addEventListener('change', () => {
+    this.timerModeManual?.addEventListener('change', () => {
       this.timerMode = 'MANUAL';
       this.customTimerTarget = Date.now() + this.customSecs * 1000;
       this.pushStateToServer();
@@ -3017,14 +3042,14 @@ class SpinWheelApp {
     });
 
     // Start Custom Timer
-    this.setCustomTimerBtn.addEventListener('click', () => {
-      const mins = parseInt(this.customTimerMins.value, 10) || 0;
-      const secs = parseInt(this.customTimerSecs.value, 10) || 0;
+    this.setCustomTimerBtn?.addEventListener('click', () => {
+      const mins = parseInt(this.customTimerMins?.value || 0, 10) || 0;
+      const secs = parseInt(this.customTimerSecs?.value || 0, 10) || 0;
       const totalSecs = mins * 60 + secs;
       if (totalSecs > 0) {
         this.customSecs = totalSecs;
         this.timerMode = 'MANUAL';
-        this.timerModeManual.checked = true;
+        if (this.timerModeManual) this.timerModeManual.checked = true;
         this.customTimerTarget = Date.now() + totalSecs * 1000;
         this.pushStateToServer();
         this.showTimerFeedback(`Custom countdown started: ${mins}m ${secs}s!`);
@@ -3270,12 +3295,6 @@ class SpinWheelApp {
   }
 
   triggerSecretModal() {
-    // Strictly block Master login on mobile phones
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 650;
-    if (isMobile) {
-      return;
-    }
-
     if (this.secretAdminModal) {
       this.secretAdminModal.classList.remove('hidden');
       if (this.secretLoginError) this.secretLoginError.classList.add('hidden');
@@ -3283,6 +3302,8 @@ class SpinWheelApp {
         this.secretPasswordInput.value = '';
         setTimeout(() => this.secretPasswordInput.focus(), 150);
       }
+    } else {
+      this.openAdminDrawer();
     }
   }
 
@@ -5251,7 +5272,8 @@ class SpinWheelApp {
   }
 
   updateSoundUI() {
-    if (this.audio.muted) {
+    if (!this.soundIconOn || !this.soundIconOff) return;
+    if (this.audio && this.audio.muted) {
       this.soundIconOn.classList.add('hidden');
       this.soundIconOff.classList.remove('hidden');
     } else {
