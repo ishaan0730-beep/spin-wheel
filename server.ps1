@@ -1,4 +1,4 @@
-﻿$folder = $PSScriptRoot
+$folder = $PSScriptRoot
 if (-not $folder) { $folder = (Get-Location).Path }
 
 # Detect all active LAN / Wi-Fi / Hotspot IPv4 addresses
@@ -206,6 +206,26 @@ public class NativeHttpServer {
                                     var incomingObj = serializer.Deserialize<Dictionary<string, object>>(bodyJson);
 
                                     if (currentObj != null && incomingObj != null) {
+                                        if (incomingObj.ContainsKey("deletedCustomerId") && incomingObj["deletedCustomerId"] != null) {
+                                            string dId = incomingObj["deletedCustomerId"].ToString();
+                                            if (currentObj.ContainsKey("customersDb") && currentObj["customersDb"] is Dictionary<string, object>) {
+                                                ((Dictionary<string, object>)currentObj["customersDb"]).Remove(dId);
+                                            }
+                                        }
+                                        if (incomingObj.ContainsKey("deletedPlayerId") && incomingObj["deletedPlayerId"] != null) {
+                                            string dId = incomingObj["deletedPlayerId"].ToString();
+                                            if (currentObj.ContainsKey("customersDb") && currentObj["customersDb"] is Dictionary<string, object>) {
+                                                ((Dictionary<string, object>)currentObj["customersDb"]).Remove(dId);
+                                            }
+                                        }
+
+                                        if (incomingObj.ContainsKey("fullRestore") && incomingObj["fullRestore"] != null && incomingObj["fullRestore"].ToString().ToLower() == "true") {
+                                            foreach (KeyValuePair<string, object> rKvp in incomingObj) {
+                                                if (rKvp.Key != "fullRestore" && rKvp.Key != "adminKey") {
+                                                    currentObj[rKvp.Key] = rKvp.Value;
+                                                }
+                                            }
+                                        } else {
                                         foreach (KeyValuePair<string, object> kvp in incomingObj) {
                                             var inDep = kvp.Value as Dictionary<string, object>;
                                             var inList = kvp.Value as System.Collections.IEnumerable;
@@ -395,6 +415,7 @@ public class NativeHttpServer {
                                                 currentObj[kvp.Key] = kvp.Value;
                                             }
                                         }
+                                    }
                                         if (currentObj.ContainsKey("scheduleAction")) {
                                             currentObj["scheduleAction"] = "";
                                         }

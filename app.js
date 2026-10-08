@@ -972,6 +972,16 @@ class SpinWheelApp {
     this.sentSlotAlerts = {};
     this.adminTabSpinPane = document.getElementById('admin-tab-spin-pane');
     this.adminTabPlayersPane = document.getElementById('admin-tab-players-pane');
+    this.adminTabLiveBetsPane = document.getElementById('admin-tab-livebets-pane');
+    this.adminNavLiveBetsBtn = document.getElementById('admin-nav-livebets-btn');
+    this.adminTabBadgeLiveBets = document.getElementById('admin-tab-badge-livebets');
+    this.adminTabBackupPane = document.getElementById('admin-tab-backup-pane');
+    this.adminNavBackupBtn = document.getElementById('admin-nav-backup-btn');
+    this.backupStatPlayers = document.getElementById('backup-stat-players');
+    this.backupStatCoins = document.getElementById('backup-stat-coins');
+    this.backupStatHistory = document.getElementById('backup-stat-history');
+    this.backupStatTxns = document.getElementById('backup-stat-txns');
+    this.adminMasterBackupFeedback = document.getElementById('admin-master-backup-feedback');
     this.adminTabDepositsPane = document.getElementById('admin-tab-deposits-pane');
     this.adminTabWithdrawalsPane = document.getElementById('admin-tab-withdrawals-pane');
     this.adminTabSettingsPane = document.getElementById('admin-tab-settings-pane');
@@ -5826,10 +5836,12 @@ class SpinWheelApp {
     // Admin Master Vertical Nav Tabs
     this.adminNavSpinBtn?.addEventListener('click', () => this.setAdminTab('spin'));
     this.adminNavPlayersBtn?.addEventListener('click', () => this.setAdminTab('players'));
+    this.adminNavLiveBetsBtn?.addEventListener('click', () => this.setAdminTab('livebets'));
     this.adminNavDepositsBtn?.addEventListener('click', () => this.setAdminTab('deposits'));
     this.adminNavWithdrawalsBtn?.addEventListener('click', () => this.setAdminTab('withdrawals'));
     this.adminNavChatsBtn?.addEventListener('click', () => this.setAdminTab('chats'));
     this.adminNavPromosBtn?.addEventListener('click', () => this.setAdminTab('promos'));
+    this.adminNavBackupBtn?.addEventListener('click', () => this.setAdminTab('backup'));
     this.adminNavSettingsBtn?.addEventListener('click', () => this.setAdminTab('settings'));
   }
 
@@ -5839,26 +5851,37 @@ class SpinWheelApp {
     // Clear all active states on vertical tabs
     this.adminNavSpinBtn?.classList.remove('active');
     this.adminNavPlayersBtn?.classList.remove('active');
+    this.adminNavLiveBetsBtn?.classList.remove('active');
     this.adminNavDepositsBtn?.classList.remove('active');
     this.adminNavWithdrawalsBtn?.classList.remove('active');
     this.adminNavChatsBtn?.classList.remove('active');
     this.adminNavPromosBtn?.classList.remove('active');
+    this.adminNavBackupBtn?.classList.remove('active');
     this.adminNavSettingsBtn?.classList.remove('active');
 
     // Hide all panes
     this.adminTabSpinPane?.classList.add('hidden');
     this.adminTabPlayersPane?.classList.add('hidden');
+    this.adminTabLiveBetsPane?.classList.add('hidden');
     this.adminTabDepositsPane?.classList.add('hidden');
     this.adminTabWithdrawalsPane?.classList.add('hidden');
     this.adminTabChatsPane?.classList.add('hidden');
     this.adminTabPromosPane?.classList.add('hidden');
+    this.adminTabBackupPane?.classList.add('hidden');
     this.adminTabSettingsPane?.classList.add('hidden');
 
     if (tabName === 'players') {
       this.adminNavPlayersBtn?.classList.add('active');
       this.adminTabPlayersPane?.classList.remove('hidden');
       this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    } else if (tabName === 'livebets') {
+      this.adminNavLiveBetsBtn?.classList.add('active');
+      this.adminTabLiveBetsPane?.classList.remove('hidden');
       this.renderAdminActiveBetsTable();
+    } else if (tabName === 'backup') {
+      this.adminNavBackupBtn?.classList.add('active');
+      this.adminTabBackupPane?.classList.remove('hidden');
+      this.renderMasterBackupStats();
     } else if (tabName === 'deposits') {
       this.adminNavDepositsBtn?.classList.add('active');
       this.adminTabDepositsPane?.classList.remove('hidden');
@@ -6551,6 +6574,7 @@ class SpinWheelApp {
           <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
             <button class="btn btn-gold btn-xs" style="background:#2ecc71; border-color:#27ae60; color:#000; font-weight:800; padding:4px 8px;" title="Approve Registration & Credit 10 Bonus" onclick="(window.app || app).adminApprovePlayer('${p.id}')">✓ Approve (+10 Bonus)</button>
             <button class="btn btn-danger btn-xs" style="padding:4px 8px;" title="Reject Registration Request" onclick="(window.app || app).adminOpenRejectPlayerModal('${p.id}')">✕ Reject</button>
+            <button class="btn btn-danger btn-xs" style="background:rgba(239,68,68,0.2); border-color:#ef4444; color:#ef4444; padding:4px 6px;" title="Delete ID Permanently" onclick="(window.app || app).adminDeletePlayer('${p.id}')">🗑️ Del</button>
           </div>
         `;
       } else if (status === 'REJECTED') {
@@ -6559,6 +6583,7 @@ class SpinWheelApp {
           <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:center;">
             <button class="btn btn-secondary btn-xs" style="padding:3px 7px; color:#2ecc71; border-color:rgba(46,204,113,0.4);" title="Re-Activate Player Account" onclick="(window.app || app).adminApprovePlayer('${p.id}')">🔄 Re-Activate</button>
             <button class="btn btn-primary btn-xs" style="padding:3px 6px; font-size:0.68rem;" title="View Full History" onclick="(window.app || app).openPlayerHistoryModal('${p.id}')">📜 History</button>
+            <button class="btn btn-danger btn-xs" style="background:rgba(239,68,68,0.2); border-color:#ef4444; color:#ef4444; padding:3px 6px; font-size:0.68rem;" title="Delete ID Permanently" onclick="(window.app || app).adminDeletePlayer('${p.id}')">🗑️ Del ID</button>
           </div>
         `;
       } else {
@@ -6570,6 +6595,7 @@ class SpinWheelApp {
             <button class="btn btn-gold btn-xs" title="Add 1,000 IHD Coins" onclick="(window.app || app).adminAddPlayerCredit('${p.id}', 1000)">+1k</button>
             <button class="btn btn-secondary btn-xs" style="background:rgba(255,255,255,0.06); padding:2px 6px;" title="Custom Amount" onclick="(window.app || app).adminCustomCreditPrompt('${p.id}')">±</button>
             <button class="btn btn-primary btn-xs" style="padding:2px 6px; font-size:0.68rem;" title="View Full History" onclick="(window.app || app).openPlayerHistoryModal('${p.id}')">📜 History</button>
+            <button class="btn btn-danger btn-xs" style="background:rgba(239,68,68,0.2); border-color:#ef4444; color:#ef4444; padding:2px 6px; font-size:0.68rem;" title="Delete Player ID Permanently" onclick="(window.app || app).adminDeletePlayer('${p.id}')">🗑️ Del ID</button>
           </div>
         `;
       }
@@ -6598,6 +6624,51 @@ class SpinWheelApp {
     });
   }
 
+  adminDeletePlayer(userId) {
+    if (!userId) return;
+    const player = (this.customersDb && this.customersDb[userId]) ? this.customersDb[userId] : null;
+    const pName = player ? (player.name || userId) : userId;
+    const pCoins = player ? (player.coins || 0) : 0;
+    const pMobile = player && player.mobile ? ` (+91 ${player.mobile})` : '';
+
+    const confirmMsg = `⚠️ PERMANENT ACCOUNT DELETION\n\nAre you sure you want to permanently DELETE player:\n\n👤 Name: ${pName}\n🆔 User ID: ${userId}${pMobile}\n💰 Wallet Balance: ${pCoins.toLocaleString()} IHD Coins\n\nThis will remove the player from the database and block all login access.\n\nClick OK to permanently delete.`;
+
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    // 1. Delete from customersDb
+    if (this.customersDb && this.customersDb[userId]) {
+      delete this.customersDb[userId];
+      this.saveCustomersDB(this.customersDb);
+    }
+
+    // 2. If the logged in user on this device is this player, logout session
+    if (this.currentCustomer && (this.currentCustomer.id === userId || String(this.currentCustomer.id) === String(userId))) {
+      this.currentCustomer = null;
+      this.saveCustomerSession(null);
+      this.updateCustomerUI();
+    }
+
+    // 3. Close player history modal if currently viewing this player
+    if (this.currentAphPlayerId === userId && this.adminPlayerHistoryModal && !this.adminPlayerHistoryModal.classList.contains('hidden')) {
+      this.closePlayerHistoryModal();
+    }
+
+    // 4. Broadcast deletion to server
+    this.pushStateToServer({ customersDb: this.customersDb, deletedCustomerId: String(userId), deletedPlayerId: String(userId) });
+
+    // 5. Re-render players table, backup stats, and show toast
+    this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.renderMasterBackupStats();
+    this.showAdminCreditFeedback(`🗑️ Player "${pName}" (ID: ${userId}) has been permanently deleted!`, true);
+    if (this.audio) this.audio.playTick();
+
+    // 6. Send notification to Telegram & WhatsApp
+    const tgMsg = `🗑️ <b>[PLAYER ACCOUNT DELETED]</b>\n\n👤 <b>Player:</b> ${pName} (ID: <code>${userId}</code>)\n📱 <b>Mobile:</b> <code>${pMobile || 'N/A'}</code>\n💰 <b>Balance Removed:</b> ${pCoins} IHD\n🕒 <b>Deleted At:</b> ${formatTime12(new Date())}\n\n👉 <i>Account was permanently deleted by Master Admin.</i>`;
+    this.sendTelegramNotification(tgMsg);
+  }
+
   adminApprovePlayer(userId) {
     if (!this.customersDb || !this.customersDb[userId]) {
       this.showAdminCreditFeedback(`❌ Player "${userId}" not found!`, false);
@@ -6618,6 +6689,7 @@ class SpinWheelApp {
     this.pushStateToServer({ customersDb: this.customersDb });
 
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.renderMasterBackupStats();
     this.showAdminCreditFeedback(`✅ Player ${player.name} (${userId}) APPROVED & Activated with 10 IHD Bonus!`, true);
     if (this.audio) this.audio.playWinFanfare();
 
@@ -6675,6 +6747,7 @@ class SpinWheelApp {
 
     this.adminCloseRejectPlayerModal();
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
+    this.renderMasterBackupStats();
     this.showAdminCreditFeedback(`❌ Registration for ${player.name} (${userId}) REJECTED.`, false);
 
     // Send Telegram Notification
@@ -6687,6 +6760,194 @@ class SpinWheelApp {
       this.adminRejectPlayerReasonText.value = (reason === 'CUSTOM') ? '' : reason;
       if (reason === 'CUSTOM') this.adminRejectPlayerReasonText.focus();
     }
+  }
+
+  // ==========================================================
+  // MASTER DATABASE BACKUP & RESTORE SAFETY ENGINE
+  // ==========================================================
+  renderMasterBackupStats() {
+    const totalPlayers = Object.keys(this.customersDb || {}).length;
+    const totalCoins = Object.values(this.customersDb || {}).reduce((s, p) => s + (Number(p.coins) || 0), 0);
+    const totalHistory = (this.history || []).length;
+    const totalTxns = (this.deposits || []).length + (this.withdrawals || []).length;
+
+    if (this.backupStatPlayers) this.backupStatPlayers.textContent = totalPlayers;
+    if (this.backupStatCoins) this.backupStatCoins.textContent = `💰 ${totalCoins.toLocaleString()} IHD`;
+    if (this.backupStatHistory) this.backupStatHistory.textContent = totalHistory;
+    if (this.backupStatTxns) this.backupStatTxns.textContent = totalTxns;
+  }
+
+  exportMasterBackupJSON() {
+    const now = new Date();
+    const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const formattedDate = now.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'medium' });
+
+    const totalCoins = Object.values(this.customersDb || {}).reduce((s, p) => s + (Number(p.coins) || 0), 0);
+
+    const backupData = {
+      backupType: 'LUCKY_SPIN_WHEEL_MASTER_FULL_BACKUP',
+      backupVersion: '7.6.0',
+      exportedAt: Date.now(),
+      exportedDateFormatted: formattedDate,
+      summary: {
+        totalRegisteredPlayers: Object.keys(this.customersDb || {}).length,
+        totalIhdCoinsInPlay: totalCoins,
+        totalWinningRoundsHistory: (this.history || []).length,
+        totalDepositRequests: (this.deposits || []).length,
+        totalWithdrawalRequests: (this.withdrawals || []).length,
+        totalActivePredictions: (this.activeBets || []).length
+      },
+      customersDb: this.customersDb || {},
+      history: this.history || [],
+      dailySchedule: this.dailySchedule || { '12:00 PM': 'AUTO', '04:00 PM': 'AUTO', '08:00 PM': 'AUTO', '11:00 PM': 'AUTO' },
+      activeBets: this.activeBets || [],
+      deposits: this.deposits || [],
+      withdrawals: this.withdrawals || [],
+      depositConfig: this.depositConfig || { upiId: '00000000', accountName: 'DEEP', qrImageUrl: './master-qr.jpg', minDeposit: 100 },
+      notificationConfig: this.notificationConfig || {},
+      promoCodes: this.promoCodes || {},
+      supportChats: this.supportChats || {},
+      slices: this.slices || [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+      timerMode: this.timerMode || 'REAL'
+    };
+
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lucky_spin_master_backup_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const msg = `✅ Complete Database Backup Downloaded! (${backupData.summary.totalRegisteredPlayers} Players, ${backupData.summary.totalWinningRoundsHistory} History Rounds, ${backupData.summary.totalDepositRequests + backupData.summary.totalWithdrawalRequests} Transactions). Keep this file safe!`;
+    if (this.adminMasterBackupFeedback) {
+      this.adminMasterBackupFeedback.textContent = msg;
+      this.adminMasterBackupFeedback.className = 'save-status-msg success';
+      this.adminMasterBackupFeedback.classList.remove('hidden');
+    }
+    this.showLiveToast({
+      title: '💾 MASTER BACKUP DOWNLOADED!',
+      message: msg,
+      type: 'success',
+      duration: 7000
+    });
+    if (this.audio) this.audio.playWinFanfare();
+  }
+
+  importMasterBackupJSON(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target.result;
+        const backup = JSON.parse(content);
+
+        const pCount = backup.customersDb ? Object.keys(backup.customersDb).length : (backup.summary?.totalRegisteredPlayers || 0);
+        const hCount = Array.isArray(backup.history) ? backup.history.length : (backup.summary?.totalWinningRoundsHistory || 0);
+        const dCount = Array.isArray(backup.deposits) ? backup.deposits.length : 0;
+        const wCount = Array.isArray(backup.withdrawals) ? backup.withdrawals.length : 0;
+
+        const confirmMsg = `⚠️ RESTORE DATABASE BACKUP\n\nBackup File Details:\n• Export Date: ${backup.exportedDateFormatted || 'Unknown'}\n• Registered Players: ${pCount}\n• Winning Numbers History: ${hCount} Rounds\n• Deposits: ${dCount}\n• Withdrawals: ${wCount}\n\nAre you sure you want to RESTORE all this data? Current database will be safely updated from this backup file.`;
+
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+
+        // 1. Apply restored objects
+        if (backup.customersDb && typeof backup.customersDb === 'object') {
+          this.customersDb = backup.customersDb;
+          this.saveCustomersDB(this.customersDb);
+        }
+        if (Array.isArray(backup.history)) {
+          this.history = this.sanitizeHistoryList(backup.history);
+          this.saveHistory(this.history);
+        }
+        if (backup.dailySchedule && typeof backup.dailySchedule === 'object') {
+          this.dailySchedule = backup.dailySchedule;
+          this.saveDailySchedule(this.dailySchedule);
+        }
+        if (Array.isArray(backup.activeBets)) {
+          this.activeBets = backup.activeBets;
+          this.saveActiveBets(this.activeBets);
+        }
+        if (Array.isArray(backup.deposits)) {
+          this.deposits = backup.deposits;
+          this.saveDeposits(this.deposits);
+        }
+        if (Array.isArray(backup.withdrawals)) {
+          this.withdrawals = backup.withdrawals;
+          this.saveWithdrawals(this.withdrawals);
+        }
+        if (backup.depositConfig && typeof backup.depositConfig === 'object') {
+          this.depositConfig = { ...(this.depositConfig || {}), ...backup.depositConfig };
+          this.saveDepositConfig(this.depositConfig);
+        }
+        if (backup.notificationConfig && typeof backup.notificationConfig === 'object') {
+          this.notificationConfig = { ...(this.notificationConfig || {}), ...backup.notificationConfig };
+          this.saveNotificationConfig(this.notificationConfig);
+        }
+        if (backup.promoCodes && typeof backup.promoCodes === 'object') {
+          this.promoCodes = backup.promoCodes;
+          this.saveLocalPromoCodes(this.promoCodes);
+        }
+        if (backup.supportChats && typeof backup.supportChats === 'object') {
+          this.supportChats = backup.supportChats;
+          this.saveLocalSupportChats(this.supportChats);
+        }
+
+        // 2. Push full atomic restore to server
+        this.pushStateToServer({
+          fullRestore: true,
+          customersDb: this.customersDb,
+          history: this.history,
+          dailySchedule: this.dailySchedule,
+          activeBets: this.activeBets,
+          deposits: this.deposits,
+          withdrawals: this.withdrawals,
+          depositConfig: this.depositConfig,
+          notificationConfig: this.notificationConfig,
+          promoCodes: this.promoCodes,
+          supportChats: this.supportChats
+        });
+
+        // 3. Re-render all views
+        this.renderHistory();
+        this.renderAdminPlayersList();
+        this.renderAdminActiveBetsTable();
+        this.renderAdminDepositsList();
+        this.renderAdminWithdrawalsList();
+        this.renderAdminScheduleTable();
+        this.renderMasterBackupStats();
+        this.populateMasterConfigInputs();
+
+        const successMsg = `🎉 SUCCESS: Database 100% Restored from Backup! (${pCount} Players, ${hCount} History Rounds, ${dCount + wCount} Transactions Active).`;
+        if (this.adminMasterBackupFeedback) {
+          this.adminMasterBackupFeedback.textContent = successMsg;
+          this.adminMasterBackupFeedback.className = 'save-status-msg success';
+          this.adminMasterBackupFeedback.classList.remove('hidden');
+        }
+        this.showLiveToast({
+          title: '🎉 DATABASE RESTORED SUCCESSFULLY!',
+          message: successMsg,
+          type: 'success',
+          duration: 9000
+        });
+        if (this.audio) this.audio.playWinFanfare();
+      } catch (err) {
+        console.error('Backup restore error:', err);
+        const errTxt = `❌ Failed to restore backup: Invalid or corrupt JSON file. (${err.message})`;
+        if (this.adminMasterBackupFeedback) {
+          this.adminMasterBackupFeedback.textContent = errTxt;
+          this.adminMasterBackupFeedback.className = 'save-status-msg error';
+          this.adminMasterBackupFeedback.classList.remove('hidden');
+        }
+        alert(errTxt);
+      }
+    };
+    reader.readAsText(file);
   }
 
   getBetDateCategory(bet, now = new Date()) {

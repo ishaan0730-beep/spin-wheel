@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 
@@ -9,15 +9,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="manifest" href="manifest.json?v=7.5.5">
+    <link rel="manifest" href="manifest.json?v=7.6.0">
   <meta name="theme-color" content="#381c19">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Spin & Wheel">
-  <link rel="apple-touch-icon" href="icon-192.png?v=7.5.5">
-  <link rel="icon" type="image/png" href="icon-192.png?v=7.5.5"><link rel="shortcut icon" href="favicon.png?v=7.5.5">
-  <link rel="stylesheet" href="style.css?v=7.5.5">
+  <link rel="apple-touch-icon" href="icon-192.png?v=7.6.0">
+  <link rel="icon" type="image/png" href="icon-192.png?v=7.6.0"><link rel="shortcut icon" href="favicon.png?v=7.6.0">
+  <link rel="stylesheet" href="style.css?v=7.6.0">
   <script>
     if (window.location.hostname.includes('vercel.app')) {
       window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
@@ -997,8 +997,13 @@
             </button>
             <button id="admin-nav-players-btn" class="admin-tab-btn" onclick="app.setAdminTab('players')">
               <span class="vtab-icon">&#128101;</span>
-              <span class="vtab-text">Players &amp; Live Bets</span>
+              <span class="vtab-text">Players Database</span>
               <span id="admin-tab-badge-players" class="admin-tab-badge">0</span>
+            </button>
+            <button id="admin-nav-livebets-btn" class="admin-tab-btn" onclick="app.setAdminTab('livebets')">
+              <span class="vtab-icon">&#127919;</span>
+              <span class="vtab-text">Live Bets &amp; Predictions</span>
+              <span id="admin-tab-badge-livebets" class="admin-tab-badge highlight-cyan">0</span>
             </button>
             <button id="admin-nav-deposits-btn" class="admin-tab-btn" onclick="app.setAdminTab('deposits')">
               <span class="vtab-icon">&#128176;</span>
@@ -1019,6 +1024,11 @@
               <span class="vtab-icon">&#127873;</span>
               <span class="vtab-text">Promo Codes &amp; Vouchers</span>
               <span id="admin-tab-badge-promos" class="admin-tab-badge highlight-gold">0</span>
+            </button>
+            <button id="admin-nav-backup-btn" class="admin-tab-btn" onclick="app.setAdminTab('backup')" style="background:rgba(46,204,113,0.08); border-left:3px solid #2ecc71;">
+              <span class="vtab-icon">&#128190;</span>
+              <span class="vtab-text" style="color:#2ecc71; font-weight:800;">Master Backup &amp; Restore</span>
+              <span class="admin-tab-badge" style="background:#2ecc71; color:#000; font-weight:800;">Safe</span>
             </button>
             <button id="admin-nav-settings-btn" class="admin-tab-btn" onclick="app.setAdminTab('settings')">
               <span class="vtab-icon">&#128242;</span>
@@ -1203,19 +1213,18 @@
 
           </div>
 
-          <!-- TAB 2: PLAYERS & LIVE BETS -->
+          <!-- TAB 2: PLAYERS DATABASE & ACCOUNT MANAGER -->
           <div id="admin-tab-players-pane" class="admin-tab-pane hidden">
             
-            <!-- SECTION 4: REGISTERED PLAYERS & IHD COIN CREDIT CONTROLLER -->
             <div class="admin-card control-highlight">
               <div class="admin-card-header-flex">
                 <div class="admin-card-title">
-                  <span class="step-num">4</span>
-                  <h4>👥 Registered Players & IHD Coin Manager</h4>
+                  <span class="step-num">👥</span>
+                  <h4>Registered Players &amp; Coin Manager</h4>
                 </div>
-                <button id="admin-refresh-players-btn" class="btn btn-secondary btn-sm">🔄 Refresh List</button>
+                <button id="admin-refresh-players-btn" class="btn btn-secondary btn-sm" onclick="(window.app || app).pullStateFromServer().then(() => (window.app || app).renderAdminPlayersList())">🔄 Refresh Players</button>
               </div>
-              <p class="card-desc">View all registered players, inspect balances, and credit/deduct IHD Coins directly:</p>
+              <p class="card-desc">View all registered player accounts, manage wallet coins, approve/reject new signups, or permanently delete accounts:</p>
 
               <!-- Top Summary Badges -->
               <div class="players-summary-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:0.85rem;">
@@ -1278,14 +1287,14 @@
               </div>
 
               <!-- Interactive Players Table -->
-              <div class="schedule-table-wrap" style="max-height: 280px; overflow-y:auto;">
+              <div class="schedule-table-wrap" style="max-height: 440px; overflow-y:auto;">
                 <table class="schedule-table" style="font-size:0.76rem;">
                   <thead>
                     <tr>
                       <th>Player (User ID)</th>
                       <th>Mobile / DOB</th>
                       <th>IHD Balance</th>
-                      <th>Quick Action</th>
+                      <th>Quick Actions</th>
                     </tr>
                   </thead>
                   <tbody id="admin-players-table-body">
@@ -1295,112 +1304,200 @@
                   </tbody>
                 </table>
               </div>
+            </div>
 
-              <!-- Live Player Active Bets & Time/Date Slot Tracker -->
-              <div class="admin-live-bets-box" style="margin-top:1.25rem; border-top:1px solid rgba(245,176,65,0.25); padding-top:1rem;">
-                <div class="admin-card-header-flex" style="margin-bottom:0.5rem; flex-wrap:wrap; gap:0.5rem;">
-                  <div style="display:flex; align-items:center; gap:0.4rem;">
-                    <span style="font-size:1.1rem;">🎯</span>
-                    <strong style="color:var(--primary-gold-bright); font-size:0.95rem;">Live Player Predictions & Active Bets</strong>
+          </div>
+
+          <!-- TAB: LIVE BETS & PREDICTIONS TRACKER -->
+          <div id="admin-tab-livebets-pane" class="admin-tab-pane hidden">
+            
+            <div class="admin-card control-highlight">
+              <div class="admin-card-header-flex" style="margin-bottom:0.5rem; flex-wrap:wrap; gap:0.5rem;">
+                <div class="admin-card-title">
+                  <span class="step-num">🎯</span>
+                  <h4>Live Player Predictions &amp; Active Bets Pool</h4>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                  <span id="admin-active-bets-summary" style="font-size:0.75rem; color:#00f0ff; font-weight:700; margin-right:4px;">0 Active Bets (0 IHD Coins Pool)</span>
+                  <button type="button" id="admin-refresh-bets-btn" class="btn btn-secondary btn-xs" onclick="(window.app || app).renderAdminActiveBetsTable()">🔄 Refresh Bets</button>
+                  <button type="button" id="admin-export-current-slot-btn" class="btn btn-gold btn-xs" style="color:#000; font-weight:800;" title="Export Active Bets JSON for the Selected Slot" onclick="(window.app || app).exportSlotEntriesJSON((window.app || app).currentAdminBetSlotFilter || 'ALL')">📥 Export Current Slot JSON</button>
+                </div>
+              </div>
+              <p class="card-desc">Monitor live bets placed by players for upcoming round slots (12PM, 4PM, 8PM, 11PM), filter by date/time, and cancel/refund if needed:</p>
+
+              <!-- Per-Date & Per-Slot Multi-Filter & 1-Click Export Toolbar -->
+              <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(0,240,255,0.3); border-radius:8px; padding:8px 12px; margin-bottom:0.75rem; display:flex; flex-direction:column; gap:8px;">
+                <!-- Row 1: Date Filter Row (Defaults to Today) -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:6px;">
+                  <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                    <span style="font-size:0.72rem; color:#ffd700; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">📅 Date Filter:</span>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="TODAY">📅 Today (<span id="bet-date-cnt-today">0</span>)</button>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="YESTERDAY">📅 Yesterday (<span id="bet-date-cnt-yesterday">0</span>)</button>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="TOMORROW">📅 Tomorrow (<span id="bet-date-cnt-tomorrow">0</span>)</button>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter active" data-date="ALL">🌐 All Dates (<span id="bet-date-cnt-all">0</span>)</button>
+                    <input type="date" id="admin-bet-date-picker" title="Select Specific Date" style="padding:2px 6px; font-size:0.7rem; color:#00f0ff; background:rgba(20,27,45,0.9); border:1px solid rgba(0,240,255,0.4); border-radius:4px; outline:none; cursor:pointer;">
                   </div>
-                  <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
-                    <span id="admin-active-bets-summary" style="font-size:0.75rem; color:#00f0ff; font-weight:700; margin-right:4px;">0 Active Bets (0 IHD Coins Pool)</span>
-                    <button type="button" id="admin-refresh-bets-btn" class="btn btn-secondary btn-xs">🔄 Refresh</button>
-                    <button type="button" id="admin-export-current-slot-btn" class="btn btn-gold btn-xs" style="color:#000; font-weight:800;" title="Export Active Bets JSON for the Selected Slot">📥 Export Current Slot JSON</button>
-                  </div>
+                  <span id="admin-active-bets-viewing-badge" style="font-size:0.72rem; color:#00f0ff; font-weight:700; background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.3); padding:2px 8px; border-radius:12px;">
+                    Viewing: All Dates
+                  </span>
                 </div>
 
-                <!-- Per-Date & Per-Slot Multi-Filter & 1-Click Export Toolbar -->
-                <div style="background:rgba(0,0,0,0.5); border:1px solid rgba(0,240,255,0.3); border-radius:8px; padding:8px 12px; margin-bottom:0.75rem; display:flex; flex-direction:column; gap:8px;">
-                  <!-- Row 1: Date Filter Row (Defaults to Today) -->
-                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:6px;">
-                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                      <span style="font-size:0.72rem; color:#ffd700; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">📅 Date Filter:</span>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="TODAY">📅 Today (<span id="bet-date-cnt-today">0</span>)</button>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="YESTERDAY">📅 Yesterday (<span id="bet-date-cnt-yesterday">0</span>)</button>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter" data-date="TOMORROW">📅 Tomorrow (<span id="bet-date-cnt-tomorrow">0</span>)</button>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-date-filter active" data-date="ALL">🌐 All Dates (<span id="bet-date-cnt-all">0</span>)</button>
-                      <input type="date" id="admin-bet-date-picker" title="Select Specific Date" style="padding:2px 6px; font-size:0.7rem; color:#00f0ff; background:rgba(20,27,45,0.9); border:1px solid rgba(0,240,255,0.4); border-radius:4px; outline:none; cursor:pointer;">
-                    </div>
-                    <span id="admin-active-bets-viewing-badge" style="font-size:0.72rem; color:#00f0ff; font-weight:700; background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.3); padding:2px 8px; border-radius:12px;">
-                      Viewing: All Dates
-                    </span>
+                <!-- Row 2: Slot Filter Row & 1-Click Export Toolbar -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                  <!-- Filter Slot Pills -->
+                  <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">🎰 Filter Slot:</span>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter active" data-slot="ALL">All Slots (<span id="bet-slot-cnt-all">0</span>)</button>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="12:00 PM">12:00 PM (<span id="bet-slot-cnt-12">0</span>)</button>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="04:00 PM">04:00 PM (<span id="bet-slot-cnt-4">0</span>)</button>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="08:00 PM">08:00 PM (<span id="bet-slot-cnt-8">0</span>)</button>
+                    <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="11:00 PM">11:00 PM (<span id="bet-slot-cnt-11">0</span>)</button>
                   </div>
 
-                  <!-- Row 2: Slot Filter Row & 1-Click Export Toolbar -->
-                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                    <!-- Filter Slot Pills -->
-                    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                      <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">🎰 Filter Slot:</span>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter active" data-slot="ALL">All Slots (<span id="bet-slot-cnt-all">0</span>)</button>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="12:00 PM">12:00 PM (<span id="bet-slot-cnt-12">0</span>)</button>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="04:00 PM">04:00 PM (<span id="bet-slot-cnt-4">0</span>)</button>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="08:00 PM">08:00 PM (<span id="bet-slot-cnt-8">0</span>)</button>
-                      <button type="button" class="btn btn-secondary btn-xs admin-bet-slot-filter" data-slot="11:00 PM">11:00 PM (<span id="bet-slot-cnt-11">0</span>)</button>
-                    </div>
-
-                    <!-- 1-Click Individual Slot JSON Export Buttons -->
-                    <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                      <span style="font-size:0.7rem; color:#ffd700; font-weight:700;">📥 Per-Slot Export:</span>
-                      <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('12:00 PM')" title="Export only 12:00 PM Slot JSON">12 PM</button>
-                      <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('04:00 PM')" title="Export only 04:00 PM Slot JSON">04 PM</button>
-                      <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('08:00 PM')" title="Export only 08:00 PM Slot JSON">08 PM</button>
-                      <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('11:00 PM')" title="Export only 11:00 PM Slot JSON">11 PM</button>
-                      <button type="button" class="btn btn-gold btn-xs" style="color:#000; font-weight:800; font-size:0.68rem; padding:2px 6px;" onclick="app.exportSlotEntriesJSON('ALL')" title="Export All Active Entries Combined">All Active</button>
-                    </div>
+                  <!-- 1-Click Individual Slot JSON Export Buttons -->
+                  <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                    <span style="font-size:0.7rem; color:#ffd700; font-weight:700;">📥 Per-Slot Export:</span>
+                    <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="(window.app || app).exportSlotEntriesJSON('12:00 PM')" title="Export only 12:00 PM Slot JSON">12 PM</button>
+                    <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="(window.app || app).exportSlotEntriesJSON('04:00 PM')" title="Export only 04:00 PM Slot JSON">04 PM</button>
+                    <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="(window.app || app).exportSlotEntriesJSON('08:00 PM')" title="Export only 08:00 PM Slot JSON">08 PM</button>
+                    <button type="button" class="btn btn-secondary btn-xs" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); font-size:0.68rem; padding:2px 6px;" onclick="(window.app || app).exportSlotEntriesJSON('11:00 PM')" title="Export only 11:00 PM Slot JSON">11 PM</button>
+                    <button type="button" class="btn btn-gold btn-xs" style="color:#000; font-weight:800; font-size:0.68rem; padding:2px 6px;" onclick="(window.app || app).exportSlotEntriesJSON('ALL')" title="Export All Active Entries Combined">All Active</button>
                   </div>
-                </div>
-
-                <div class="schedule-table-wrap" style="max-height: 320px; overflow-y:auto;">
-                  <table class="schedule-table" style="font-size:0.74rem;">
-                    <thead>
-                      <tr>
-                        <th>Player (User ID)</th>
-                        <th>Prediction</th>
-                        <th>Bet Amount</th>
-                        <th>Potential Win (9x)</th>
-                        <th>Target Spin Round (लॉटरी समय)</th>
-                        <th>Bet Placed Time (कब लगाया)</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody id="admin-active-bets-table-body">
-                      <tr>
-                        <td colspan="7" style="text-align:center; color:var(--text-muted); padding:0.8rem;">No active player predictions right now.</td>
-                      </tr>
-                    </tbody>
-                  </table>
                 </div>
               </div>
 
-              <!-- Num Ledger Pro JSON Export & Backup System -->
-              <div class="admin-card" style="margin-top:1.25rem; background:rgba(0,0,0,0.35); border:1px solid rgba(0,240,255,0.3); border-radius:var(--radius-sm); padding:1rem;">
-                <div class="admin-card-header-flex" style="margin-bottom:0.4rem;">
-                  <div style="display:flex; align-items:center; gap:0.4rem;">
-                    <span style="font-size:1.1rem;">📒</span>
-                    <strong style="color:#00f0ff; font-size:0.92rem;">Num Ledger Pro JSON Backup & Data Manager</strong>
-                  </div>
-                  <span class="live-dot-tag" style="font-size:0.7rem; padding:2px 8px;">Num Ledger Pro Compatible</span>
-                </div>
-                <p class="card-desc" style="font-size:0.74rem; color:var(--text-secondary); margin-bottom:0.75rem;">
-                  All live customer entries, bets, player accounts, transactions, and withdrawal records can be saved as a JSON file and opened in your <strong>Num Ledger Pro</strong> app:
-                </p>
+              <div class="schedule-table-wrap" style="max-height: 440px; overflow-y:auto;">
+                <table class="schedule-table" style="font-size:0.74rem;">
+                  <thead>
+                    <tr>
+                      <th>Player (User ID)</th>
+                      <th>Prediction</th>
+                      <th>Bet Amount</th>
+                      <th>Potential Win (9x)</th>
+                      <th>Target Spin Round (लॉटरी समय)</th>
+                      <th>Bet Placed Time (कब लगाया)</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-active-bets-table-body">
+                    <tr>
+                      <td colspan="7" style="text-align:center; color:var(--text-muted); padding:0.8rem;">No active player predictions right now.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-                  <button type="button" id="admin-export-full-ledger-btn" class="btn btn-gold btn-sm" style="color:#000; font-weight:800;">
-                    📥 Export Full Ledger JSON (.json)
-                  </button>
-                  <button type="button" id="admin-export-active-entries-btn" class="btn btn-secondary btn-sm" style="border-color:#00f0ff; color:#00f0ff;">
-                    📥 Export Live Round Entries (.json)
-                  </button>
-                  <button type="button" id="admin-import-ledger-trigger-btn" class="btn btn-secondary btn-sm">
-                    📤 Import & Restore Backup JSON
-                  </button>
-                  <input type="file" id="admin-import-ledger-file" accept=".json,application/json" style="display:none;">
+          </div>
+
+          <!-- TAB: MASTER DATABASE FULL BACKUP & RESTORE CENTER -->
+          <div id="admin-tab-backup-pane" class="admin-tab-pane hidden">
+            
+            <div class="admin-card control-highlight" style="margin-bottom:1.25rem;">
+              <div class="admin-card-header-flex">
+                <div class="admin-card-title">
+                  <span class="step-num">💾</span>
+                  <h4>Full System Database Backup &amp; Safety Manager</h4>
                 </div>
-                <p id="admin-ledger-feedback" class="save-status-msg hidden" style="margin-top:0.5rem;"></p>
+                <span class="live-dot-tag" style="background:rgba(46,204,113,0.12); color:#2ecc71; border:1px solid rgba(46,204,113,0.3);"><span class="pulse-dot"></span> 100% Data Safe</span>
+              </div>
+              <p class="card-desc">
+                Take a complete safety backup of your entire app database at any time. When you update code or server files, you can restore this backup with 1-click so <strong>zero data, balances, winning numbers history, or accounts are ever lost</strong>!
+              </p>
+
+              <!-- Live Database Summary Stats Box -->
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:0.6rem; margin-bottom:1.1rem;">
+                <div style="background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.3); border-radius:8px; padding:0.75rem; text-align:center;">
+                  <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Registered Players</span>
+                  <strong id="backup-stat-players" style="font-size:1.3rem; color:#00f0ff;">0</strong>
+                </div>
+                <div style="background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.3); border-radius:8px; padding:0.75rem; text-align:center;">
+                  <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Total IHD Coins</span>
+                  <strong id="backup-stat-coins" style="font-size:1.3rem; color:#ffd700;">💰 0</strong>
+                </div>
+                <div style="background:rgba(46,204,113,0.08); border:1px solid rgba(46,204,113,0.3); border-radius:8px; padding:0.75rem; text-align:center;">
+                  <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Winning Rounds History</span>
+                  <strong id="backup-stat-history" style="font-size:1.3rem; color:#2ecc71;">0</strong>
+                </div>
+                <div style="background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.3); border-radius:8px; padding:0.75rem; text-align:center;">
+                  <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Withdrawals / Deposits</span>
+                  <strong id="backup-stat-txns" style="font-size:1.3rem; color:#a855f7;">0</strong>
+                </div>
               </div>
 
+              <!-- 2 Big Action Cards -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                
+                <!-- Box 1: Download Backup -->
+                <div style="background:rgba(46,204,113,0.08); border:1.5px solid rgba(46,204,113,0.4); border-radius:10px; padding:1.1rem; display:flex; flex-direction:column; justify-content:space-between;">
+                  <div>
+                    <h5 style="color:#2ecc71; font-size:0.95rem; margin:0 0 6px 0; display:flex; align-items:center; gap:6px;">
+                      <span>📥</span> 1-Click Full System Backup
+                    </h5>
+                    <p style="font-size:0.74rem; color:var(--text-secondary); line-height:1.45; margin-bottom:1rem;">
+                      Exports 100% of your data into a timestamped <code>.json</code> file:
+                      <br>• All Player Accounts &amp; Passwords
+                      <br>• Player Wallet Balances &amp; Bank Details
+                      <br>• All Past Winning Numbers History
+                      <br>• All Deposits &amp; Withdrawal Requests
+                      <br>• Active Predictions &amp; Schedule Settings
+                    </p>
+                  </div>
+                  <button type="button" id="admin-export-master-backup-btn" class="btn btn-gold btn-block" style="background:#2ecc71; border-color:#27ae60; color:#000; font-weight:900; padding:12px; font-size:0.9rem;" onclick="(window.app || app).exportMasterBackupJSON()">
+                    📥 Download Complete Database Backup (.JSON)
+                  </button>
+                </div>
+
+                <!-- Box 2: Restore from Backup -->
+                <div style="background:rgba(0,240,255,0.08); border:1.5px solid rgba(0,240,255,0.4); border-radius:10px; padding:1.1rem; display:flex; flex-direction:column; justify-content:space-between;">
+                  <div>
+                    <h5 style="color:#00f0ff; font-size:0.95rem; margin:0 0 6px 0; display:flex; align-items:center; gap:6px;">
+                      <span>📤</span> Restore Database from Backup File
+                    </h5>
+                    <p style="font-size:0.74rem; color:var(--text-secondary); line-height:1.45; margin-bottom:1rem;">
+                      Upload a previously saved <code>.json</code> backup file to restore all players, balances, winning numbers, and requests.
+                      <br><b style="color:#ffd700;">Zero Data Loss Guarantee:</b> Perfect when updating the server or switching devices!
+                    </p>
+                  </div>
+                  <div>
+                    <button type="button" id="admin-restore-master-backup-trigger" class="btn btn-secondary btn-block" style="border-color:#00f0ff; color:#00f0ff; font-weight:800; padding:12px; font-size:0.9rem;" onclick="document.getElementById('admin-master-restore-file').click()">
+                      📤 Select &amp; Restore Backup File (.JSON)
+                    </button>
+                    <input type="file" id="admin-master-restore-file" accept=".json,application/json" style="display:none;" onchange="(window.app || app).importMasterBackupJSON(this.files[0])">
+                  </div>
+                </div>
+
+              </div>
+
+              <div id="admin-master-backup-feedback" class="save-status-msg hidden" style="margin-top:0.5rem;"></div>
+            </div>
+
+            <!-- Num Ledger Pro JSON Export & Backup System -->
+            <div class="admin-card" style="background:rgba(0,0,0,0.35); border:1px solid rgba(0,240,255,0.3); border-radius:var(--radius-sm); padding:1rem;">
+              <div class="admin-card-header-flex" style="margin-bottom:0.4rem;">
+                <div style="display:flex; align-items:center; gap:0.4rem;">
+                  <span style="font-size:1.1rem;">📒</span>
+                  <strong style="color:#00f0ff; font-size:0.92rem;">Num Ledger Pro JSON Backup &amp; Data Manager</strong>
+                </div>
+                <span class="live-dot-tag" style="font-size:0.7rem; padding:2px 8px;">Num Ledger Pro Compatible</span>
+              </div>
+              <p class="card-desc" style="font-size:0.74rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+                Export active round entries or ledger records to open directly inside your <strong>Num Ledger Pro</strong> app:
+              </p>
+
+              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                <button type="button" id="admin-export-full-ledger-btn" class="btn btn-gold btn-sm" style="color:#000; font-weight:800;" onclick="(window.app || app).exportFullLedgerJSON()">
+                  📥 Export Full Ledger JSON (.json)
+                </button>
+                <button type="button" id="admin-export-active-entries-btn" class="btn btn-secondary btn-sm" style="border-color:#00f0ff; color:#00f0ff;" onclick="(window.app || app).exportSlotEntriesJSON('ALL')">
+                  📥 Export Live Round Entries (.json)
+                </button>
+                <button type="button" id="admin-import-ledger-trigger-btn" class="btn btn-secondary btn-sm" onclick="document.getElementById('admin-import-ledger-file').click()">
+                  📤 Import &amp; Restore Backup JSON
+                </button>
+                <input type="file" id="admin-import-ledger-file" accept=".json,application/json" style="display:none;" onchange="(window.app || app).importLedgerJSON(this.files[0])">
+              </div>
+              <p id="admin-ledger-feedback" class="save-status-msg hidden" style="margin-top:0.5rem;"></p>
             </div>
 
           </div>
@@ -2374,8 +2471,11 @@
       </div>
 
       <!-- Modal Footer -->
-      <div class="modal-footer" style="padding:0.75rem 1.25rem; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end;">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="app.closePlayerHistoryModal()">Close History</button>
+      <div class="modal-footer" style="padding:0.75rem 1.25rem; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <button type="button" id="aph-delete-player-btn" class="btn btn-danger btn-sm" style="background:#ef4444; border-color:#dc2626; font-weight:800;" onclick="(window.app || app).adminDeletePlayer((window.app || app).currentAphPlayerId)">
+          🗑️ Delete This Player ID
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="(window.app || app).closePlayerHistoryModal()">Close History</button>
       </div>
 
     </div>
@@ -2860,7 +2960,7 @@
   </script>
   <script src="mqtt.min.js"></script>
   <script src="confetti.js"></script>
-  <script src="app.js?v=7.5.5"></script>
+  <script src="app.js?v=7.6.0"></script>
   <script>
     if (typeof window.app !== 'undefined') {
       window.app = window.app;
