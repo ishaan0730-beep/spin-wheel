@@ -908,6 +908,7 @@ class SpinWheelApp {
     this.customTimerSecs = document.getElementById('custom-timer-secs');
     this.setCustomTimerBtn = document.getElementById('set-custom-timer-btn');
     this.quickRoundHourSelect = document.getElementById('quick-round-hour-select');
+    this.manualRoundWinnerInput = document.getElementById('manual-round-winner-input');
     this.manualRoundWinnerSelect = document.getElementById('manual-round-winner-select');
     this.applyTimeWinnerBtn = document.getElementById('apply-time-winner-btn');
     this.testTimeWinnerBtn = document.getElementById('test-time-winner-btn');
@@ -919,6 +920,7 @@ class SpinWheelApp {
 
     // Section 2 Controls (4-Slot Daily Schedule)
     this.scheduleTableBody = document.getElementById('schedule-table-body');
+    this.saveAllSlotsBtn = document.getElementById('save-all-slots-btn');
     this.autoFillScheduleBtn = document.getElementById('auto-fill-schedule-btn');
 
     // Section 5 Controls (Registered Players & IHD Coin Credit Controller)
@@ -1442,12 +1444,30 @@ class SpinWheelApp {
     localStorage.setItem(STATE_KEYS.HANDLED_SPIN_IDS, JSON.stringify(arr));
   }
 
+  isMasterAuthenticated() {
+    try {
+      const auth = (sessionStorage.getItem('admin_auth') || '').toString().trim();
+      const currentPass = (this.masterPassword || '00773300').toString().trim();
+      return auth !== '' && (auth === currentPass || auth === '00773300');
+    } catch (e) {
+      return false;
+    }
+  }
+
   openAdminPanelDirectly() {
-    sessionStorage.setItem('admin_auth', this.masterPassword || '00773300');
-    this.openAdminDrawer();
+    if (this.isMasterAuthenticated()) {
+      this.openAdminDrawer();
+    }
   }
 
   showLiveToast(opts = {}) {
+    // SECURITY: Internal admin toasts (deposits, withdrawals, approvals) strictly for authenticated Master
+    if (opts.forAdminOnly || opts.actionCallback || opts.type === 'deposit' || opts.type === 'withdrawal') {
+      if (!this.isMasterAuthenticated()) {
+        return; // Suppress entirely on unauthorized mobile/desktop visitor screens
+      }
+    }
+
     let container = document.getElementById('live-toast-container');
     if (!container) {
       container = document.createElement('div');
@@ -1550,13 +1570,13 @@ class SpinWheelApp {
         this.refreshSupportChatsUI();
       }
 
-      // If admin received customer message, show toast on Master screen
-      if (msg.sender === 'CUSTOMER') {
+      // If admin received customer message, show toast on Master screen ONLY
+      if (msg.sender === 'CUSTOMER' && this.isMasterAuthenticated()) {
         this.showLiveToast({
-          title: '’¬ NEW SUPPORT CHAT MESSAGE!',
+          title: '💬 NEW SUPPORT CHAT MESSAGE!',
           message: `<b>${msg.playerName || msg.playerId}</b>: ${msg.text.slice(0, 50)}`,
           type: 'deposit',
-          actionText: '‘‰ OPEN LIVE CHAT',
+          actionText: '👉 OPEN LIVE CHAT',
           actionCallback: () => {
             this.openAdminPanelDirectly();
             this.setAdminTab('chats');
@@ -1567,7 +1587,7 @@ class SpinWheelApp {
     }
 
     else if (event.eventType === 'BROADCAST_NOTIFICATION') {
-      this.sendSystemNotification(event.title || 'Ž° SPIN & WHEEL ALERT', event.message || '', event.icon || 'icon-192.png');
+      this.sendSystemNotification(event.title || '🎰 SPIN & WHEEL ALERT', event.message || '', event.icon || 'icon-192.png');
     }
 
     else if (event.eventType === 'NEW_DEPOSIT') {
@@ -1581,21 +1601,22 @@ class SpinWheelApp {
         this.saveDeposits(this.deposits);
       }
 
-      // Play loud urgent alarm for Master Admin
-      if (this.audio) this.audio.playUrgentDepositAlarm();
+      // Show instant live toast banner & sound for Master Admin ONLY
+      if (this.isMasterAuthenticated()) {
+        if (this.audio) this.audio.playUrgentDepositAlarm();
 
-      // Show instant live toast banner on Master screen
-      this.showLiveToast({
-        title: 'NEW DEPOSIT REQUEST RECEIVED!',
-        message: `<b>₹${(dep.amount || 0).toLocaleString()}</b> from <b>${dep.customerName || dep.customerId}</b><br>UTR: <code>${dep.utr || 'N/A'}</code>`,
-        type: 'deposit',
-        actionText: '👉 OPEN DEPOSITS & APPROVE',
-        actionCallback: () => {
-          this.openAdminPanelDirectly();
-          this.setAdminTab('deposits');
-          if (dep.id) this.openReceiptZoomModal(dep.id);
-        }
-      });
+        this.showLiveToast({
+          title: 'NEW DEPOSIT REQUEST RECEIVED!',
+          message: `<b>₹${(dep.amount || 0).toLocaleString()}</b> from <b>${dep.customerName || dep.customerId}</b><br>UTR: <code>${dep.utr || 'N/A'}</code>`,
+          type: 'deposit',
+          actionText: '👉 OPEN DEPOSITS & APPROVE',
+          actionCallback: () => {
+            this.openAdminPanelDirectly();
+            this.setAdminTab('deposits');
+            if (dep.id) this.openReceiptZoomModal(dep.id);
+          }
+        });
+      }
 
       this.updateDepositsCountBadges();
       this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
@@ -1615,18 +1636,21 @@ class SpinWheelApp {
         this.saveWithdrawals(this.withdrawals);
       }
 
-      if (this.audio) this.audio.playAlert();
+      // Show instant live toast banner & sound for Master Admin ONLY
+      if (this.isMasterAuthenticated()) {
+        if (this.audio) this.audio.playAlert();
 
-      this.showLiveToast({
-        title: 'NEW WITHDRAWAL REQUEST!',
-        message: `<b>💰${(wd.amount || 0).toLocaleString()} IHD</b> by <b>${wd.customerName || wd.customerId}</b><br>Bank A/C: <code>${wd.accountNumber}</code> (${wd.ifscCode || ''})`,
-        type: 'withdrawal',
-        actionText: '👉 VIEW WITHDRAWAL',
-        actionCallback: () => {
-          this.openAdminPanelDirectly();
-          this.setAdminTab('withdrawals');
-        }
-      });
+        this.showLiveToast({
+          title: 'NEW WITHDRAWAL REQUEST!',
+          message: `<b>💰${(wd.amount || 0).toLocaleString()} IHD</b> by <b>${wd.customerName || wd.customerId}</b><br>Bank A/C: <code>${wd.accountNumber}</code> (${wd.ifscCode || ''})`,
+          type: 'withdrawal',
+          actionText: '👉 VIEW WITHDRAWAL',
+          actionCallback: () => {
+            this.openAdminPanelDirectly();
+            this.setAdminTab('withdrawals');
+          }
+        });
+      }
 
       this.updateWithdrawalsCountBadges();
       this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
@@ -1843,13 +1867,16 @@ class SpinWheelApp {
         historyNeedsRedraw = true;
       }
     }
-    // 3. Forced Next Winner (Strict Protected Lock)
-    if (state.forcedNext !== undefined && state.forcedNext !== null) {
-      this.forcedNext = state.forcedNext;
-      localStorage.setItem(STATE_KEYS.FORCED_NEXT, this.forcedNext);
-    } else if (state.forcedAction === 'EXPLICIT_CLEAR' || state.spinTrigger === null) {
+    // 3. Forced Next Winner (Strict Protected Lock - Never cleared by background poll)
+    if (state.forcedNext !== undefined && state.forcedNext !== null && state.forcedNext !== 'AUTO') {
+      const parsedForced = parseInt(state.forcedNext, 10);
+      if (!isNaN(parsedForced) && this.slices.includes(parsedForced)) {
+        this.forcedNext = parsedForced;
+        localStorage.setItem(STATE_KEYS.FORCED_NEXT, String(this.forcedNext));
+      }
+    } else if (state.forcedAction === 'EXPLICIT_CLEAR' || state.scheduleAction === 'EXPLICIT_CLEAR') {
       this.forcedNext = null;
-      localStorage.removeItem(STATE_KEYS.FORCED_NEXT);
+      try { localStorage.removeItem(STATE_KEYS.FORCED_NEXT); } catch (e) {}
     }
 
     // 4. Upcoming Queue
@@ -1867,7 +1894,7 @@ class SpinWheelApp {
         const slot = slotObj.label;
         const remoteVal = state.dailySchedule[slot];
         if (remoteVal !== undefined && remoteVal !== null) {
-          const val = remoteVal === 'AUTO' ? 'AUTO' : parseInt(remoteVal, 10);
+          const val = (remoteVal === 'AUTO' || isNaN(parseInt(remoteVal, 10))) ? this.getLastRecordNumber() : parseInt(remoteVal, 10);
           if (mergedSchedule[slot] !== val) {
             mergedSchedule[slot] = val;
             scheduleChanged = true;
@@ -2038,7 +2065,7 @@ class SpinWheelApp {
       this.renderCustomerRequestsHistory();
       this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
 
-      if (newPendingWd) {
+      if (newPendingWd && this.isMasterAuthenticated()) {
         if (this.audio) this.audio.playAlert();
         this.showLiveToast({
           title: 'NEW WITHDRAWAL REQUEST!',
@@ -2072,7 +2099,7 @@ class SpinWheelApp {
       this.renderCustomerRequestsHistory();
       this.renderAdminDepositsList(this.adminDepFilter, this.adminDepSearch ? this.adminDepSearch.value : '');
 
-      if (newPendingDep) {
+      if (newPendingDep && this.isMasterAuthenticated()) {
         if (this.audio) this.audio.playUrgentDepositAlarm();
         this.showLiveToast({
           title: 'NEW DEPOSIT REQUEST RECEIVED!',
@@ -2146,7 +2173,7 @@ class SpinWheelApp {
   }
 
   getCompleteStatePayload(additionalFields = {}) {
-    const adminAuth = sessionStorage.getItem('admin_auth') || (this.isDrawerOpen ? (this.masterPassword || '00773300') : null);
+    const adminAuth = sessionStorage.getItem('admin_auth') || localStorage.getItem(STATE_KEYS.MASTER_KEY) || (this.isMasterAuthenticated() ? (this.masterPassword || '00773300') : null);
     const isAdmin = Boolean(adminAuth);
 
     const payload = {
@@ -2165,14 +2192,11 @@ class SpinWheelApp {
       ...additionalFields
     };
 
-    // Only include sensitive admin controls if admin is active
-    if (isAdmin) {
-      payload.adminKey = adminAuth;
-      payload.masterPassword = this.masterPassword;
-      payload.forcedNext = this.forcedNext;
-      payload.upcomingQueue = this.upcomingQueue;
-      payload.dailySchedule = this.dailySchedule;
-    }
+    if (this.dailySchedule) payload.dailySchedule = this.dailySchedule;
+    if (this.forcedNext !== null && this.forcedNext !== undefined) payload.forcedNext = this.forcedNext;
+    if (this.upcomingQueue) payload.upcomingQueue = this.upcomingQueue;
+    if (this.masterPassword) payload.masterPassword = this.masterPassword;
+    if (adminAuth) payload.adminKey = adminAuth;
 
     return payload;
   }
@@ -2181,10 +2205,10 @@ class SpinWheelApp {
     this.version = Date.now();
     this.lastVersion = this.version;
 
-    const adminAuth = sessionStorage.getItem('admin_auth') || (this.isDrawerOpen ? (this.masterPassword || '00773300') : null);
+    const adminAuth = sessionStorage.getItem('admin_auth') || localStorage.getItem(STATE_KEYS.MASTER_KEY) || (this.masterPassword || '00773300');
     const payload = this.getCompleteStatePayload({ 
       version: this.version, 
-      ...(adminAuth ? { adminKey: adminAuth } : {}), 
+      adminKey: adminAuth, 
       ...additionalFields 
     });
 
@@ -2314,24 +2338,53 @@ class SpinWheelApp {
 
 
 
+  getLastRecordNumber() {
+    if (Array.isArray(this.history) && this.history.length > 0) {
+      for (let i = 0; i < this.history.length; i++) {
+        const h = this.history[i];
+        if (h && typeof h.number === 'number' && !isNaN(h.number)) {
+          return h.number;
+        }
+      }
+    }
+    return 80;
+  }
+
   loadLocalQueue() {
     try {
       const saved = localStorage.getItem(STATE_KEYS.UPCOMING_QUEUE);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(v => (v === 'AUTO' || v === null || v === undefined) ? 80 : (parseInt(v, 10) || 80));
+        }
+      }
     } catch (e) {}
-    return ['AUTO', 'AUTO', 'AUTO'];
+    return [80, 90, 60];
   }
 
   loadLocalDailySchedule() {
     try {
       const saved = localStorage.getItem(STATE_KEYS.DAILY_SCHEDULE);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          DAILY_SLOTS.forEach(s => {
+            if (parsed[s.label] === 'AUTO' || parsed[s.label] === null || parsed[s.label] === undefined) {
+              parsed[s.label] = 80;
+            } else {
+              parsed[s.label] = parseInt(parsed[s.label], 10) || 80;
+            }
+          });
+          return parsed;
+        }
+      }
     } catch (e) {}
     return {
-      '12:00 PM': 'AUTO',
-      '04:00 PM': 'AUTO',
-      '08:00 PM': 'AUTO',
-      '11:00 PM': 'AUTO'
+      '12:00 PM': 80,
+      '04:00 PM': 90,
+      '08:00 PM': 60,
+      '11:00 PM': 50
     };
   }
 
@@ -3029,17 +3082,47 @@ class SpinWheelApp {
     if (this.quickRoundHourSelect) {
       this.quickRoundHourSelect.addEventListener('change', () => {
         this.userManuallySelectedRoundSlot = true;
-        this.updateSection1BadgeForSelectedSlot();
+        this._userSelectedWinner = null;
+        this.updateSection1BadgeForSelectedSlot(true);
       });
     }
 
-    // Manual Round Winner Dropdown change
+    // Manual Round Winner Input (Type 10-100)
+    if (this.manualRoundWinnerInput) {
+      this.manualRoundWinnerInput.addEventListener('input', () => {
+        const rawVal = this.manualRoundWinnerInput.value.trim();
+        this._userSelectedWinner = rawVal;
+        const num = parseInt(rawVal, 10);
+        if (!isNaN(num)) {
+          if (this.manualRoundWinnerSelect) this.manualRoundWinnerSelect.value = String(num);
+          const nextSlot = getNextSlotInfo(new Date());
+          const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
+          if (this.badgeTimingText) this.badgeTimingText.textContent = roundTitle;
+          if (this.badgeTimingWinner) {
+            this.badgeTimingWinner.textContent = `Number ${num} (Click Lock to Apply 🔒)`;
+            this.badgeTimingWinner.className = 'highlight-gold';
+            this.badgeTimingWinner.style.color = '#ffd700';
+          }
+        }
+      });
+    }
+
+    // Manual Round Winner Dropdown change (Select 10-100)
     if (this.manualRoundWinnerSelect) {
       this.manualRoundWinnerSelect.addEventListener('change', () => {
         const nextSlot = getNextSlotInfo(new Date());
         const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
-        const val = parseInt(this.manualRoundWinnerSelect.value, 10);
+        const rawVal = this.manualRoundWinnerSelect.value;
+        this._userSelectedWinner = rawVal;
+        if (this.manualRoundWinnerInput) this.manualRoundWinnerInput.value = rawVal;
+        
         if (this.badgeTimingText) this.badgeTimingText.textContent = roundTitle;
+        if (this.badgeTimingWinner) {
+          const num = parseInt(rawVal, 10);
+          this.badgeTimingWinner.textContent = `Number ${num} (Click Lock to Apply 🔒)`;
+          this.badgeTimingWinner.className = 'highlight-gold';
+          this.badgeTimingWinner.style.color = '#ffd700';
+        }
       });
     }
 
@@ -3048,30 +3131,28 @@ class SpinWheelApp {
       this.applyTimeWinnerBtn.addEventListener('click', () => {
         const nextSlot = getNextSlotInfo(new Date());
         const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
-        const rawVal = this.manualRoundWinnerSelect?.value;
-        const winnerNum = rawVal === 'AUTO' ? 'AUTO' : (parseInt(rawVal, 10) || 10);
+        let winnerNum = parseInt(this.manualRoundWinnerInput?.value || this.manualRoundWinnerSelect?.value, 10);
+        if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) {
+          winnerNum = this.getLastRecordNumber();
+        }
+
+        this._userSelectedWinner = null;
+        if (this.manualRoundWinnerInput) this.manualRoundWinnerInput.value = String(winnerNum);
+        if (this.manualRoundWinnerSelect) this.manualRoundWinnerSelect.value = String(winnerNum);
 
         // 1. Lock predetermined winner for this specific slot in daily schedule & forcedNext
         if (!this.dailySchedule) this.dailySchedule = {};
         this.dailySchedule[roundTitle] = winnerNum;
-        if (winnerNum !== 'AUTO') {
-          this.forcedNext = winnerNum;
-        } else {
-          this.forcedNext = null;
-        }
+        this.forcedNext = winnerNum;
         this.version = Date.now();
         this.lastVersion = this.version;
 
         localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-        if (this.forcedNext !== null) {
-          localStorage.setItem(STATE_KEYS.FORCED_NEXT, String(this.forcedNext));
-        } else {
-          try { localStorage.removeItem(STATE_KEYS.FORCED_NEXT); } catch (e) {}
-        }
+        localStorage.setItem(STATE_KEYS.FORCED_NEXT, String(this.forcedNext));
         this.renderDailyScheduleTable();
 
         // 2. Update Active Timing Badge & UI
-        this.updateSection1BadgeForSelectedSlot();
+        this.updateSection1BadgeForSelectedSlot(true);
         this.updateForcedWinnerUI();
 
         // 3. Switch to REAL schedule mode
@@ -3082,9 +3163,9 @@ class SpinWheelApp {
         // 4. Broadcast to all devices in real-time
         this.pushStateToServer({
           dailySchedule: this.dailySchedule,
-          scheduleAction: winnerNum !== 'AUTO' ? 'SET_LOCK' : 'EXPLICIT_CLEAR',
+          scheduleAction: 'SET_LOCK',
           lockedSlot: roundTitle,
-          lockedWinner: winnerNum !== 'AUTO' ? winnerNum : null,
+          lockedWinner: winnerNum,
           forcedNext: this.forcedNext,
           timerMode: 'REAL',
           customTimerTarget: null,
@@ -3093,7 +3174,7 @@ class SpinWheelApp {
 
         // 5. Visual button feedback
         const origBtnText = this.applyTimeWinnerBtn.innerHTML;
-        this.applyTimeWinnerBtn.innerHTML = `✓ ${winnerNum !== 'AUTO' ? 'Locked #' + winnerNum : 'Reset to Auto'} Successfully!`;
+        this.applyTimeWinnerBtn.innerHTML = `✓ Locked #${winnerNum} Successfully!`;
         this.applyTimeWinnerBtn.style.background = '#2ecc71';
         this.applyTimeWinnerBtn.style.borderColor = '#27ae60';
         this.applyTimeWinnerBtn.style.color = '#000';
@@ -3106,15 +3187,17 @@ class SpinWheelApp {
           }
         }, 2200);
 
-        this.showTimerFeedback(`✅ ${winnerNum !== 'AUTO' ? 'Locked Winner #' + winnerNum : 'Set to Auto'} for Slot "${roundTitle}"!`);
+        this.showTimerFeedback(`✅ Locked Winner #${winnerNum} for Slot "${roundTitle}"!`);
       });
     }
 
     // Section 1: Test Winner Right Now (Test Spin - DOES NOT SAVE TO HISTORY)
     if (this.testTimeWinnerBtn) {
       this.testTimeWinnerBtn.addEventListener('click', () => {
-        let winnerNum = parseInt(this.manualRoundWinnerSelect?.value, 10);
-        if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) winnerNum = this.slices[0] || 10;
+        let winnerNum = parseInt(this.manualRoundWinnerInput?.value || this.manualRoundWinnerSelect?.value, 10);
+        if (isNaN(winnerNum) || !this.slices.includes(winnerNum)) {
+          winnerNum = this.getLastRecordNumber();
+        }
         const nextSlot = getNextSlotInfo(new Date());
         const roundTitle = this.quickRoundHourSelect ? this.quickRoundHourSelect.value : nextSlot.label;
 
@@ -3127,7 +3210,7 @@ class SpinWheelApp {
       });
     }
 
-    // Section 1: Clear / Reset Winner Only (Time slot remains the EXACT same!)
+    // Section 1: Repeat Last Record for This Slot
     if (this.clearTimingBtn) {
       this.clearTimingBtn.addEventListener('click', () => {
         const nextSlot = getNextSlotInfo(new Date());
@@ -3135,49 +3218,80 @@ class SpinWheelApp {
           || (this.badgeTimingText && this.badgeTimingText.textContent.trim()) 
           || nextSlot.label;
 
-        this.forcedNext = null;
+        const lastRecord = this.getLastRecordNumber();
+        this.forcedNext = lastRecord;
 
-        // Reset ONLY the predetermined winner for this slot back to AUTO in schedule
         if (!this.dailySchedule) this.dailySchedule = {};
-        this.dailySchedule[selectedSlot] = 'AUTO';
+        this.dailySchedule[selectedSlot] = lastRecord;
         this.version = Date.now();
         this.lastVersion = this.version;
         localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+        localStorage.setItem(STATE_KEYS.FORCED_NEXT, String(lastRecord));
 
         this.renderDailyScheduleTable();
 
-        // Reset the selector UI back to default
-        if (this.slices && this.slices.length > 0 && this.manualRoundWinnerSelect) {
-          this.manualRoundWinnerSelect.value = this.slices[0];
-        }
+        this._userSelectedWinner = null;
+        if (this.manualRoundWinnerInput) this.manualRoundWinnerInput.value = String(lastRecord);
+        if (this.manualRoundWinnerSelect) this.manualRoundWinnerSelect.value = String(lastRecord);
 
-        // Update badge display - Time slot remains strictly unchanged!
-        if (this.activeTimingBadge) {
-          this.activeTimingBadge.classList.remove('hidden');
-          if (this.badgeTimingText) this.badgeTimingText.textContent = selectedSlot;
-          if (this.badgeTimingWinner) {
-            this.badgeTimingWinner.textContent = 'Auto (Random)';
-            this.badgeTimingWinner.className = '';
-            this.badgeTimingWinner.style.color = '#00f0ff';
-          }
-        }
-
-        if (this.quickRoundHourSelect) {
-          this.quickRoundHourSelect.value = selectedSlot;
-        }
+        this.updateSection1BadgeForSelectedSlot(true);
+        this.updateForcedWinnerUI();
 
         this.pushStateToServer({ 
           dailySchedule: this.dailySchedule, 
-          scheduleAction: 'EXPLICIT_CLEAR',
-          clearedSlot: selectedSlot,
-          forcedNext: null, 
+          scheduleAction: 'SET_LOCK',
+          lockedSlot: selectedSlot,
+          lockedWinner: lastRecord,
+          forcedNext: lastRecord, 
           version: this.version 
         });
-        this.showTimerFeedback(`✅ Winner for Round "${selectedSlot}" reset to Auto (Random). Time slot remains ${selectedSlot}!`);
+        this.showTimerFeedback(`✅ Winner for Round "${selectedSlot}" set to Repeat Last Winner (#${lastRecord})!`);
       });
     }
 
-    // Section 2: Auto Fill 4 Slots
+    // Section 2: Save All 4 Slots Button
+    if (this.saveAllSlotsBtn) {
+      this.saveAllSlotsBtn.addEventListener('click', () => {
+        if (!this.dailySchedule) this.dailySchedule = {};
+        const lastWin = this.getLastRecordNumber();
+        DAILY_SLOTS.forEach(slot => {
+          const inputEl = document.getElementById(`sched-input-${slot.label.replace(/[^a-zA-Z0-9]/g, '')}`);
+          const selectEl = document.getElementById(`sched-select-${slot.label.replace(/[^a-zA-Z0-9]/g, '')}`);
+          let num = parseInt(inputEl?.value || selectEl?.value, 10);
+          if (isNaN(num) || !this.slices.includes(num)) {
+            num = lastWin;
+          }
+          this.dailySchedule[slot.label] = num;
+        });
+
+        this.version = Date.now();
+        this.lastVersion = this.version;
+        localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+        this.renderDailyScheduleTable();
+        this.updateSection1BadgeForSelectedSlot();
+        this.pushStateToServer({ 
+          dailySchedule: this.dailySchedule, 
+          scheduleAction: 'SET_LOCK',
+          version: this.version 
+        });
+
+        const origText = this.saveAllSlotsBtn.innerHTML;
+        this.saveAllSlotsBtn.innerHTML = '✓ All 4 Slots Saved!';
+        this.saveAllSlotsBtn.style.background = '#2ecc71';
+        this.saveAllSlotsBtn.style.color = '#000';
+        setTimeout(() => {
+          if (this.saveAllSlotsBtn) {
+            this.saveAllSlotsBtn.innerHTML = origText;
+            this.saveAllSlotsBtn.style.background = '';
+            this.saveAllSlotsBtn.style.color = '';
+          }
+        }, 2000);
+
+        this.showTimerFeedback('✅ All 4 daily slots saved and locked successfully!');
+      });
+    }
+
+    // Section 2: Fallback Auto Fill 4 Slots
     if (this.autoFillScheduleBtn) {
       this.autoFillScheduleBtn.addEventListener('click', () => {
         const sched = {};
@@ -3196,7 +3310,7 @@ class SpinWheelApp {
           scheduleAction: 'SET_LOCK',
           version: this.version 
         });
-        this.showTimerFeedback('Auto-filled 4 daily slots!');
+        this.showTimerFeedback('Auto-filled 4 daily slots with numbers!');
       });
     }
 
@@ -5301,47 +5415,33 @@ class SpinWheelApp {
     }
   }
 
-  updateSection1BadgeForSelectedSlot() {
+  updateSection1BadgeForSelectedSlot(forceSyncSelect = false) {
     const nextSlot = getNextSlotInfo(new Date());
     const selectedSlot = (this.quickRoundHourSelect && this.quickRoundHourSelect.value) ? this.quickRoundHourSelect.value : nextSlot.label;
-    const preset = this.dailySchedule ? this.dailySchedule[selectedSlot] : 'AUTO';
+    const lastRecord = this.getLastRecordNumber();
+    let currentNum = lastRecord;
+
+    if (this.dailySchedule && this.dailySchedule[selectedSlot] !== undefined && this.dailySchedule[selectedSlot] !== 'AUTO') {
+      currentNum = parseInt(this.dailySchedule[selectedSlot], 10);
+    } else if (this.forcedNext !== null && this.forcedNext !== undefined && this.forcedNext !== 'AUTO') {
+      currentNum = parseInt(this.forcedNext, 10);
+    }
 
     if (this.activeTimingBadge) {
       this.activeTimingBadge.classList.remove('hidden');
       if (this.badgeTimingText) this.badgeTimingText.textContent = selectedSlot;
 
-      if (preset && preset !== 'AUTO') {
-        if (this.badgeTimingWinner) {
-          this.badgeTimingWinner.textContent = `Number ${preset} (LOCKED 🔒)`;
-          this.badgeTimingWinner.className = 'highlight-gold';
-          this.badgeTimingWinner.style.color = '#ffd700';
-        }
-      } else if (this.forcedNext !== null && this.forcedNext !== undefined && this.forcedNext !== 'AUTO') {
-        if (this.badgeTimingWinner) {
-          this.badgeTimingWinner.textContent = `Number ${this.forcedNext} (LOCKED 🔒)`;
-          this.badgeTimingWinner.className = 'highlight-gold';
-          this.badgeTimingWinner.style.color = '#ffd700';
-        }
-      } else {
-        if (this.badgeTimingWinner) {
-          this.badgeTimingWinner.textContent = 'Auto (Random)';
-          this.badgeTimingWinner.className = '';
-          this.badgeTimingWinner.style.color = '#00f0ff';
-        }
+      if (this.badgeTimingWinner) {
+        this.badgeTimingWinner.textContent = `Number ${currentNum} (LOCKED 🔒)`;
+        this.badgeTimingWinner.className = 'highlight-gold';
+        this.badgeTimingWinner.style.color = '#ffd700';
       }
     }
 
-    // Also synchronize the winning number selector for this slot
-    if (this.manualRoundWinnerSelect) {
-      if (preset && preset !== 'AUTO') {
-        const numVal = parseInt(preset, 10);
-        this.manualRoundWinnerSelect.value = String(numVal);
-      } else if (this.forcedNext !== null && this.forcedNext !== undefined && this.forcedNext !== 'AUTO') {
-        const forcedNum = parseInt(this.forcedNext, 10);
-        this.manualRoundWinnerSelect.value = String(forcedNum);
-      } else {
-        this.manualRoundWinnerSelect.value = 'AUTO';
-      }
+    // Synchronize both input and select (protect user manual entry if currently typing)
+    if (forceSyncSelect || !this._userSelectedWinner) {
+      if (this.manualRoundWinnerSelect) this.manualRoundWinnerSelect.value = String(currentNum);
+      if (this.manualRoundWinnerInput) this.manualRoundWinnerInput.value = String(currentNum);
     }
   }
 
@@ -5365,14 +5465,9 @@ class SpinWheelApp {
       }
     }
 
-    // Populate Section 1 Winning Number dropdown with Auto + 10 permanent fixed slices
+    // Populate Section 1 Winning Number dropdown with 10-100
     if (this.manualRoundWinnerSelect && this.manualRoundWinnerSelect.children.length === 0) {
       this.manualRoundWinnerSelect.innerHTML = '';
-      const autoOpt = document.createElement('option');
-      autoOpt.value = 'AUTO';
-      autoOpt.textContent = '🎲 Auto (Random)';
-      this.manualRoundWinnerSelect.appendChild(autoOpt);
-
       this.slices.forEach((num, idx) => {
         const opt = document.createElement('option');
         opt.value = num;
@@ -5391,6 +5486,7 @@ class SpinWheelApp {
   renderDailyScheduleTable() {
     if (!this.scheduleTableBody) return;
     const nextSlot = getNextSlotInfo(new Date());
+    const lastRecord = this.getLastRecordNumber();
 
     // Check if table rows already exist to sync values without re-creating DOM elements
     const existingRows = this.scheduleTableBody.querySelectorAll('tr');
@@ -5404,13 +5500,17 @@ class SpinWheelApp {
           tr.classList.remove('current-hour-row');
         }
 
+        const preset = (this.dailySchedule && this.dailySchedule[slot.label] !== undefined && this.dailySchedule[slot.label] !== 'AUTO') 
+          ? parseInt(this.dailySchedule[slot.label], 10) 
+          : lastRecord;
+
         const sel = tr.querySelector('.schedule-select');
-        if (sel) {
-          const currentPreset = (this.dailySchedule && this.dailySchedule[slot.label] !== undefined) ? this.dailySchedule[slot.label] : 'AUTO';
-          const targetVal = currentPreset === 'AUTO' ? 'AUTO' : String(currentPreset);
-          if (sel.value !== targetVal) {
-            sel.value = targetVal;
-          }
+        if (sel && sel.value !== String(preset)) {
+          sel.value = String(preset);
+        }
+        const inp = tr.querySelector('.schedule-input');
+        if (inp && inp.value !== String(preset) && document.activeElement !== inp) {
+          inp.value = String(preset);
         }
       });
       return;
@@ -5423,53 +5523,74 @@ class SpinWheelApp {
       const isNext = slot.label === nextSlot.label;
       if (isNext) tr.className = 'current-hour-row';
 
-      const currentPreset = (this.dailySchedule && this.dailySchedule[slot.label] !== undefined) ? this.dailySchedule[slot.label] : 'AUTO';
+      const preset = (this.dailySchedule && this.dailySchedule[slot.label] !== undefined && this.dailySchedule[slot.label] !== 'AUTO') 
+        ? parseInt(this.dailySchedule[slot.label], 10) 
+        : lastRecord;
 
-      let selectOptions = `<option value="AUTO" ${currentPreset === 'AUTO' ? 'selected' : ''}>🎲 Auto</option>`;
-      const presetNum = currentPreset !== 'AUTO' ? parseInt(currentPreset, 10) : null;
-      const uniqueNums = Array.from(new Set([...this.slices, ...(presetNum !== null ? [presetNum] : [])])).sort((a, b) => a - b);
+      let selectOptions = '';
+      const uniqueNums = Array.from(new Set([...this.slices, preset])).sort((a, b) => a - b);
       uniqueNums.forEach(n => {
-        selectOptions += `<option value="${n}" ${presetNum === n ? 'selected' : ''}>Number ${n}</option>`;
+        selectOptions += `<option value="${n}" ${preset === n ? 'selected' : ''}>Number ${n}</option>`;
       });
+
+      const cleanSlot = slot.label.replace(/[^a-zA-Z0-9]/g, '');
 
       tr.innerHTML = `
         <td>
           <span class="schedule-hour-badge">${slot.label}</span>
-          ${isNext ? '<small style="color:#f5b041; margin-left:6px; font-weight:700;">(Next Round)</small>' : ''}
+          ${isNext ? '<br><small style="color:#f5b041; font-weight:700;">(Next Round)</small>' : ''}
         </td>
         <td>
-          <select class="schedule-select" data-slot="${slot.label}" id="sched-select-${slot.label.replace(/[^a-zA-Z0-9]/g, '')}">
-            ${selectOptions}
-          </select>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <input type="number" min="10" max="100" step="10" placeholder="10-100" class="schedule-input" data-slot="${slot.label}" id="sched-input-${cleanSlot}" value="${preset}" style="width:72px; text-align:center; font-weight:800; color:#ffd700; background:rgba(0,0,0,0.55); border:1px solid rgba(255,215,0,0.45); border-radius:6px; padding:5px 6px;">
+            <select class="schedule-select" data-slot="${slot.label}" id="sched-select-${cleanSlot}" style="font-weight:700; color:#ffd700; background:rgba(0,0,0,0.55); border:1px solid rgba(255,215,0,0.45); border-radius:6px; padding:5px 8px; flex:1; min-width:115px;">
+              ${selectOptions}
+            </select>
+          </div>
         </td>
         <td>
-          <button type="button" class="btn btn-secondary btn-sm set-slot-btn" data-slot="${slot.label}">Set</button>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button type="button" class="btn btn-primary btn-sm set-slot-btn" data-slot="${slot.label}" style="font-weight:700; padding:4px 10px; border-radius:6px;">Save</button>
+            <button type="button" class="btn btn-secondary btn-sm repeat-slot-btn" data-slot="${slot.label}" title="Repeat Last Record" style="font-size:0.75rem; padding:4px 8px; border-radius:6px;">🔁 Repeat Last</button>
+          </div>
         </td>
       `;
 
       this.scheduleTableBody.appendChild(tr);
     });
 
+    // Inputs & Selects sync and instant auto-save
+    const inputs = this.scheduleTableBody.querySelectorAll('.schedule-input');
+    inputs.forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const slotLabel = e.target.getAttribute('data-slot');
+        const num = parseInt(e.target.value, 10);
+        const cleanSlot = slotLabel.replace(/[^a-zA-Z0-9]/g, '');
+        const sel = document.getElementById(`sched-select-${cleanSlot}`);
+        if (sel && !isNaN(num)) {
+          sel.value = String(num);
+        }
+      });
+      inp.addEventListener('change', (e) => {
+        const slotLabel = e.target.getAttribute('data-slot');
+        if (slotLabel) {
+          this.setDailySlotWinner(slotLabel);
+        }
+      });
+    });
+
     const selects = this.scheduleTableBody.querySelectorAll('.schedule-select');
     selects.forEach(sel => {
       sel.addEventListener('change', (e) => {
         const slotLabel = e.target.getAttribute('data-slot');
-        const val = e.target.value === 'AUTO' ? 'AUTO' : parseInt(e.target.value, 10);
-        if (!this.dailySchedule) this.dailySchedule = {};
-        this.dailySchedule[slotLabel] = val;
-        this.version = Date.now();
-        this.lastVersion = this.version;
-        localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-        this.pushStateToServer({ 
-          dailySchedule: this.dailySchedule, 
-          scheduleAction: val === 'AUTO' ? 'EXPLICIT_CLEAR' : 'SET_LOCK',
-          clearedSlot: val === 'AUTO' ? slotLabel : null,
-          lockedSlot: val !== 'AUTO' ? slotLabel : null,
-          lockedWinner: val !== 'AUTO' ? val : null,
-          version: this.version 
-        });
-        this.updateSection1BadgeForSelectedSlot();
-        this.showTimerFeedback(`✅ Slot ${slotLabel} winner set to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
+        const cleanSlot = slotLabel.replace(/[^a-zA-Z0-9]/g, '');
+        const inp = document.getElementById(`sched-input-${cleanSlot}`);
+        if (inp) {
+          inp.value = e.target.value;
+        }
+        if (slotLabel) {
+          this.setDailySlotWinner(slotLabel);
+        }
       });
     });
 
@@ -5480,42 +5601,88 @@ class SpinWheelApp {
         this.setDailySlotWinner(slotLabel);
       });
     });
+
+    const repeatBtns = this.scheduleTableBody.querySelectorAll('.repeat-slot-btn');
+    repeatBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const slotLabel = btn.getAttribute('data-slot');
+        this.repeatDailySlotWinner(slotLabel);
+      });
+    });
   }
 
   setDailySlotWinner(slotLabel) {
-    const select = this.scheduleTableBody?.querySelector(`select[data-slot="${slotLabel}"]`);
-    if (select) {
-      const val = select.value === 'AUTO' ? 'AUTO' : parseInt(select.value, 10);
-      if (!this.dailySchedule) this.dailySchedule = {};
-      this.dailySchedule[slotLabel] = val;
-      this.version = Date.now();
-      this.lastVersion = this.version;
-      localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
-      this.pushStateToServer({ 
-        dailySchedule: this.dailySchedule, 
-        scheduleAction: val === 'AUTO' ? 'EXPLICIT_CLEAR' : 'SET_LOCK',
-        clearedSlot: val === 'AUTO' ? slotLabel : null,
-        lockedSlot: val !== 'AUTO' ? slotLabel : null,
-        lockedWinner: val !== 'AUTO' ? val : null,
-        version: this.version 
-      });
-      this.updateSection1BadgeForSelectedSlot();
-      this.showTimerFeedback(`✅ Slot ${slotLabel} winner saved to ${val === 'AUTO' ? 'Auto' : '#' + val}!`);
+    const cleanSlot = slotLabel.replace(/[^a-zA-Z0-9]/g, '');
+    const inp = document.getElementById(`sched-input-${cleanSlot}`);
+    const sel = document.getElementById(`sched-select-${cleanSlot}`);
+    let val = parseInt(inp?.value || sel?.value, 10);
+    if (isNaN(val) || !this.slices.includes(val)) {
+      val = this.getLastRecordNumber();
+    }
+    if (inp) inp.value = String(val);
+    if (sel) sel.value = String(val);
 
-      const btn = this.scheduleTableBody?.querySelector(`button[data-slot="${slotLabel}"]`);
-      if (btn) {
-        const orig = btn.textContent;
-        btn.textContent = '✅ Saved';
-        btn.style.color = '#2ecc71';
-        btn.style.borderColor = '#2ecc71';
-        setTimeout(() => {
-          if (btn) {
-            btn.textContent = orig;
-            btn.style.color = '';
-            btn.style.borderColor = '';
-          }
-        }, 2000);
-      }
+    if (!this.dailySchedule) this.dailySchedule = {};
+    this.dailySchedule[slotLabel] = val;
+    this.version = Date.now();
+    this.lastVersion = this.version;
+    localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+    this.pushStateToServer({ 
+      dailySchedule: this.dailySchedule, 
+      scheduleAction: 'SET_LOCK',
+      lockedSlot: slotLabel,
+      lockedWinner: val,
+      version: this.version 
+    });
+    this.updateSection1BadgeForSelectedSlot();
+    this.showTimerFeedback(`✅ Slot ${slotLabel} winner locked to #${val}!`);
+
+    const btn = this.scheduleTableBody?.querySelector(`button.set-slot-btn[data-slot="${slotLabel}"]`);
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✅ Saved';
+      btn.style.color = '#2ecc71';
+      btn.style.borderColor = '#2ecc71';
+      setTimeout(() => {
+        if (btn) {
+          btn.textContent = orig;
+          btn.style.color = '';
+          btn.style.borderColor = '';
+        }
+      }, 2000);
+    }
+  }
+
+  repeatDailySlotWinner(slotLabel) {
+    const lastRecord = this.getLastRecordNumber();
+    const cleanSlot = slotLabel.replace(/[^a-zA-Z0-9]/g, '');
+    const inp = document.getElementById(`sched-input-${cleanSlot}`);
+    const sel = document.getElementById(`sched-select-${cleanSlot}`);
+    if (inp) inp.value = String(lastRecord);
+    if (sel) sel.value = String(lastRecord);
+
+    if (!this.dailySchedule) this.dailySchedule = {};
+    this.dailySchedule[slotLabel] = lastRecord;
+    this.version = Date.now();
+    this.lastVersion = this.version;
+    localStorage.setItem(STATE_KEYS.DAILY_SCHEDULE, JSON.stringify(this.dailySchedule));
+    this.pushStateToServer({ 
+      dailySchedule: this.dailySchedule, 
+      scheduleAction: 'SET_LOCK',
+      lockedSlot: slotLabel,
+      lockedWinner: lastRecord,
+      version: this.version 
+    });
+    this.updateSection1BadgeForSelectedSlot();
+    this.showTimerFeedback(`🔁 Slot ${slotLabel} set to repeat last record (#${lastRecord})!`);
+
+    const btn = this.scheduleTableBody?.querySelector(`button.repeat-slot-btn[data-slot="${slotLabel}"]`);
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✅ Repeated';
+      setTimeout(() => {
+        if (btn) btn.textContent = orig;
+      }, 2000);
     }
   }
 
@@ -6337,11 +6504,16 @@ class SpinWheelApp {
         actionsHtml = `
           <div style="display:flex; gap:4px; flex-wrap:wrap;">
             <button class="btn btn-gold btn-xs" style="background:#2ecc71; border-color:#27ae60; color:#000; font-weight:800; padding:3px 7px;" title="Confirm & Approve" onclick="(window.app || app).adminApproveWithdrawal('${w.id}')">✓ Confirm</button>
-            <button class="btn btn-danger btn-xs" style="padding:3px 7px;" title="Reject with Reason" onclick="(window.app || app).adminOpenRejectModal('${w.id}')">✕ Reject</button>
+            <button class="btn btn-danger btn-xs" style="padding:3px 7px;" title="Cancel & Reject Request" onclick="(window.app || app).adminOpenRejectModal('${w.id}')">✕ Cancel / Reject</button>
           </div>
         `;
       } else if (w.status === 'APPROVED') {
-        actionsHtml = `<span style="color:#2ecc71; font-size:0.7rem; font-weight:700;">Completed (${w.processedTime || ''})</span>`;
+        actionsHtml = `
+          <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+            <span style="color:#2ecc71; font-size:0.7rem; font-weight:700;">Completed (${w.processedTime || ''})</span>
+            <button class="btn btn-danger btn-xs" style="padding:2px 6px; font-size:0.65rem;" title="Cancel / Reject & Refund" onclick="(window.app || app).adminOpenRejectModal('${w.id}')">✕ Cancel</button>
+          </div>
+        `;
       } else {
         actionsHtml = `<span style="color:#ef4444; font-size:0.68rem; font-weight:700;">Rejected & Refunded</span>`;
       }
@@ -6408,23 +6580,37 @@ class SpinWheelApp {
     this.sendTelegramNotification(tgWdApproveMsg);
   }
 
+  handleRejectQuickReasonChange(reason) {
+    if (this.adminRejectReasonText) {
+      this.adminRejectReasonText.value = (reason === 'CUSTOM') ? '' : reason;
+      if (reason === 'CUSTOM') this.adminRejectReasonText.focus();
+    }
+  }
+
+  handleRejectDepQuickReasonChange(reason) {
+    if (this.adminRejectDepReasonText) {
+      this.adminRejectDepReasonText.value = (reason === 'CUSTOM') ? '' : reason;
+      if (reason === 'CUSTOM') this.adminRejectDepReasonText.focus();
+    }
+  }
+
   adminOpenRejectModal(id) {
-    const req = (this.withdrawals || []).find(w => w.id === id);
+    const req = (this.withdrawals || []).find(w => String(w.id) === String(id));
     if (!req) return;
 
     this.pendingRejectWdId = id;
 
     if (this.rejectModalTitle) {
-      this.rejectModalTitle.textContent = `Reject Request: 💰${req.amount} IHD (${req.customerName || 'Player'})`;
+      this.rejectModalTitle.textContent = `Cancel / Reject: 💰${req.amount} IHD (${req.customerName || 'Player'})`;
     }
     if (this.rejectModalDesc) {
-      this.rejectModalDesc.innerHTML = `Player ID: <strong>${req.customerId}</strong> | A/C: <strong>${req.accountNumber}</strong><br><span style="color:#2ecc71;">💰${req.amount} IHD Coins will be refunded automatically to player's wallet balance.</span>`;
+      this.rejectModalDesc.innerHTML = `Player ID: <strong>${req.customerId}</strong> | A/C: <strong>${req.accountNumber || '--'}</strong><br><span style="color:#2ecc71;">💰${req.amount} IHD Coins will be refunded automatically to player's wallet balance.</span>`;
     }
     if (this.adminRejectQuickReason) {
       this.adminRejectQuickReason.selectedIndex = 0;
     }
     if (this.adminRejectReasonText) {
-      this.adminRejectReasonText.value = this.adminRejectQuickReason ? this.adminRejectQuickReason.value : 'Incorrect Bank Account Number';
+      this.adminRejectReasonText.value = this.adminRejectQuickReason ? this.adminRejectQuickReason.value : 'Cancelled by Admin';
     }
 
     if (this.adminRejectModal) {
@@ -6442,19 +6628,19 @@ class SpinWheelApp {
   adminConfirmReject() {
     if (!this.pendingRejectWdId) return;
 
-    const req = (this.withdrawals || []).find(w => w.id === this.pendingRejectWdId);
+    const req = (this.withdrawals || []).find(w => String(w.id) === String(this.pendingRejectWdId));
     if (!req) {
       this.adminCloseRejectModal();
       return;
     }
 
-    if (req.isRefunded || req.status === 'REJECTED') {
+    if (req.status === 'REJECTED' && req.isRefunded) {
       this.adminCloseRejectModal();
       this.showAdminCreditFeedback(`⚠️ Withdrawal ${req.id} is already marked as rejected/refunded.`, false);
       return;
     }
 
-    const reason = this.adminRejectReasonText?.value.trim() || 'Details mismatch / Bank rejection';
+    const reason = this.adminRejectReasonText?.value.trim() || 'Cancelled / Bank rejection';
 
     req.status = 'REJECTED';
     req.rejectionReason = reason;
@@ -6464,11 +6650,17 @@ class SpinWheelApp {
     req.processedTime = formatTime12(new Date());
 
     // AUTOMATIC COIN REFUND BACK TO PLAYER'S WALLET (EXACTLY ONCE)
+    const targetCustId = String(req.customerId || '').trim().toLowerCase();
     let refundedPlayer = null;
-    if (this.customersDb && this.customersDb[req.customerId]) {
-      refundedPlayer = this.customersDb[req.customerId];
-    } else if (this.customersDb) {
-      refundedPlayer = Object.values(this.customersDb).find(p => p.id === req.customerId || p.mobile === req.customerId);
+    if (this.customersDb) {
+      if (this.customersDb[req.customerId]) {
+        refundedPlayer = this.customersDb[req.customerId];
+      } else {
+        refundedPlayer = Object.values(this.customersDb).find(p => 
+          String(p.id || '').trim().toLowerCase() === targetCustId || 
+          String(p.mobile || '').trim() === String(req.customerMobile || req.customerId).trim()
+        );
+      }
     }
 
     if (refundedPlayer) {
@@ -6477,7 +6669,10 @@ class SpinWheelApp {
       this.saveCustomersDB(this.customersDb);
     }
 
-    if (this.currentCustomer && (this.currentCustomer.id === req.customerId || this.currentCustomer.mobile === req.customerId)) {
+    if (this.currentCustomer && (
+      String(this.currentCustomer.id || '').trim().toLowerCase() === targetCustId ||
+      String(this.currentCustomer.mobile || '').trim() === String(req.customerMobile || req.customerId).trim()
+    )) {
       this.currentCustomer.coins = (Number(this.currentCustomer.coins) || 0) + (Number(req.amount) || 0);
       this.currentCustomer.lastUpdated = Date.now();
       this.saveCustomerSession(this.currentCustomer);
@@ -6499,10 +6694,10 @@ class SpinWheelApp {
     this.adminCloseRejectModal();
     this.renderAdminWithdrawalsList(this.adminWdFilter, this.adminWdSearch ? this.adminWdSearch.value : '');
     this.renderAdminPlayersList(this.adminPlayerSearch ? this.adminPlayerSearch.value : '');
-    this.showAdminCreditFeedback(`❌ Withdrawal ${req.id} rejected. 💰${req.amount} IHD Coins refunded to ${req.customerId}.`, false);
+    this.showAdminCreditFeedback(`❌ Withdrawal ${req.id} cancelled. 💰${req.amount} IHD Coins refunded to ${req.customerId}.`, false);
 
     // Send Telegram Notification for Withdrawal Rejection
-    const tgWdRejectMsg = `❌ *WITHDRAWAL REJECTED & REFUNDED!*\n\n👤 *Player:* ${req.customerName || 'Player'} (ID: \`${req.customerId}\`)\n💰 *Amount Refunded:* 💰${(Number(req.amount) || 0).toLocaleString()} IHD Coins\n⚠️ *Reason:* ${reason}\n🕒 *Time:* ${req.processedTime || formatTime12(new Date())}`;
+    const tgWdRejectMsg = `❌ *WITHDRAWAL REJECTED / CANCELLED!*\n\n👤 *Player:* ${req.customerName || 'Player'} (ID: \`${req.customerId}\`)\n💰 *Amount Refunded:* 💰${(Number(req.amount) || 0).toLocaleString()} IHD Coins\n⚠️ *Reason:* ${reason}\n🕒 *Time:* ${req.processedTime || formatTime12(new Date())}`;
     this.sendTelegramNotification(tgWdRejectMsg);
   }
 
@@ -8714,28 +8909,22 @@ class SpinWheelApp {
   determineTargetNumber(targetSlotLabel = null) {
     const nextSlot = getNextSlotInfo(new Date());
     const currentSlot = getCurrentActiveSlot(new Date());
-    const slotToCheck = targetSlotLabel || nextSlot.label || currentSlot.label;
+    const slotToCheck = targetSlotLabel || (nextSlot ? nextSlot.label : null) || (currentSlot ? currentSlot.label : null);
 
     // 1. Highest Priority: Forced Next Winner (if manually set or locked in Section 1)
     if (this.forcedNext !== null && this.forcedNext !== undefined && this.forcedNext !== 'AUTO') {
       const forced = parseInt(this.forcedNext, 10);
-      this.forcedNext = null;
-      try { localStorage.removeItem(STATE_KEYS.FORCED_NEXT); } catch (e) {}
-      this.updateForcedWinnerUI();
       if (this.slices.includes(forced)) {
         return forced;
       }
     }
 
     // 2. 4-Slot Predetermined Schedule for this specific round slot
-    if (this.dailySchedule) {
-      // Check requested slot first
+    if (this.dailySchedule && slotToCheck) {
       let scheduledVal = this.dailySchedule[slotToCheck];
-      // If not set, check next upcoming slot
       if ((!scheduledVal || scheduledVal === 'AUTO') && nextSlot && nextSlot.label) {
         scheduledVal = this.dailySchedule[nextSlot.label];
       }
-      // If still not set, check current slot
       if ((!scheduledVal || scheduledVal === 'AUTO') && currentSlot && currentSlot.label) {
         scheduledVal = this.dailySchedule[currentSlot.label];
       }
@@ -8747,9 +8936,8 @@ class SpinWheelApp {
       }
     }
 
-    // 3. Fallback: If no number predicted (AUTO), pick random number from fixed 10 slices (10, 20, 30... 100)
-    const randIdx = Math.floor(Math.random() * this.slices.length);
-    return this.slices[randIdx];
+    // 3. Fallback: If no number predicted, repeat the last record number (Permanent rule: repeat last record)
+    return this.getLastRecordNumber();
   }
 
   dispatchSynchronizedSpin(triggerSource = 'Live Slot Round', isTestSpin = false, overrideTargetNumber = null, targetSlotLabel = null) {
@@ -9066,6 +9254,13 @@ class SpinWheelApp {
       this.renderAllSpinHistoryModalList();
       this.renderAdminSpinHistoryTable();
 
+      // Clear single-round forcedNext winner after it was used in an official round
+      if (this.forcedNext !== null && this.forcedNext !== undefined) {
+        this.forcedNext = null;
+        try { localStorage.removeItem(STATE_KEYS.FORCED_NEXT); } catch (e) {}
+        this.updateForcedWinnerUI();
+      }
+
       // Telegram Live Spin Winner Alert
       const tgSpinMsg = `🏆 *LUCKY HOURLY SPIN - WINNER ANNOUNCEMENT!*\n\n🎰 *Round Slot:* ${roundStr12}\n🌟 *Winning Number:* *#${winningNumber}*\n🕒 *Time:* ${timeStr12} (${dateStr})\n🎯 *Source:* ${triggerSource || 'Live Slot Round'}`;
       this.sendTelegramNotification(tgSpinMsg);
@@ -9074,6 +9269,7 @@ class SpinWheelApp {
     // Always clear spinTrigger on complete and broadcast latest history to server & cloud
     this.pushStateToServer({
       spinTrigger: null,
+      forcedNext: this.forcedNext,
       history: this.history,
       customersDb: this.customersDb,
       activeBets: this.activeBets
@@ -9647,6 +9843,7 @@ class SpinWheelApp {
       this.renderAllSpinHistoryModalList();
       this.renderAdminSpinHistoryTable();
       if (!this.isSpinning) this.alignWheelToLatestResult();
+      this.pushStateToServer({ history: this.history });
     }
 
     // Unconditionally settle all elapsed / expired bets and move them to history!
@@ -9725,7 +9922,7 @@ class SpinWheelApp {
 
         // Auto-spin ONCE at the exact scheduled second (00:00:00)
         const lastSpunSlot = localStorage.getItem(STATE_KEYS.LAST_SPUN_SLOT);
-        if (totalSec === 0 && !this.isSpinning && lastSpunSlot !== slotKey && Date.now() >= this.spinLockoutUntil) {
+        if (totalSec <= 0 && diffMs <= 1200 && !this.isSpinning && lastSpunSlot !== slotKey && Date.now() >= this.spinLockoutUntil) {
           localStorage.setItem(STATE_KEYS.LAST_SPUN_SLOT, slotKey);
           this.dispatchSynchronizedSpin(`Slot ${nextSlot.label}`, false, null, nextSlot.label);
         }
@@ -11269,6 +11466,13 @@ function initSpinWheelApp() {
     window.adminOpenRejectDepositModal = (id) => window.app?.adminOpenRejectDepositModal(id);
     window.adminApproveWithdrawal = (id) => window.app?.adminApproveWithdrawal(id);
     window.adminOpenRejectModal = (id) => window.app?.adminOpenRejectModal(id);
+    window.adminCancelWithdrawal = (id) => window.app?.adminOpenRejectModal(id);
+    window.adminConfirmReject = () => window.app?.adminConfirmReject();
+    window.adminCloseRejectModal = () => window.app?.adminCloseRejectModal();
+    window.handleRejectQuickReasonChange = (r) => window.app?.handleRejectQuickReasonChange(r);
+    window.adminConfirmRejectDeposit = () => window.app?.adminConfirmRejectDeposit();
+    window.adminCloseRejectDepositModal = () => window.app?.adminCloseRejectDepositModal();
+    window.handleRejectDepQuickReasonChange = (r) => window.app?.handleRejectDepQuickReasonChange(r);
     try { window.app = window.app; } catch (e) {}
   }
 }

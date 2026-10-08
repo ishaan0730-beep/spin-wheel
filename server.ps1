@@ -58,13 +58,26 @@ public class NativeHttpServer {
 
     private void EnsureDefaultState() {
         lock (stateLock) {
+            bool needsInit = false;
             if (!File.Exists(stateFile)) {
+                needsInit = true;
+            } else {
+                try {
+                    string existing = File.ReadAllText(stateFile, Encoding.UTF8);
+                    if (string.IsNullOrWhiteSpace(existing) || !existing.Contains("\"slices\"") || !existing.Contains("\"dailySchedule\"")) {
+                        needsInit = true;
+                    }
+                } catch {
+                    needsInit = true;
+                }
+            }
+            if (needsInit) {
                 string defaultJson = @"{
                     ""slices"": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
                     ""history"": [],
                     ""forcedNext"": null,
-                    ""upcomingQueue"": [""AUTO"", ""AUTO"", ""AUTO""],
-                    ""dailySchedule"": { ""12:00 PM"": ""AUTO"", ""04:00 PM"": ""AUTO"", ""08:00 PM"": ""AUTO"", ""11:00 PM"": ""AUTO"" },
+                    ""upcomingQueue"": [80, 90, 60],
+                    ""dailySchedule"": { ""12:00 PM"": 80, ""04:00 PM"": 90, ""08:00 PM"": 60, ""11:00 PM"": 50 },
                     ""hourlySchedule"": {},
                     ""timerMode"": ""REAL"",
                     ""customSecs"": 60,
@@ -206,6 +219,38 @@ public class NativeHttpServer {
                                     var incomingObj = serializer.Deserialize<Dictionary<string, object>>(bodyJson);
 
                                     if (currentObj != null && incomingObj != null) {
+                                        if (incomingObj.ContainsKey("lockedSlot") && incomingObj["lockedSlot"] != null && incomingObj.ContainsKey("lockedWinner") && incomingObj["lockedWinner"] != null) {
+                                            string lSlot = incomingObj["lockedSlot"].ToString();
+                                            object lWin = incomingObj["lockedWinner"];
+                                            var curSched = (currentObj.ContainsKey("dailySchedule") && currentObj["dailySchedule"] is Dictionary<string, object>) 
+                                                ? (Dictionary<string, object>)currentObj["dailySchedule"] 
+                                                : new Dictionary<string, object>();
+                                            curSched[lSlot] = lWin;
+                                            currentObj["dailySchedule"] = curSched;
+                                            if (lWin != null && lWin.ToString() != "AUTO") {
+                                                currentObj["forcedNext"] = lWin;
+                                            } else {
+                                                currentObj["forcedNext"] = null;
+                                            }
+                                        }
+                                        if (incomingObj.ContainsKey("clearedSlot") && incomingObj["clearedSlot"] != null) {
+                                            string cSlot = incomingObj["clearedSlot"].ToString();
+                                            var curSched = (currentObj.ContainsKey("dailySchedule") && currentObj["dailySchedule"] is Dictionary<string, object>) 
+                                                ? (Dictionary<string, object>)currentObj["dailySchedule"] 
+                                                : new Dictionary<string, object>();
+                                            object lastWin = 80;
+                                            if (currentObj.ContainsKey("history") && currentObj["history"] is System.Collections.ArrayList) {
+                                                var hList = (System.Collections.ArrayList)currentObj["history"];
+                                                if (hList.Count > 0 && hList[0] is Dictionary<string, object>) {
+                                                    var firstH = (Dictionary<string, object>)hList[0];
+                                                    if (firstH.ContainsKey("number")) { lastWin = firstH["number"]; }
+                                                }
+                                            }
+                                            curSched[cSlot] = lastWin;
+                                            currentObj["dailySchedule"] = curSched;
+                                            currentObj["forcedNext"] = null;
+                                        }
+
                                         if (incomingObj.ContainsKey("deletedCustomerId") && incomingObj["deletedCustomerId"] != null) {
                                             string dId = incomingObj["deletedCustomerId"].ToString();
                                             if (currentObj.ContainsKey("customersDb") && currentObj["customersDb"] is Dictionary<string, object>) {
@@ -421,16 +466,18 @@ public class NativeHttpServer {
                                         }
                                         string mergedJson = serializer.Serialize(currentObj);
                                         File.WriteAllText(stateFile, mergedJson, new UTF8Encoding(false));
-                                    } else {
-                                        File.WriteAllText(stateFile, bodyJson, new UTF8Encoding(false));
                                     }
                                 } catch {
-                                    File.WriteAllText(stateFile, bodyJson, new UTF8Encoding(false));
+                                    // Protect state file from corruption: do not overwrite with partial body!
                                 }
                             }
                         }
 
-                        byte[] respBody = Encoding.UTF8.GetBytes("{\"status\":\"ok\"}");
+                        byte[] respBody;
+                        lock (stateLock) {
+                            EnsureDefaultState();
+                            respBody = File.ReadAllBytes(stateFile);
+                        }
                         string header = "HTTP/1.1 200 OK\r\n" +
                                         "Content-Type: application/json; charset=utf-8\r\n" +
                                         "Content-Length: " + respBody.Length + "\r\n" +

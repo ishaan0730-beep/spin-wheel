@@ -1151,10 +1151,13 @@
                   </div>
 
                   <div class="grid-field">
-                    <label class="field-label">Winning Number (Fixed 10-100):</label>
-                    <select id="manual-round-winner-select" class="admin-select">
-                      <!-- Dynamically populated with fixed 10-100 numbers -->
-                    </select>
+                    <label class="field-label">Winning Number (Type or Select 10-100):</label>
+                    <div style="display:flex; gap:6px;">
+                      <input type="number" id="manual-round-winner-input" class="admin-input" min="10" max="100" step="10" placeholder="Type No." style="width:50%; font-weight:700; color:#ffd700; font-size:0.95rem; text-align:center;">
+                      <select id="manual-round-winner-select" class="admin-select" style="width:50%;">
+                        <!-- Dynamically populated with fixed 10-100 numbers (NO AUTO) -->
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -1164,8 +1167,8 @@
                 </div>
 
                 <div id="active-timing-badge" class="active-timing-badge">
-                  <span>🎯 Active: Round <strong id="badge-timing-text">--</strong> &bull; Locked Winner: <strong id="badge-timing-winner" class="highlight-gold">Auto (Random)</strong></span>
-                  <button id="clear-timing-btn" class="btn-text" title="Reset locked winner back to Auto (Time slot remains unchanged)">Reset</button>
+                  <span>🎯 Active: Round <strong id="badge-timing-text">--</strong> &bull; Locked Winner: <strong id="badge-timing-winner" class="highlight-gold">Number --</strong></span>
+                  <button id="clear-timing-btn" class="btn-text" title="Repeat last record if not set">Repeat Last Record</button>
                 </div>
 
                 <span id="timer-status-feedback" class="save-status-msg" style="display:block; margin-top:4px;"></span>
@@ -1179,15 +1182,15 @@
                   <span class="step-num">2</span>
                   <h4>4-Slot Predetermined Schedule</h4>
                 </div>
-                <button id="auto-fill-schedule-btn" class="btn btn-secondary btn-sm">Auto Fill 4 Slots</button>
+                <button id="save-all-slots-btn" class="btn btn-gold btn-sm">💾 Save All 4 Slots</button>
               </div>
-              <p class="card-desc">Preset fixed winning numbers for the 4 daily rounds (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM):</p>
+              <p class="card-desc">Type manual winning numbers for each of the 4 daily rounds (12:00 PM, 04:00 PM, 08:00 PM, 11:00 PM). If left blank, the last record will repeat automatically:</p>
               <div class="schedule-table-wrap">
                 <table class="schedule-table">
                   <thead>
                     <tr>
                       <th>Slot Time</th>
-                      <th>Preset Winner</th>
+                      <th>Type / Select Winner (10-100)</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -2130,7 +2133,7 @@
       <div class="modal-header">
         <div class="modal-header-title">
           <span style="font-size:1.2rem;">❌</span>
-          <h3 style="color:#ef4444;">Reject Withdrawal Request</h3>
+          <h3 style="color:#ef4444;">Cancel / Reject Withdrawal Request</h3>
         </div>
         <button id="admin-reject-close-btn" class="icon-btn" aria-label="Close Modal" onclick="app.adminCloseRejectModal()">&times;</button>
       </div>
@@ -2138,14 +2141,16 @@
       <div class="modal-body" style="padding: 1.2rem;">
         <div class="admin-badge-notice" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.4); margin-bottom: 0.85rem;">
           <div>
-            <strong id="reject-modal-title" style="color:#fff;">Rejecting Request</strong>
+            <strong id="reject-modal-title" style="color:#fff;">Rejecting / Cancelling Request</strong>
             <p id="reject-modal-desc" style="font-size: 0.74rem; color: var(--text-secondary); margin: 2px 0 0 0;">Coins will be instantly refunded back to player's wallet balance.</p>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="field-label">Select Common Rejection Reason:</label>
+          <label class="field-label">Select Common Reason:</label>
           <select id="admin-reject-quick-reason" class="admin-select" onchange="app.handleRejectQuickReasonChange(this.value)">
+            <option value="Cancelled by Admin">Cancelled by Admin</option>
+            <option value="Cancelled on Player Request">Cancelled on Player Request</option>
             <option value="Incorrect Bank Account Number">Incorrect Bank Account Number</option>
             <option value="Invalid IFSC Code">Invalid IFSC Code</option>
             <option value="Account Holder Name mismatch">Account Holder Name mismatch</option>
@@ -2156,13 +2161,13 @@
         </div>
 
         <div class="form-group" style="margin-top:0.6rem;">
-          <label class="field-label">Rejection Reason (Visible to Customer):</label>
-          <textarea id="admin-reject-reason-text" class="admin-input" rows="3" placeholder="Enter reason for rejection..."></textarea>
+          <label class="field-label">Cancellation / Rejection Reason (Visible to Customer):</label>
+          <textarea id="admin-reject-reason-text" class="admin-input" rows="3" placeholder="Enter reason for cancellation/rejection..."></textarea>
         </div>
 
         <div class="form-actions" style="margin-top: 0.9rem; display:flex; gap:0.5rem;">
-          <button type="button" id="admin-reject-cancel-btn" class="btn btn-secondary" style="flex:1;" onclick="app.adminCloseRejectModal()">Cancel</button>
-          <button type="button" id="admin-reject-confirm-btn" class="btn btn-danger" style="flex:1.5;" onclick="app.adminConfirmReject()">❌ Confirm Reject & Refund</button>
+          <button type="button" id="admin-reject-cancel-btn" class="btn btn-secondary" style="flex:1;" onclick="app.adminCloseRejectModal()">Close</button>
+          <button type="button" id="admin-reject-confirm-btn" class="btn btn-danger" style="flex:1.5;" onclick="app.adminConfirmReject()">❌ Confirm Cancel & Refund</button>
         </div>
       </div>
     </div>
@@ -3001,13 +3006,13 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration error:', err));
+        navigator.serviceWorker.register('./sw.js?v=9.0.0').catch(err => console.log('SW registration error:', err));
       });
     }
   </script>
   <script src="mqtt.min.js"></script>
   <script src="confetti.js"></script>
-  <script src="app.js?v=7.8.5"></script>
+  <script src="app.js?v=9.0.0"></script>
   <script>
     if (typeof window.app !== 'undefined') {
       window.app = window.app;

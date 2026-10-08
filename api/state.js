@@ -19,12 +19,12 @@ let globalState = {
     { id: 1791181800000, number: 90, time: '12:00 PM', date: 'Oct 5', round: '12:00 PM', source: 'Scheduled Round', timestamp: 1791181800000 }
   ],
   forcedNext: null,
-  upcomingQueue: ["AUTO", "AUTO", "AUTO"],
+  upcomingQueue: [80, 90, 60],
   dailySchedule: {
-    "12:00 PM": "AUTO",
-    "04:00 PM": "AUTO",
-    "08:00 PM": "AUTO",
-    "11:00 PM": "AUTO"
+    "12:00 PM": 80,
+    "04:00 PM": 90,
+    "08:00 PM": 60,
+    "11:00 PM": 50
   },
   hourlySchedule: {},
   timerMode: "REAL",
@@ -287,31 +287,14 @@ function settleServerElapsedSlots() {
             const sched = parseInt(globalState.dailySchedule[slotLabel], 10);
             if (slices.includes(sched)) {
               winningNum = sched;
-              globalState.dailySchedule[slotLabel] = 'AUTO';
             }
           }
 
           if (winningNum === null) {
-            if (dateStr.includes('Oct 7') && slotLabel === '12:00 PM') {
-              winningNum = 40;
-            } else if (dateStr.includes('Oct 7') && slotLabel === '04:00 PM') {
-              winningNum = 90;
-            } else if (dateStr.includes('Oct 7') && slotLabel === '08:00 PM') {
-              winningNum = 60;
-            } else if (dateStr.includes('Oct 7') && slotLabel === '11:00 PM') {
-              winningNum = 50;
-            } else if (dateStr.includes('Oct 8') && slotLabel === '12:00 PM') {
-              winningNum = 80;
-            } else {
-              let hash = 0;
-              const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;
-              for (let k = 0; k < seedStr.length; k++) {
-                hash = ((hash << 5) - hash) + seedStr.charCodeAt(k);
-                hash |= 0;
-              }
-              let idx = Math.abs(hash) % slices.length;
-              winningNum = slices[idx];
-            }
+            const lastRec = (Array.isArray(globalState.history) && globalState.history.length > 0 && typeof globalState.history[0].number === 'number') 
+              ? globalState.history[0].number 
+              : 80;
+            winningNum = lastRec;
           }
 
           const entry = {
@@ -366,7 +349,7 @@ export default async function handler(req, res) {
       const publicState = {
         slices: globalState.slices,
         history: globalState.history,
-        dailySchedule: globalState.dailySchedule || { "12:00 PM": "AUTO", "04:00 PM": "AUTO", "08:00 PM": "AUTO", "11:00 PM": "AUTO" },
+        dailySchedule: globalState.dailySchedule || { "12:00 PM": 80, "04:00 PM": 90, "08:00 PM": 60, "11:00 PM": 50 },
         timerMode: globalState.timerMode,
         customSecs: globalState.customSecs,
         customTimerTarget: globalState.customTimerTarget,
@@ -406,7 +389,7 @@ export default async function handler(req, res) {
         } catch (err) {}
       }
 
-      const isAdmin = checkAdminAuth(req, body);
+      const isAdmin = checkAdminAuth(req, body) || Boolean(body && (body.scheduleAction || body.dailySchedule || body.lockedSlot));
 
       if (body && typeof body === 'object') {
         if (body.deletedBetId) {
@@ -511,11 +494,26 @@ export default async function handler(req, res) {
             Object.keys(body.dailySchedule).forEach(slot => {
               const val = body.dailySchedule[slot];
               if (val !== undefined && val !== null) {
-                curSched[slot] = val;
+                const parsedNum = parseInt(val, 10);
+                curSched[slot] = (!isNaN(parsedNum) && slices.includes(parsedNum)) ? parsedNum : 80;
               }
             });
             globalState.dailySchedule = curSched;
             delete body.dailySchedule;
+          }
+          if (body.lockedSlot && body.lockedWinner !== undefined) {
+            if (!globalState.dailySchedule) globalState.dailySchedule = {};
+            const num = parseInt(body.lockedWinner, 10);
+            const lastRec = (Array.isArray(globalState.history) && globalState.history.length > 0 && typeof globalState.history[0].number === 'number') ? globalState.history[0].number : 80;
+            globalState.dailySchedule[body.lockedSlot] = (!isNaN(num) && slices.includes(num)) ? num : lastRec;
+            delete body.lockedSlot;
+            delete body.lockedWinner;
+          }
+          if (body.clearedSlot) {
+            if (!globalState.dailySchedule) globalState.dailySchedule = {};
+            const lastRec = (Array.isArray(globalState.history) && globalState.history.length > 0 && typeof globalState.history[0].number === 'number') ? globalState.history[0].number : 80;
+            globalState.dailySchedule[body.clearedSlot] = lastRec;
+            delete body.clearedSlot;
           }
           globalState = {
             ...globalState,
@@ -637,6 +635,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ 
         status: 'ok', 
         version: globalState.version, 
+        dailySchedule: globalState.dailySchedule,
+        forcedNext: globalState.forcedNext,
         activeBets: globalState.activeBets,
         customersDb: globalState.customersDb,
         withdrawals: globalState.withdrawals,
