@@ -41,6 +41,10 @@
       "dest": "/api/state.js"
     },
     {
+      "src": "/master",
+      "dest": "/master.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/$1"
     }

@@ -2849,61 +2849,30 @@ class SpinWheelApp {
       this.helpModal?.classList.add('hidden');
     });
 
-    // Tap Crown Logo 3 times to open Master Admin Login (Secret for Owner)
-    let logoTapCount = 0;
-    let logoTapTimer = null;
-    const handleLogoTap = (e) => {
-      logoTapCount++;
-      clearTimeout(logoTapTimer);
-      logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 2200);
-      if (logoTapCount >= 3) {
-        logoTapCount = 0;
-        this.triggerSecretModal();
-      }
-    };
-    this.brandHeader?.addEventListener('click', handleLogoTap);
-    document.getElementById('cric-home-btn')?.addEventListener('click', handleLogoTap);
-    document.getElementById('cric-logo-badge')?.addEventListener('click', handleLogoTap);
-    document.getElementById('cric-logo-center-img')?.addEventListener('click', handleLogoTap);
-
-    // SECRET URL PARAMETER: ?master=1, ?admin=1, #master, #admin (Direct Owner Secret Bookmark)
+    // MASTER ACCESS ENFORCED STRICTLY VIA DEDICATED /master SHORTCUT PORTAL
     try {
-      const qStr = (window.location.search || '').toLowerCase();
-      const hStr = (window.location.hash || '').toLowerCase();
-      if (qStr.includes('master') || qStr.includes('admin') || hStr.includes('master') || hStr.includes('admin')) {
-        setTimeout(() => { this.triggerSecretModal(); }, 500);
+      const urlParams = new URLSearchParams(window.location.search);
+      const isMasterPanel = urlParams.get('master_panel') === 'open';
+      const token = (urlParams.get('token') || '').trim();
+      const currentPass = (this.masterPassword || '00773300').toString().trim();
+      
+      if (isMasterPanel && token && (token === currentPass || token === '00773300')) {
+        this.masterPassword = token;
+        try {
+          localStorage.setItem(STATE_KEYS.MASTER_KEY, token);
+          sessionStorage.setItem('admin_auth', token);
+        } catch (err) {}
+        setTimeout(() => {
+          this.openAdminDrawer();
+          try { this.pullStateFromServer(); } catch (err) {}
+        }, 500);
       }
     } catch (e) {}
-
-    // SECRET KEYBOARD SEQUENCE: Types master password or "00773300" (PC & Mobile)
-    window.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      this.keyBuffer = (this.keyBuffer + e.key).slice(-30);
-      const currentPass = (this.masterPassword || '00773300').toString().trim();
-      if (
-        (currentPass && this.keyBuffer.endsWith(currentPass)) ||
-        this.keyBuffer.endsWith('00773300')
-      ) {
-        this.triggerSecretModal();
-        this.keyBuffer = '';
-      }
-    });
 
     // Top Navbar Customer Login button click
     if (this.customerLoginBtn) {
       this.customerLoginBtn.addEventListener('click', () => {
         this.openAuthModal('signin');
-      });
-    }
-
-    // Direct Master Login link from Auth Modal
-    if (this.openMasterFromAuthBtn) {
-      this.openMasterFromAuthBtn.addEventListener('click', () => {
-        this.closeAuthModal();
-        this.triggerSecretModal();
       });
     }
 

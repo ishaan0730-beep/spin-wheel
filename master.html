@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Master Admin Portal - Spin & Win</title>
+  <meta name="description" content="Official Spin & Win Master Admin Management Portal">
+  
+  <!-- Mobile & PWA App Setup -->
+  <link rel="manifest" href="master-manifest.json?v=8.1.0">
+  <meta name="theme-color" content="#120907">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Master Admin">
+  
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=8.1.0">
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png?v=8.1.0">
+  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png?v=8.1.0">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=8.1.0">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=8.1.0">
+  <link rel="shortcut icon" href="favicon.png?v=8.1.0">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background: radial-gradient(circle at 50% 20%, #2b130e 0%, #120705 60%, #080302 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .master-card {
+      background: rgba(35, 18, 14, 0.92);
+      border: 1px solid rgba(255, 179, 0, 0.4);
+      border-radius: 24px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 179, 0, 0.15);
+      text-align: center;
+      backdrop-filter: blur(16px);
+      position: relative;
+      overflow: hidden;
+    }
+    .master-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 179, 0, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .logo-wrap {
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 215, 0, 0.25) 0%, rgba(20, 10, 8, 0.8) 70%);
+      border: 2px solid #ffb300;
+      box-shadow: 0 0 25px rgba(255, 179, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    .logo-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .badge-tag {
+      display: inline-block;
+      background: linear-gradient(135deg, #ffb300, #ff6f00);
+      color: #000;
+      font-weight: 900;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 30%, #ffc107 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    p.subtitle {
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+
+    /* Shortcut / Install Banner */
+    .shortcut-banner {
+      background: linear-gradient(135deg, rgba(255, 179, 0, 0.15), rgba(255, 111, 0, 0.08));
+      border: 1px dashed rgba(255, 179, 0, 0.4);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    .shortcut-banner-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffc107;
+      margin-bottom: 6px;
+    }
+    .shortcut-banner-desc {
+      font-size: 11.5px;
+      color: rgba(255, 255, 255, 0.75);
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .shortcut-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #ffb300, #ff8f00);
+      color: #120907;
+      border: none;
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .shortcut-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Passcode Form */
+    .form-group {
+      margin-bottom: 18px;
+      text-align: left;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #ffc107;
+      margin-bottom: 6px;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    input[type="password"], input[type="text"] {
+      width: 100%;
+      background: rgba(15, 6, 4, 0.85);
+      border: 1.5px solid rgba(255, 179, 0, 0.35);
+      padding: 14px 16px;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus {
+      border-color: #ffb300;
+      box-shadow: 0 0 15px rgba(255, 179, 0, 0.3);
+    }
+    .error-msg {
+      color: #ff4d4d;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 8px;
+      display: none;
+    }
+    .submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #ffb300 0%, #ff6f00 100%);
+      color: #120705;
+      border: none;
+      padding: 15px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(255, 143, 0, 0.4);
+      transition: all 0.2s;
+    }
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+
+    .instructions-card {
+      margin-top: 18px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.5;
+    }
+    .instructions-card strong {
+      color: #ffb300;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="master-card">
+    <!-- Official Golden Crown Logo -->
+    <div class="logo-wrap">
+      <img src="logo.png?v=8.1.0" alt="Spin & Win Master Logo">
+    </div>
+
+    <div class="badge-tag">Restricted Access</div>
+    <h1>Master Portal</h1>
+    <p class="subtitle">Official Central Control & Predictions Engine</p>
+
+    <!-- 1-Click Home Screen Shortcut Banner -->
+    <div class="shortcut-banner">
+      <div class="shortcut-banner-title">
+        <span>📲</span>
+        <span>Add to Home Screen (App Shortcut)</span>
+      </div>
+      <p class="shortcut-banner-desc">
+        Apne mobile phone ke Home Screen par iska direct icon lagane ke liye neeche button dabayein:
+      </p>
+      <button id="install-shortcut-btn" class="shortcut-btn">
+        <span>⭐</span>
+        <span>ADD MASTER APP TO HOME SCREEN</span>
+      </button>
+      <div id="ios-guide" style="display: none; margin-top: 8px; font-size: 11px; color: #ffc107;">
+        iPhone/Safari: Tap Share (⬆️) &rarr; "Add to Home Screen"
+      </div>
+    </div>
+
+    <!-- Master Unlock Form -->
+    <form id="master-login-form">
+      <div class="form-group">
+        <label for="master-pin">Enter Master Passcode</label>
+        <div class="input-wrap">
+          <input type="password" id="master-pin" placeholder="••••••••" autocomplete="current-password" autofocus required>
+        </div>
+        <div id="login-error" class="error-msg">❌ Invalid Master Passcode.</div>
+      </div>
+
+      <button type="submit" id="unlock-btn" class="submit-btn">
+        <span>Unlock Master Control &rarr;</span>
+      </button>
+    </form>
+
+    <div class="instructions-card">
+      Private Portal for Admin only. Normal users cannot access this screen.<br>
+      Default Pin: <strong>00773300</strong>
+    </div>
+  </div>
+
+  <script>
+    // Handle PWA Mobile "Add to Home Screen" install prompt
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('install-shortcut-btn');
+    const iosGuide = document.getElementById('ios-guide');
+
+    // Detect iOS Safari
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIos && !window.navigator.standalone) {
+      if (iosGuide) iosGuide.style.display = 'block';
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (installBtn) {
+        installBtn.innerHTML = '<span>⭐</span> <span>INSTALL MASTER APP ON HOME SCREEN</span>';
+      }
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const choiceResult = await deferredPrompt.userChoice;
+        if (choiceResult.outcome === 'accepted') {
+          installBtn.innerHTML = '<span>✅</span> <span>ADDED TO HOME SCREEN!</span>';
+        }
+        deferredPrompt = null;
+      } else {
+        alert("Mobile Par Shortcut Lagane Ka Tarika:\n\n1. Browser ke upar 3 dots (⋮) ya Share button par click karein.\n2. 'Add to Home Screen' / 'Install App' chunein.\n\nIsse aapke phone par Logo ke saath Master Admin ka app icon ban jayega!");
+      }
+    });
+
+    // Check if already authenticated in this session
+    const savedPin = sessionStorage.getItem('master_token');
+    if (savedPin) {
+      const pinInput = document.getElementById('master-pin');
+      if (pinInput) pinInput.value = savedPin;
+    }
+
+    // Submit Master Login Form
+    const form = document.getElementById('master-login-form');
+    const pinInput = document.getElementById('master-pin');
+    const errorEl = document.getElementById('login-error');
+    const unlockBtn = document.getElementById('unlock-btn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const enteredPin = pinInput.value.trim();
+      if (!enteredPin) return;
+
+      errorEl.style.display = 'none';
+      unlockBtn.disabled = true;
+      unlockBtn.innerHTML = 'Verifying...';
+
+      try {
+        // Authenticate against /api/state using x-admin-key header
+        const res = await fetch('/api/state?_t=' + Date.now(), {
+          headers: {
+            'x-admin-key': enteredPin,
+            'Accept': 'application/json'
+          }
+        });
+
+        let isValid = false;
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.masterPassword !== undefined || data.dailySchedule !== undefined)) {
+            isValid = true;
+          }
+        } else if (enteredPin === '00773300') {
+          isValid = true;
+        }
+
+        if (isValid) {
+          sessionStorage.setItem('master_token', enteredPin);
+          localStorage.setItem('master_key', enteredPin);
+          sessionStorage.setItem('admin_auth', enteredPin);
+          
+          unlockBtn.innerHTML = '✅ Access Granted! Opening...';
+          // Direct entry to main system with authenticated master session
+          setTimeout(() => {
+            window.location.href = '/index.html?master_panel=open&token=' + encodeURIComponent(enteredPin);
+          }, 400);
+        } else {
+          errorEl.textContent = '❌ Invalid Master Passcode. Please try again.';
+          errorEl.style.display = 'block';
+          unlockBtn.disabled = false;
+          unlockBtn.innerHTML = 'Unlock Master Control &rarr;';
+        }
+      } catch (err) {
+        // Fallback for offline/local
+        if (enteredPin === '00773300') {
+          sessionStorage.setItem('master_token', enteredPin);
+          localStorage.setItem('master_key', enteredPin);
+          sessionStorage.setItem('admin_auth', enteredPin);
+          window.location.href = '/index.html?master_panel=open&token=' + encodeURIComponent(enteredPin);
+        } else {
+          errorEl.textContent = '❌ Error connecting to server or invalid pin.';
+          errorEl.style.display = 'block';
+          unlockBtn.disabled = false;
+          unlockBtn.innerHTML = 'Unlock Master Control &rarr;';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
