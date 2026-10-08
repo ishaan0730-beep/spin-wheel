@@ -9,19 +9,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
-    <link rel="manifest" href="manifest.json?v=7.8.5">
+    <link rel="manifest" href="manifest.json?v=7.9.0">
   <meta name="theme-color" content="#381c19">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Spin & Wheel">
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=7.8.5">
-  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png?v=7.8.5">
-  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png?v=7.8.5">
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7.8.5">
-  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7.8.5">
-  <link rel="shortcut icon" href="favicon.png?v=7.8.5">
-  <link rel="stylesheet" href="style.css?v=7.8.5">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=7.9.0">
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png?v=7.9.0">
+  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png?v=7.9.0">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7.9.0">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7.9.0">
+  <link rel="shortcut icon" href="favicon.png?v=7.9.0">
+  <link rel="stylesheet" href="style.css?v=7.9.0">
   <script>
     if (window.location.hostname.includes('vercel.app')) {
       window.location.replace('https://www.spinandwin.world' + window.location.pathname + window.location.search);
@@ -421,7 +421,7 @@
       </div>
       <div style="padding:0.75rem 1.25rem 0 1.25rem;">
         <button type="button" class="btn btn-gold btn-block" style="display:flex; align-items:center; justify-content:center; gap:8px; font-weight:800; background:linear-gradient(135deg, #1f6448, #2ecc71); border-color:#2ecc71;" onclick="app.closeHelpModal(); app.openSupportChatModal();">
-          <span>💬</span> Chat Directly with Master Support (24/7 Online)
+          <span>💬</span> Chat Directly with Live Support (24/7 Online)
         </button>
       </div>
       <div class="modal-body">
@@ -513,7 +513,7 @@
               <!-- UPI ID & One-Click Copy -->
               <div class="cust-upi-copy-row" style="margin-top:0.4rem; background:rgba(0,0,0,0.45); border:1px dashed rgba(0,240,255,0.4); border-radius:6px; padding:0.4rem 0.6rem; display:flex; justify-content:space-between; align-items:center; gap:6px;">
                 <div style="text-align:left; overflow:hidden;">
-                  <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Master UPI ID (Account: <span id="cust-deposit-acc-name" style="color:#fff; font-weight:700;">DEEP</span>)</span>
+                  <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Official Deposit UPI ID (Account: <span id="cust-deposit-acc-name" style="color:#fff; font-weight:700;">DEEP</span>)</span>
                   <strong id="cust-deposit-upi-id" style="font-family:monospace; color:#00f0ff; font-size:0.85rem; word-break:break-all;">00000000</strong>
                 </div>
                 <button type="button" id="cust-copy-upi-btn" class="btn btn-secondary btn-xs" style="color:#ffd700; border-color:rgba(245,176,65,0.4); white-space:nowrap;">📋 Copy UPI</button>
@@ -586,7 +586,7 @@
                 <span style="font-size:1.1rem;">⚡</span>
                 <span style="font-size:0.75rem; color:var(--primary-gold-bright); font-weight:700;">Min. Withdrawal: 270 IHD Coins (1 IHD = ₹1)</span>
               </div>
-              <p style="font-size:0.7rem; color:var(--text-secondary); margin:3px 0 0 0;">Money is transferred directly to your bank account after Master confirmation.</p>
+              <p style="font-size:0.7rem; color:var(--text-secondary); margin:3px 0 0 0;">Money is transferred directly to your bank account after verification.</p>
             </div>
 
             <form id="customer-withdraw-form" onsubmit="return false;">
@@ -2564,15 +2564,7 @@
     </div>
 
     <!-- Menu Items List -->
-        <div class="cric-drawer-menu-list">
-      <!-- MASTER ADMIN PORTAL ROW -->
-      <div class="cric-menu-row" id="cric-row-master-admin" style="background:linear-gradient(90deg, rgba(255,215,0,0.15), rgba(255,107,0,0.12)); border-left:3px solid #ffd700; cursor:pointer;" onclick="app.triggerSecretModal();">
-        <span class="cric-row-icon">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="#ffd700"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>
-        </span>
-        <span class="cric-row-name" style="color:#ffd700; font-weight:800;">Master Admin Control</span>
-        <span class="cric-row-badge" style="background:#ffd700; color:#000; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:8px;">MASTER</span>
-      </div>
+    <div class="cric-drawer-menu-list">
       <!-- DOWNLOAD MOBILE APP MENU ROW -->
       <div class="cric-menu-row" id="cric-row-download-app" style="background:linear-gradient(90deg, rgba(0,240,255,0.12), rgba(245,176,65,0.12)); border-left:3px solid #00f0ff; cursor:pointer;" onclick="app.openDownloadAppModal()">
         <span class="cric-row-icon">
@@ -2910,7 +2902,7 @@
           </h3>
           <div class="chat-header-status">
             <span style="display:inline-block; width:8px; height:8px; background:#2ecc71; border-radius:50%; box-shadow:0 0 8px #2ecc71;"></span>
-            <span>Master Admin Online & Ready to Help</span>
+            <span>Support Team Online & Ready to Help</span>
           </div>
         </div>
         <button type="button" class="icon-btn" onclick="app.closeCricModals()">&times;</button>
@@ -2922,7 +2914,7 @@
           <button type="button" class="chat-chip-btn" onclick="app.sendQuickChatQuery('💰 Deposit Help: I made a payment, please approve my coins.')">💰 Deposit Help</button>
           <button type="button" class="chat-chip-btn" onclick="app.sendQuickChatQuery('💸 Withdrawal Help: When will my withdrawal be sent to my bank account?')">💸 Withdrawal Status</button>
           <button type="button" class="chat-chip-btn" onclick="app.sendQuickChatQuery('🎰 Prediction Help: How does 9x multiplier prediction payout work?')">🎰 How to Win 9x</button>
-          <button type="button" class="chat-chip-btn" onclick="app.sendQuickChatQuery('👑 I need to speak directly with Master Admin.')">👑 Talk to Admin</button>
+          <button type="button" class="chat-chip-btn" onclick="app.sendQuickChatQuery('🎧 I need to speak directly with Support.')">🎧 Talk to Support</button>
         </div>
 
         <!-- Chat Messages Thread -->
@@ -2930,16 +2922,16 @@
           <div class="chat-msg msg-admin">
             <div class="chat-msg-bubble">
               👋 <b>Welcome to Spin & Wheel 24/7 Live Support!</b><br>
-              Directly connected to Master Admin. If you have any questions about deposits, withdrawals, predictions, or coin credits, please message us below for instant assistance!
+              If you have any questions about deposits, withdrawals, predictions, or coin credits, please message us below for instant assistance!
             </div>
             <div class="chat-msg-meta">
-              <span>👑 Master Support</span> &bull; <span id="chat-welcome-time">Live</span>
+              <span>🎧 Live Support</span> &bull; <span id="chat-welcome-time">Live</span>
             </div>
           </div>
         </div>
         <!-- Input Bar -->
         <div class="chat-input-bar">
-          <input type="text" id="cust-chat-input" class="chat-input" placeholder="Type message to Master Admin..." onkeydown="if(event.key==='Enter'){event.preventDefault(); app.handleCustomerSendChat();}">
+          <input type="text" id="cust-chat-input" class="chat-input" placeholder="Type your message here..." onkeydown="if(event.key==='Enter'){event.preventDefault(); app.handleCustomerSendChat();}">
           <button type="button" id="cust-chat-send-btn" class="btn btn-gold" style="padding:8px 14px; font-weight:800;" onclick="app.handleCustomerSendChat()">
             Send ➔
           </button>

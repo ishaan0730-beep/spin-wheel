@@ -4,12 +4,19 @@
 let globalState = {
   slices: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
   history: [
-    { id: 1791369600000, number: 90, time: '04:00 PM', date: 'Oct 7', round: '04:00 PM', source: 'Scheduled Round', timestamp: 1791369600000 },
-    { id: 1791355200000, number: 40, time: '12:00 PM', date: 'Oct 7', round: '12:00 PM', source: 'Slot 12:00 PM', timestamp: 1791355200000 },
-    { id: 1791308400000, number: 80, time: '11:00 PM', date: 'Oct 6', round: '11:00 PM', source: 'Scheduled Round', timestamp: 1791308400000 },
-    { id: 1791297600000, number: 30, time: '08:00 PM', date: 'Oct 6', round: '08:00 PM', source: 'Scheduled Round', timestamp: 1791297600000 },
-    { id: 1791283200000, number: 50, time: '04:00 PM', date: 'Oct 6', round: '04:00 PM', source: 'Scheduled Round', timestamp: 1791283200000 },
-    { id: 1791268800000, number: 70, time: '12:00 PM', date: 'Oct 6', round: '12:00 PM', source: 'Scheduled Round', timestamp: 1791268800000 }
+    { id: 1791441600000, number: 80, time: '12:00 PM', date: 'Oct 8', round: '12:00 PM', source: 'Scheduled Round', timestamp: 1791441600000 },
+    { id: 1791394800000, number: 50, time: '11:00 PM', date: 'Oct 7', round: '11:00 PM', source: 'Scheduled Round', timestamp: 1791394800000 },
+    { id: 1791383400000, number: 60, time: '08:00 PM', date: 'Oct 7', round: '08:00 PM', source: 'Scheduled Round', timestamp: 1791383400000 },
+    { id: 1791369000000, number: 90, time: '04:00 PM', date: 'Oct 7', round: '04:00 PM', source: 'Scheduled Round', timestamp: 1791369000000 },
+    { id: 1791354600000, number: 40, time: '12:00 PM', date: 'Oct 7', round: '12:00 PM', source: 'Scheduled Round', timestamp: 1791354600000 },
+    { id: 1791307800000, number: 80, time: '11:00 PM', date: 'Oct 6', round: '11:00 PM', source: 'Scheduled Round', timestamp: 1791307800000 },
+    { id: 1791297000000, number: 10, time: '08:00 PM', date: 'Oct 6', round: '08:00 PM', source: 'Scheduled Round', timestamp: 1791297000000 },
+    { id: 1791282600000, number: 30, time: '04:00 PM', date: 'Oct 6', round: '04:00 PM', source: 'Scheduled Round', timestamp: 1791282600000 },
+    { id: 1791268200000, number: 20, time: '12:00 PM', date: 'Oct 6', round: '12:00 PM', source: 'Scheduled Round', timestamp: 1791268200000 },
+    { id: 1791221400000, number: 50, time: '11:00 PM', date: 'Oct 5', round: '11:00 PM', source: 'Scheduled Round', timestamp: 1791221400000 },
+    { id: 1791210600000, number: 70, time: '08:00 PM', date: 'Oct 5', round: '08:00 PM', source: 'Scheduled Round', timestamp: 1791210600000 },
+    { id: 1791196200000, number: 100, time: '04:00 PM', date: 'Oct 5', round: '04:00 PM', source: 'Scheduled Round', timestamp: 1791196200000 },
+    { id: 1791181800000, number: 90, time: '12:00 PM', date: 'Oct 5', round: '12:00 PM', source: 'Scheduled Round', timestamp: 1791181800000 }
   ],
   forcedNext: null,
   upcomingQueue: ["AUTO", "AUTO", "AUTO"],
@@ -213,51 +220,60 @@ function sanitizeHistoryList(list) {
     let num = Number(item.number);
     let dateStr = String(item.date || '').trim();
 
-    // Fix 12:00 PM on Oct 7 if it was incorrectly set to 60
-    if ((dateStr.includes('Oct 7') || dateStr.includes('7')) && (cleanRound === '12:00 PM' || cleanTime.includes('12:00'))) {
-      num = 40;
-    }
-    if ((dateStr.includes('Oct 7') || dateStr.includes('7')) && (cleanRound === '04:00 PM' || cleanTime.includes('04:00') || cleanTime.includes('4:00'))) {
-      num = 90;
+    if (!slices.includes(num)) {
+      num = slices.find(s => s === num) || 80;
     }
 
+    const ts = Number(item.timestamp || item.id || Date.now());
     const cleanItem = {
       ...item,
+      id: item.id || ts,
       number: num,
       time: cleanTime,
       round: cleanRound,
       date: dateStr,
-      timestamp: item.timestamp || item.id || Date.now()
+      source: item.source || 'Scheduled Round',
+      timestamp: ts
     };
 
     const key = `${dateStr}_${cleanRound}`;
     if (!histMap.has(key)) {
       histMap.set(key, cleanItem);
+    } else {
+      const existing = histMap.get(key);
+      if (ts > (existing.timestamp || 0)) {
+        histMap.set(key, cleanItem);
+      }
     }
   });
 
-  const sorted = Array.from(histMap.values())
+  return Array.from(histMap.values())
     .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
     .slice(0, 150);
+}
 
-  return sorted;
+function getNowIST() {
+  const d = new Date();
+  const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+  return new Date(utc + (3600000 * 5.5));
 }
 
 function settleServerElapsedSlots() {
-  const now = new Date();
+  const nowIST = getNowIST();
   const slices = globalState.slices || [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
   let changed = false;
 
   [2, 1, 0].forEach(dayOffset => {
-    const d = new Date(now);
+    const d = new Date(nowIST);
     d.setDate(d.getDate() - dayOffset);
     const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
     DAILY_SLOTS.forEach(slot => {
-      const slotTime = new Date(d);
-      slotTime.setHours(slot.hour, slot.min, 0, 0);
+      const slotTimeIST = new Date(d);
+      slotTimeIST.setHours(slot.hour, slot.min, 0, 0);
 
-      if (slotTime.getTime() <= now.getTime()) {
+      // Compare slot time in IST against current IST time
+      if (slotTimeIST.getTime() <= nowIST.getTime()) {
         const slotLabel = slot.label;
         const exists = (globalState.history || []).some(h => {
           if (!h) return false;
@@ -280,6 +296,12 @@ function settleServerElapsedSlots() {
               winningNum = 40;
             } else if (dateStr.includes('Oct 7') && slotLabel === '04:00 PM') {
               winningNum = 90;
+            } else if (dateStr.includes('Oct 7') && slotLabel === '08:00 PM') {
+              winningNum = 60;
+            } else if (dateStr.includes('Oct 7') && slotLabel === '11:00 PM') {
+              winningNum = 50;
+            } else if (dateStr.includes('Oct 8') && slotLabel === '12:00 PM') {
+              winningNum = 80;
             } else {
               let hash = 0;
               const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;
@@ -293,13 +315,13 @@ function settleServerElapsedSlots() {
           }
 
           const entry = {
-            id: slotTime.getTime(),
+            id: slotTimeIST.getTime(),
             number: winningNum,
             time: slotLabel,
             date: dateStr,
             round: slotLabel,
             source: 'Scheduled Round',
-            timestamp: slotTime.getTime()
+            timestamp: slotTimeIST.getTime()
           };
 
           if (!Array.isArray(globalState.history)) globalState.history = [];

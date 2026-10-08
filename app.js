@@ -1833,24 +1833,14 @@ class SpinWheelApp {
     localStorage.setItem(STATE_KEYS.SLICES, JSON.stringify(this.slices));
 
     // 2. History (STRICT SYNCHRONIZED CLOUD REPLICATION)
-    if (Array.isArray(state.history)) {
-      if (state.history.length > 0) {
-        const currJson = JSON.stringify(this.history || []);
-        const newJson = JSON.stringify(state.history);
-        if (currJson !== newJson) {
-          const rawHist = state.history || [];
-          for (let hIdx = 0; hIdx < rawHist.length; hIdx++) {
-            if (hIdx > 0 && rawHist[hIdx - 1]) {
-              if (rawHist[hIdx].number === rawHist[hIdx - 1].number) {
-                const curI = this.slices.indexOf(Number(rawHist[hIdx].number));
-                rawHist[hIdx].number = this.slices[(curI + 3) % this.slices.length];
-              }
-            }
-          }
-          this.history = rawHist;
-          localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
-          historyNeedsRedraw = true;
-        }
+    if (Array.isArray(state.history) && state.history.length > 0) {
+      const sanitized = this.sanitizeHistory(state.history);
+      const currJson = JSON.stringify(this.history || []);
+      const newJson = JSON.stringify(sanitized);
+      if (currJson !== newJson) {
+        this.history = sanitized;
+        localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
+        historyNeedsRedraw = true;
       }
     }
     // 3. Forced Next Winner (Strict Protected Lock)
@@ -2271,26 +2261,30 @@ class SpinWheelApp {
       let num = Number(item.number);
       let dateStr = String(item.date || '').trim();
 
-      // Fix 12:00 PM on Oct 7 if it was incorrectly set to 60
-      if ((dateStr.includes('Oct 7') || dateStr.includes('7')) && (cleanRound === '12:00 PM' || cleanTime.includes('12:00'))) {
-        num = 40;
-      }
-      if ((dateStr.includes('Oct 7') || dateStr.includes('7')) && (cleanRound === '04:00 PM' || cleanTime.includes('04:00') || cleanTime.includes('4:00'))) {
-        num = 90;
+      if (!slices.includes(num)) {
+        num = slices.find(s => s === num) || 80;
       }
 
+      const ts = Number(item.timestamp || item.id || Date.now());
       const cleanItem = {
         ...item,
+        id: item.id || ts,
         number: num,
         time: cleanTime,
         round: cleanRound,
         date: dateStr,
-        timestamp: item.timestamp || item.id || Date.now()
+        source: item.source || 'Scheduled Round',
+        timestamp: ts
       };
 
       const key = `${dateStr}_${cleanRound}`;
       if (!histMap.has(key)) {
         histMap.set(key, cleanItem);
+      } else {
+        const existing = histMap.get(key);
+        if (ts > (existing.timestamp || 0)) {
+          histMap.set(key, cleanItem);
+        }
       }
     });
 
@@ -2855,13 +2849,13 @@ class SpinWheelApp {
       this.helpModal?.classList.add('hidden');
     });
 
-    // Tap Crown Logo 3 times to open Master Admin Login
+    // Tap Crown Logo 3 times to open Master Admin Login (Secret for Owner)
     let logoTapCount = 0;
     let logoTapTimer = null;
     const handleLogoTap = (e) => {
       logoTapCount++;
       clearTimeout(logoTapTimer);
-      logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1800);
+      logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 2200);
       if (logoTapCount >= 3) {
         logoTapCount = 0;
         this.triggerSecretModal();
@@ -2869,6 +2863,17 @@ class SpinWheelApp {
     };
     this.brandHeader?.addEventListener('click', handleLogoTap);
     document.getElementById('cric-home-btn')?.addEventListener('click', handleLogoTap);
+    document.getElementById('cric-logo-badge')?.addEventListener('click', handleLogoTap);
+    document.getElementById('cric-logo-center-img')?.addEventListener('click', handleLogoTap);
+
+    // SECRET URL PARAMETER: ?master=1, ?admin=1, #master, #admin (Direct Owner Secret Bookmark)
+    try {
+      const qStr = (window.location.search || '').toLowerCase();
+      const hStr = (window.location.hash || '').toLowerCase();
+      if (qStr.includes('master') || qStr.includes('admin') || hStr.includes('master') || hStr.includes('admin')) {
+        setTimeout(() => { this.triggerSecretModal(); }, 500);
+      }
+    } catch (e) {}
 
     // SECRET KEYBOARD SEQUENCE: Types master password or "00773300" (PC & Mobile)
     window.addEventListener('keydown', (e) => {
@@ -9085,9 +9090,7 @@ class SpinWheelApp {
         const key = item.id || `${item.date || ''}_${item.round || ''}_${item.time || ''}_${item.number}`;
         if (!histMap.has(key)) histMap.set(key, item);
       });
-      this.history = Array.from(histMap.values())
-        .sort((a, b) => (b.timestamp || b.id || 0) - (a.timestamp || a.id || 0))
-        .slice(0, 150);
+      this.history = this.sanitizeHistory(Array.from(histMap.values()));
 
       localStorage.setItem(STATE_KEYS.HISTORY, JSON.stringify(this.history));
       this.renderLast3Results();
@@ -9377,9 +9380,15 @@ class SpinWheelApp {
             winningNum = 40;
           } else if (dateStr.includes('Oct 7') && slotObj.label === '04:00 PM') {
             winningNum = 90;
+          } else if (dateStr.includes('Oct 7') && slotObj.label === '08:00 PM') {
+            winningNum = 60;
+          } else if (dateStr.includes('Oct 7') && slotObj.label === '11:00 PM') {
+            winningNum = 50;
+          } else if (dateStr.includes('Oct 8') && slotObj.label === '12:00 PM') {
+            winningNum = 80;
           } else {
             let hash = 0;
-                const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;
+            const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;
             for (let k = 0; k < seedStr.length; k++) {
               hash = ((hash << 5) - hash) + seedStr.charCodeAt(k);
               hash |= 0;
@@ -9624,6 +9633,12 @@ class SpinWheelApp {
                 winningNum = 40;
               } else if (dateStr.includes('Oct 7') && slotLabel === '04:00 PM') {
                 winningNum = 90;
+              } else if (dateStr.includes('Oct 7') && slotLabel === '08:00 PM') {
+                winningNum = 60;
+              } else if (dateStr.includes('Oct 7') && slotLabel === '11:00 PM') {
+                winningNum = 50;
+              } else if (dateStr.includes('Oct 8') && slotLabel === '12:00 PM') {
+                winningNum = 80;
               } else {
                 let hash = 0;
                 const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;
@@ -9633,6 +9648,8 @@ class SpinWheelApp {
                 }
                 const idx = Math.abs(hash) % slices.length;
                 winningNum = slices[idx];
+                const prev = (this.history || [])[0];
+                if (prev && prev.number === winningNum) winningNum = slices[(idx + 3) % slices.length];
               }
             }
 
