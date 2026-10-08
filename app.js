@@ -1166,6 +1166,7 @@ class SpinWheelApp {
   }
 
   async init() {
+    this.initLaunchSplash();
     this.setupCanvasDPI();
     this.bindEvents();
     this.bindCustomerEvents();
@@ -1211,6 +1212,80 @@ class SpinWheelApp {
     }
 
     this.startServerPolling();
+  }
+
+  initLaunchSplash() {
+    const splash = document.getElementById('app-launch-splash');
+    const fill = document.getElementById('splash-progress-fill');
+    const statusMsg = document.getElementById('splash-status-msg');
+    const percentTxt = document.getElementById('splash-percent-txt');
+
+    if (!splash || !fill) return;
+
+    // Total target duration: 6.2 seconds (between 5-9 seconds as requested)
+    const targetDurationMs = 6200;
+    const startTime = Date.now();
+    let currentPercent = 0;
+    let isCompleted = false;
+
+    const statusMilestones = [
+      { at: 0, msg: "⚡ Connecting to Live High-Speed Game Servers..." },
+      { at: 22, msg: "🔄 Syncing Daily Slots, Wheel Data & History..." },
+      { at: 48, msg: "🔒 Verifying Player Balance & Safety Encryption..." },
+      { at: 72, msg: "🎲 Finalizing Prediction Engine & Live Canvas..." },
+      { at: 92, msg: "✨ Welcome to Spin & Wheel! Launching Game..." }
+    ];
+
+    const finishSplash = () => {
+      if (isCompleted) return;
+      isCompleted = true;
+
+      try {
+        this.alignWheelToLatestResult();
+        this.renderWheel();
+        this.renderLast3Results();
+        this.updateCustomerUI();
+      } catch (e) {}
+
+      setTimeout(() => {
+        splash.classList.add('splash-hide');
+        setTimeout(() => {
+          splash.style.display = 'none';
+        }, 650);
+      }, 300);
+    };
+
+    const updateInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      let progress = (elapsed / targetDurationMs) * 100;
+
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(updateInterval);
+      }
+
+      currentPercent = Math.min(100, Math.round(progress));
+      fill.style.width = `${currentPercent}%`;
+      if (percentTxt) percentTxt.textContent = `${currentPercent}%`;
+
+      const currentStatus = [...statusMilestones].reverse().find(m => currentPercent >= m.at);
+      if (currentStatus && statusMsg && statusMsg.textContent !== currentStatus.msg) {
+        statusMsg.textContent = currentStatus.msg;
+      }
+
+      if (progress >= 100) {
+        finishSplash();
+      }
+    }, 40);
+
+    // Optional tap to speed up if user is testing or in a rush
+    splash.addEventListener('click', () => {
+      if (currentPercent < 92) {
+        currentPercent = 95;
+        fill.style.width = '95%';
+        if (statusMsg) statusMsg.textContent = "✨ Launching Game...";
+      }
+    });
   }
 
   renderAllSpinHistoryModalList(searchQuery = '', slotFilter = 'ALL') {
