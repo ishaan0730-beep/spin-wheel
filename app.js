@@ -10770,6 +10770,37 @@ class SpinWheelApp {
     }, 100);
   }
 
+  toggleSound() {
+    this.isMuted = !this.isMuted;
+    try {
+      localStorage.setItem('lucky_spin_sound_muted', this.isMuted ? 'true' : 'false');
+    } catch (e) {}
+    const onIcon = document.getElementById('sound-icon-on');
+    const offIcon = document.getElementById('sound-icon-off');
+    if (onIcon && offIcon) {
+      if (this.isMuted) {
+        onIcon.classList.add('hidden');
+        offIcon.classList.remove('hidden');
+      } else {
+        onIcon.classList.remove('hidden');
+        offIcon.classList.add('hidden');
+      }
+    }
+    if (typeof this.showToast === 'function') {
+      this.showToast(this.isMuted ? '🔇 Sound Muted' : '🔊 Sound Enabled', 'info');
+    }
+  }
+
+  openSearchModal() {
+    this.closeCricDrawer();
+    const rulesModal = document.getElementById('cric-rules-modal') || document.getElementById('rules-modal');
+    if (rulesModal) {
+      rulesModal.classList.remove('hidden');
+    } else {
+      this.openHistoryModal();
+    }
+  }
+
   handleCustomerSendChat() {
     this.sendCustomerChatMessage();
   }

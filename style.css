@@ -2927,19 +2927,16 @@ body {
 }
 
 .cric-logo-text {
-  display: none !important;
+  display: inline-block;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1.15rem;
   font-weight: 900;
-  letter-spacing: 1.2px;
-  color: #f5a623;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #ffd700, #ff9900);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   text-shadow: 0 0 10px rgba(245, 166, 35, 0.4);
-}
-
-@media (min-width: 900px) {
-  .cric-logo-text {
-    display: inline-block !important;
-  }
+  white-space: nowrap;
 }
 
 .cric-top-deposit-btn {
@@ -4101,9 +4098,13 @@ input:checked + .cric-slider:before {
     height: 17px !important;
   }
 
-  /* Always hide the long text 'SPIN & WHEEL' on mobile so navbar never overflows */
+  /* Show SPIN & WHEEL text on mobile */
   .cric-logo-text {
-    display: none !important;
+    display: inline-block !important;
+    font-size: 0.82rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.3px !important;
+    white-space: nowrap !important;
   }
 
   #brand-header img {
@@ -4153,10 +4154,23 @@ input:checked + .cric-slider:before {
     font-weight: 800 !important;
   }
 
-  /* Hide secondary header buttons on mobile (<768px) so essential buttons never clip */
+  /* Display secondary header buttons cleanly on mobile */
   #sound-btn,
   #cric-header-chat-btn,
-  #cric-search-btn,
+  #cric-search-btn {
+    display: inline-flex !important;
+    width: 22px !important;
+    height: 22px !important;
+    padding: 0 !important;
+  }
+
+  #sound-btn svg,
+  #cric-header-chat-btn svg,
+  #cric-search-btn svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
   #cric-lang-btn {
     display: none !important;
   }
