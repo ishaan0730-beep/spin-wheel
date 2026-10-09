@@ -395,7 +395,6 @@
                 <th>Round Slot</th>
                 <th>Winning #</th>
                 <th>Date</th>
-                <th>Source</th>
               </tr>
             </thead>
             <tbody id="all-history-table-body">
@@ -1244,7 +1243,6 @@
                       <th>Slot Round</th>
                       <th>Winning #</th>
                       <th>Date & Time</th>
-                      <th>Source Type</th>
                     </tr>
                   </thead>
                   <tbody id="admin-spin-history-table-body">
@@ -3006,13 +3004,13 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=9.0.0').catch(err => console.log('SW registration error:', err));
+        navigator.serviceWorker.register('./sw.js?v=9.1.0').catch(err => console.log('SW registration error:', err));
       });
     }
   </script>
   <script src="mqtt.min.js"></script>
   <script src="confetti.js"></script>
-  <script src="app.js?v=9.0.0"></script>
+  <script src="app.js?v=9.1.0"></script>
   <script>
     if (typeof window.app !== 'undefined') {
       window.app = window.app;

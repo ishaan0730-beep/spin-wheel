@@ -1,5 +1,5 @@
 // Spin & Wheel - Service Worker for PWA Mobile App Support
-const CACHE_NAME = 'spin-wheel-v9.0.0';
+const CACHE_NAME = 'spin-wheel-v9.1.0';
 const STATIC_ASSETS = [
   './',
   './index.html',

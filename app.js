@@ -1324,7 +1324,7 @@ class SpinWheelApp {
     if (filtered.length === 0) {
       this.allHistoryTableBody.innerHTML = `
         <tr>
-          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+          <td colspan="3" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
             ${totalCount === 0 ? 'No spin rounds recorded yet.' : 'No spin results match the search/filter.'}
           </td>
         </tr>
@@ -1352,11 +1352,6 @@ class SpinWheelApp {
         </td>
         <td style="white-space:nowrap;">
           <span style="color:#f8fafc; font-weight:600; font-size:0.78rem;">${item.date || ''}</span>
-        </td>
-        <td style="white-space:nowrap;">
-          <span style="font-size:0.68rem; color:#00f0ff; background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.25); padding:2px 7px; border-radius:4px; font-weight:700;">
-            ${item.source || 'Live Round'}
-          </span>
         </td>
       `;
       this.allHistoryTableBody.appendChild(tr);
@@ -5406,6 +5401,18 @@ class SpinWheelApp {
     this.adminDrawer.classList.add('hidden');
   }
 
+  adminLogout() {
+    this.closeAdminDrawer();
+    sessionStorage.removeItem('admin_auth');
+    sessionStorage.removeItem('master_token');
+    localStorage.removeItem('master_key');
+    window.location.href = '/index.html';
+  }
+
+  closeHelpModal() {
+    if (this.helpModal) this.helpModal.classList.add('hidden');
+  }
+
   updateForcedWinnerUI() {
     if (this.forcedTargetNumberEl && this.forcedNext !== null && this.forcedNext !== undefined) {
       this.activeForcedIndicator?.classList.remove('hidden');
@@ -9355,7 +9362,7 @@ class SpinWheelApp {
     if (filtered.length === 0) {
       this.allHistoryTableBody.innerHTML = `
         <tr>
-          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+          <td colspan="3" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
             ${totalCount === 0 ? 'No spin rounds recorded yet. Auto-rounds will appear here automatically.' : 'No spin results match the search/filter.'}
           </td>
         </tr>
@@ -9383,11 +9390,6 @@ class SpinWheelApp {
         <td>
           <span style="color:#fff; font-size:0.75rem;">${item.date || ''}</span>
           <span style="color:var(--text-secondary); font-size:0.68rem; display:block;">${item.time || ''}</span>
-        </td>
-        <td>
-          <span style="font-size:0.68rem; color:#00f0ff; background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.25); padding:2px 6px; border-radius:4px;">
-            ${item.source || 'Live Round'}
-          </span>
         </td>
       `;
       this.allHistoryTableBody.appendChild(tr);
@@ -9424,7 +9426,7 @@ class SpinWheelApp {
     if (filtered.length === 0) {
       this.adminSpinHistoryTableBody.innerHTML = `
         <tr>
-          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
+          <td colspan="3" style="text-align:center; color:var(--text-muted); padding:1.2rem;">
             ${totalCount === 0 ? 'No spin rounds recorded yet.' : 'No spin history records match your search.'}
           </td>
         </tr>
@@ -9452,11 +9454,6 @@ class SpinWheelApp {
         <td>
           <span style="color:#fff; font-size:0.75rem;">${item.date || ''}</span>
           <span style="color:var(--text-muted); font-size:0.68rem;"> (${item.time || ''})</span>
-        </td>
-        <td>
-          <span style="font-size:0.68rem; color:#00f0ff;">
-            ${item.source || 'Auto Round'}
-          </span>
         </td>
       `;
       this.adminSpinHistoryTableBody.appendChild(tr);
@@ -11473,6 +11470,8 @@ function initSpinWheelApp() {
     window.adminConfirmRejectDeposit = () => window.app?.adminConfirmRejectDeposit();
     window.adminCloseRejectDepositModal = () => window.app?.adminCloseRejectDepositModal();
     window.handleRejectDepQuickReasonChange = (r) => window.app?.handleRejectDepQuickReasonChange(r);
+    window.adminLogout = () => window.app?.adminLogout();
+    window.closeHelpModal = () => window.app?.closeHelpModal();
     try { window.app = window.app; } catch (e) {}
   }
 }
