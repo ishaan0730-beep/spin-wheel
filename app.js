@@ -2728,7 +2728,7 @@ class SpinWheelApp {
   async sendWhatsAppNotification(text) {
     try {
       const cfg = this.notificationConfig || {};
-      let phone = (cfg.whatsappNumber || '7690900087').toString().replace(/[^\d]/g, '');
+      let phone = (cfg.whatsappNumber || '').toString().replace(/[^\d]/g, '');
       if (phone.startsWith('0')) phone = phone.substring(1);
       if (phone.length === 10) phone = '91' + phone;
       const apiKey = (cfg.whatsappApiKey || '').trim();
@@ -4223,10 +4223,19 @@ class SpinWheelApp {
     const session = mode === 'signup' ? this.activeSignupOtp : this.activeLoginOtp;
     const mobile = session?.mobile || '';
     const code = session?.code || '';
-    const adminPhone = (this.notificationConfig?.whatsappPhone || '7690900087').replace(/[^\d]/g, '');
+    const adminPhone = (this.notificationConfig?.whatsappPhone || this.notificationConfig?.whatsappNumber || '').replace(/[^\d]/g, '');
+    if (!adminPhone) {
+      this.showLiveToast({
+        title: '📲 SUPPORT CHAT',
+        message: 'Master Admin WhatsApp contact is currently unconfigured.',
+        type: 'warning'
+      });
+      return;
+    }
 
     const msg = `Hello Admin, I need help with Lucky Spin verification.\n📱 Mobile: +91 ${mobile}\n🔑 OTP Code: ${code}`;
-    const waUrl = `https://api.whatsapp.com/send?phone=91${adminPhone}&text=${encodeURIComponent(msg)}`;
+    const cleanPhone = adminPhone.length === 10 ? '91' + adminPhone : adminPhone;
+    const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
     window.open(waUrl, '_blank');
 
     this.showLiveToast({
