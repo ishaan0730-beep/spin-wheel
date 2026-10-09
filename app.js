@@ -1021,7 +1021,9 @@ class SpinWheelApp {
     this.adminCfgTgChatid = document.getElementById('admin-cfg-tg-chatid');
     this.adminCfgTgEnable = document.getElementById('admin-cfg-tg-enable');
     this.adminCfgWaNumber = document.getElementById('admin-cfg-wa-number');
+    this.adminCfgWaApikey = document.getElementById('admin-cfg-wa-apikey');
     this.adminTestTgBtn = document.getElementById('admin-test-tg-btn');
+    this.adminTestWaBtn = document.getElementById('admin-test-wa-btn');
     this.adminSaveNotificationsBtn = document.getElementById('admin-save-notifications-btn');
     this.adminNotificationFeedback = document.getElementById('admin-notification-feedback');
 
@@ -1030,8 +1032,10 @@ class SpinWheelApp {
     this.adminCfgTgChatidPane = document.getElementById('admin-cfg-tg-chatid-pane');
     this.adminCfgTgEnablePane = document.getElementById('admin-cfg-tg-enable-pane');
     this.adminCfgWaNumberPane = document.getElementById('admin-cfg-wa-number-pane');
+    this.adminCfgWaApikeyPane = document.getElementById('admin-cfg-wa-apikey-pane');
     this.adminSaveNotificationsBtnPane = document.getElementById('admin-save-notifications-btn-pane');
     this.adminTestTgBtnPane = document.getElementById('admin-test-tg-btn-pane');
+    this.adminTestWaBtnPane = document.getElementById('admin-test-wa-btn-pane');
     this.adminNotificationFeedbackPane = document.getElementById('admin-notification-feedback-pane');
     this.adminCfgQrPreviewImgPane = document.getElementById('admin-cfg-qr-preview-img-pane');
     this.adminCfgQrFileInputPane = document.getElementById('admin-cfg-qr-file-input-pane');
@@ -2839,6 +2843,35 @@ class SpinWheelApp {
       }
     } catch (e) {
       this.showNotificationFeedback(`❌ Connection Failed: ${e.message}`, false);
+    }
+  }
+
+  async sendWhatsAppTestNotification() {
+    const phone = (this.adminCfgWaNumberPane?.value || this.adminCfgWaNumber?.value || this.notificationConfig?.whatsappNumber || '').trim();
+    if (!phone) {
+      this.showNotificationFeedback('❌ Please enter Admin WhatsApp Number first!', false);
+      return;
+    }
+    const cleanPhone = phone.replace(/[^\d]/g, '');
+    const fullPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+    const testMsg = `🔔 LUCKY HOURLY SPIN - TEST ALERT\n\n✅ Mobile Notification connected successfully!\n🕒 Time: ${formatTime12(new Date())}\n\nYou will receive instant alerts on WhatsApp for Customer Registrations, Deposits, Withdrawals, Bets, and Live Winning Spins!`;
+
+    const apiKey = (this.notificationConfig?.whatsappApiKey || '').trim();
+    if (apiKey) {
+      this.showNotificationFeedback('⏳ Sending WhatsApp test alert via Gateway...', true);
+      try {
+        const url = `https://api.callmebot.com/whatsapp.php?phone=+${fullPhone}&text=${encodeURIComponent(testMsg)}&apikey=${encodeURIComponent(apiKey)}`;
+        await fetch(url);
+        this.showNotificationFeedback('🎉 WhatsApp test notification dispatched!', true);
+        if (this.audio) this.audio.playWinFanfare();
+      } catch (e) {
+        this.showNotificationFeedback(`❌ Failed to send via gateway: ${e.message}`, false);
+      }
+    } else {
+      const waUrl = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(testMsg)}`;
+      window.open(waUrl, '_blank');
+      this.showNotificationFeedback('📲 Opened WhatsApp with test notification message! (For automated background WhatsApp messages, provide CallMeBot API key or use Telegram alerts)', true);
+      if (this.audio) this.audio.playWinFanfare();
     }
   }
 
@@ -5916,6 +5949,8 @@ class SpinWheelApp {
 
     this.adminTestTgBtn?.addEventListener('click', () => this.sendTelegramTestNotification());
     this.adminTestTgBtnPane?.addEventListener('click', () => this.sendTelegramTestNotification());
+    this.adminTestWaBtn?.addEventListener('click', () => this.sendWhatsAppTestNotification());
+    this.adminTestWaBtnPane?.addEventListener('click', () => this.sendWhatsAppTestNotification());
 
     document.getElementById('admin-enable-browser-alerts-btn')?.addEventListener('click', () => {
       if (this.audio) {
@@ -9793,7 +9828,7 @@ class SpinWheelApp {
           if (!exists) {
             // 1. If admin predetermined this slot's winner, use that exact number!
             let winningNum = null;
-            if (dayOffset === 0 && this.dailySchedule && this.dailySchedule[slotLabel] && this.dailySchedule[slotLabel] !== 'AUTO') {
+            if (this.dailySchedule && this.dailySchedule[slotLabel] && this.dailySchedule[slotLabel] !== 'AUTO') {
               const sched = parseInt(this.dailySchedule[slotLabel], 10);
               if (slices.includes(sched)) winningNum = sched;
             }
@@ -9810,6 +9845,12 @@ class SpinWheelApp {
                 winningNum = 50;
               } else if (dateStr.includes('Oct 8') && slotLabel === '12:00 PM') {
                 winningNum = 80;
+              } else if (dateStr.includes('Oct 8') && slotLabel === '04:00 PM') {
+                winningNum = 90;
+              } else if (dateStr.includes('Oct 8') && slotLabel === '08:00 PM') {
+                winningNum = 60;
+              } else if (dateStr.includes('Oct 8') && slotLabel === '11:00 PM') {
+                winningNum = 50;
               } else {
                 let hash = 0;
                 const seedStr = `${dateStr}_${slotLabel}_lucky_salt_v9`;

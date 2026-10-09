@@ -1,9 +1,52 @@
+import fs from 'fs';
+import path from 'path';
+
 // Vercel Serverless Function: Shared Central State API (/api/state)
 // Secure Central State Management: Protects predetermined winners and admin password from public view!
+
+function getPersistenceFilePath() {
+  try {
+    const cwdFile = path.resolve(process.cwd(), 'server_state.json');
+    if (fs.existsSync(cwdFile)) return cwdFile;
+    return path.resolve('/tmp', 'server_state.json');
+  } catch (e) {
+    return null;
+  }
+}
+
+function loadPersistedState() {
+  try {
+    const filePath = getPersistenceFilePath();
+    if (filePath && fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf8');
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        globalState = {
+          ...globalState,
+          ...parsed,
+          customersDb: { ...(globalState.customersDb || {}), ...(parsed.customersDb || {}) },
+          dailySchedule: (parsed.dailySchedule && typeof parsed.dailySchedule === 'object') ? parsed.dailySchedule : globalState.dailySchedule,
+          notificationConfig: { ...(globalState.notificationConfig || {}), ...(parsed.notificationConfig || {}) },
+          depositConfig: { ...(globalState.depositConfig || {}), ...(parsed.depositConfig || {}) }
+        };
+      }
+    }
+  } catch (e) {}
+}
+
+function savePersistedState() {
+  try {
+    const filePath = getPersistenceFilePath() || path.resolve(process.cwd(), 'server_state.json');
+    fs.writeFileSync(filePath, JSON.stringify(globalState), 'utf8');
+  } catch (e) {}
+}
 
 let globalState = {
   slices: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
   history: [
+    { id: 1791500400000, number: 50, time: '11:00 PM', date: 'Oct 8', round: '11:00 PM', source: 'Scheduled Round', timestamp: 1791500400000 },
+    { id: 1791489600000, number: 60, time: '08:00 PM', date: 'Oct 8', round: '08:00 PM', source: 'Scheduled Round', timestamp: 1791489600000 },
+    { id: 1791475200000, number: 90, time: '04:00 PM', date: 'Oct 8', round: '04:00 PM', source: 'Scheduled Round', timestamp: 1791475200000 },
     { id: 1791441600000, number: 80, time: '12:00 PM', date: 'Oct 8', round: '12:00 PM', source: 'Scheduled Round', timestamp: 1791441600000 },
     { id: 1791394800000, number: 50, time: '11:00 PM', date: 'Oct 7', round: '11:00 PM', source: 'Scheduled Round', timestamp: 1791394800000 },
     { id: 1791383400000, number: 60, time: '08:00 PM', date: 'Oct 7', round: '08:00 PM', source: 'Scheduled Round', timestamp: 1791383400000 },
@@ -283,7 +326,7 @@ function settleServerElapsedSlots() {
 
         if (!exists) {
           let winningNum = null;
-          if (dayOffset === 0 && globalState.dailySchedule && globalState.dailySchedule[slotLabel] && globalState.dailySchedule[slotLabel] !== 'AUTO') {
+          if (globalState.dailySchedule && globalState.dailySchedule[slotLabel] && globalState.dailySchedule[slotLabel] !== 'AUTO') {
             const sched = parseInt(globalState.dailySchedule[slotLabel], 10);
             if (slices.includes(sched)) {
               winningNum = sched;
@@ -319,6 +362,7 @@ function settleServerElapsedSlots() {
 }
 
 export default async function handler(req, res) {
+  loadPersistedState();
   settleServerElapsedSlots();
 
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -632,6 +676,7 @@ export default async function handler(req, res) {
           globalState.version = Date.now();
         }
       }
+      savePersistedState();
       return res.status(200).json({ 
         status: 'ok', 
         version: globalState.version, 
